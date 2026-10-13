@@ -1,0 +1,41 @@
+---
+name: Bug Report
+about: Reporte um bug para nos ajudar a melhorar
+title: '[BUG] '
+labels: ['bug', 'triage']
+assignees: ''
+---
+
+## Descrição do Bug
+Descreva claramente o que está acontecendo.
+
+## Passos para Reproduzir
+1. Vá para '...'
+2. Clique em '...'
+3. Role até '...'
+4. Veja o erro
+
+## Comportamento Esperado
+O que deveria acontecer.
+
+## Comportamento Atual
+O que acontece de fato.
+
+## Logs / Stack Trace
+```
+Cole logs relevantes aqui
+```
+
+## Ambiente
+- OS: [ex: Ubuntu 22.04, macOS 14, Windows 11]
+- Node.js: [ex: 20.11.0]
+- Docker: [ex: 24.0.0] (se usando)
+- Navegador: [ex: Chrome 120, Firefox 121] (se frontend)
+
+## Contexto Adicional
+Screenshots, configuração relevante, etc.
+
+## Checklist
+- [ ] Verifiquei issues existentes
+- [ ] Testei na versão mais recente
+- [ ] Forneci logs completos

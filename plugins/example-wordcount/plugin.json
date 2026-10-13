@@ -1,0 +1,19 @@
+{
+  "name": "example-wordcount",
+  "version": "1.0.0",
+  "type": "transformer",
+  "description": "Example transformer: appends word/character counts to generated content",
+  "author": "RSS News Hub",
+  "license": "MIT",
+  "main": "index.js",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "maxWords": {
+        "type": "integer",
+        "description": "Warn threshold appended as a note when exceeded (0 disables)",
+        "default": 0
+      }
+    }
+  }
+}

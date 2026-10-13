@@ -1,0 +1,23 @@
+{
+  "name": "example-webhook-output",
+  "version": "1.0.0",
+  "type": "output",
+  "description": "Example output plugin: POSTs generated content to any webhook URL",
+  "author": "RSS News Hub",
+  "license": "MIT",
+  "main": "index.js",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "webhookUrl": {
+        "type": "string",
+        "description": "Endpoint that receives {text, parseMode} as JSON"
+      },
+      "extraHeaders": {
+        "type": "object",
+        "description": "Optional headers merged into the request"
+      }
+    },
+    "required": ["webhookUrl"]
+  }
+}

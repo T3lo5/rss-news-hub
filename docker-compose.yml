@@ -1,0 +1,39 @@
+# RSS News Hub - full stack: app (HTTP + scheduler) + database
+#
+#   docker compose up --build
+#
+# The database is SQLite (better-sqlite3). Its files live in the named volume
+# mounted at /app/data, so data survives restarts, `docker compose down` and
+# image rebuilds. Schema migrations run automatically on first boot.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rss-news-hub:latest
+    container_name: rss-news-hub
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      NODE_ENV: production
+      PORT: "${PORT:-3000}"
+    # Secrets (Telegram, AI provider keys). Optional: the app boots without it.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      # SQLite database files (rss-news-hub.db + WAL)
+      - rss-news-hub-data:/app/data
+      # Plugin configuration (config/plugins.yaml)
+      - rss-news-hub-config:/app/config
+    restart: unless-stopped
+    # Healthcheck is defined in the Dockerfile
+
+  # One-off helpers:
+  #   docker compose run --rm app npm run fetch          # pull all RSS feeds
+  #   docker compose exec app npm run cli -- plugin:list # manage plugins
+
+volumes:
+  rss-news-hub-data:
+  rss-news-hub-config:

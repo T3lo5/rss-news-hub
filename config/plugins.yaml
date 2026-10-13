@@ -1,0 +1,33 @@
+# Plugin configuration for RSS News Hub.
+#
+# Hot reloaded by the server: every change to this file re-loads enabled
+# plugins and unloads removed ones (see docs/plugin-sdk.md).
+#
+# Sections: ai-providers, fetchers, outputs, transformers
+# Entry fields:
+#   name    - plugin name (builtin name, or the plugin.json name)
+#   enabled - false keeps the plugin in the file but never loads it
+#   source  - builtin (default) | npm | local
+#   path    - for source: local, path to the plugin directory
+#   config  - settings validated against the plugin's configSchema
+
+plugins:
+  fetchers:
+    - name: rss-fetcher
+      enabled: true
+      config:
+        timeout: 15000
+        maxItemsPerFeed: 5
+
+  transformers:
+    - name: pii-redactor
+      enabled: true
+      config:
+        redactEmails: true
+        redactPhones: true
+
+    - name: summarizer
+      enabled: false
+      config:
+        maxLength: 200
+        style: paragraph

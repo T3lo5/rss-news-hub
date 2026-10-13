@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+frontend/node_modules
+
+# Build outputs (frontend is rebuilt in the Docker builder stage)
+public
+frontend/dist
+dist/
+*.log
+
+# Local runtime state (data is a named volume; config/ and plugins/ ship in
+# the image as defaults and are only overridden by the config volume)
+data/
+
+# Legacy root-level JSON artifacts (the server uses SQLite now)
+*.json
+!package.json
+!package-lock.json
+!frontend/package.json
+!frontend/package-lock.json
+
+# IDE/Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Tests
+test/
+*.test.js
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Environment
+.env
+.env.*
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db

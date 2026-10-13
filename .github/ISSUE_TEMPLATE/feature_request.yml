@@ -1,0 +1,29 @@
+---
+name: Feature Request
+about: Sugira uma nova ideia ou melhoria
+title: '[FEAT] '
+labels: ['enhancement', 'triage']
+assignees: ''
+---
+
+## Problema que a feature resolve
+Descreva o problema ou necessidade. Ex: "Sempre fico frustrado quando..."
+
+## Solução Proposta
+Descreva claramente o que você gostaria que acontecesse.
+
+## Alternativas Consideradas
+Outras soluções ou features que você considerou.
+
+## Contexto Adicional
+Mockups, exemplos de outros projetos, referências, etc.
+
+## Impacto
+- [ ] Baixo (nice to have)
+- [ ] Médio (melhora UX/performance)
+- [ ] Alto (crítico para uso)
+
+## Disponibilidade para Implementar
+- [ ] Posso implementar
+- [ ] Preciso de orientação
+- [ ] Apenas sugerindo
