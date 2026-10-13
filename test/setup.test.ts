@@ -1,6 +1,5 @@
 import assert from 'node:assert';
-import { after, before, beforeEach, describe, it } from 'node:test';
-import { eq } from 'drizzle-orm';
+import { after, beforeEach, describe, it } from 'node:test';
 import {
   bookmarkRepository,
   feedCacheRepository,
@@ -20,7 +19,6 @@ import {
   getTestDb,
   insertTestFeed,
   insertTestNews,
-  mocks,
   resetTestDb,
   testFixtures,
 } from './setup.js';

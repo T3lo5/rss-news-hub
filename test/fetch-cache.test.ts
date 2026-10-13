@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { beforeEach, describe, test } from 'node:test';
-import { fetchFeed, fetchFeedByUrl, parseRSS } from '../services/fetch.service.js';
+import { fetchFeed } from '../services/fetch.service.js';
 import { feedCacheRepository } from '../src/db/repositories/index.js';
 import { getTestDb, insertTestFeed, resetTestDb, testFixtures } from './setup.js';
 

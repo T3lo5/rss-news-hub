@@ -58,7 +58,7 @@ export function getStats() {
 }
 
 export async function getStatsAsync() {
-  const [feedStats, globalStats, feeds] = await Promise.all([
+  const [feedStats, globalStats, _feeds] = await Promise.all([
     feedStatsRepository.getAll(),
     globalStatsRepository.get(),
     feedRepository.findAll(),

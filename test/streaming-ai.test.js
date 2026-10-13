@@ -1,12 +1,6 @@
 import assert from 'node:assert';
 import { afterEach, beforeEach, describe, mock, test } from 'node:test';
-import {
-  __getAiConfig,
-  __setAiConfig,
-  buildSystemPrompt,
-  chat,
-  chatStream,
-} from '../services/ai.service.js';
+import { __getAiConfig, __setAiConfig, chatStream } from '../services/ai.service.js';
 
 describe('AI Service - Streaming', () => {
   let originalFetch;
@@ -125,10 +119,10 @@ describe('AI Service - Streaming', () => {
   });
 
   test('chatStream aborts on signal', async () => {
-    let aborted = false;
+    let _aborted = false;
     global.fetch = mock.fn(async (url, options) => {
       if (options?.signal?.aborted) {
-        aborted = true;
+        _aborted = true;
         throw new DOMException('Aborted', 'AbortError');
       }
       return {
@@ -154,10 +148,10 @@ describe('AI Service - Streaming', () => {
 });
 
 describe('SSE Endpoint Integration', () => {
-  let mockReq, mockRes, next;
+  let _mockReq, mockRes, _next;
 
   beforeEach(() => {
-    mockReq = {
+    _mockReq = {
       method: 'POST',
       headers: {},
       socket: { remoteAddress: '127.0.0.1' },
@@ -182,7 +176,7 @@ describe('SSE Endpoint Integration', () => {
       }),
       getHeader: mock.fn((k) => mockRes.headers[k]),
     };
-    next = mock.fn();
+    _next = mock.fn();
   });
 
   // This test will be expanded once the SSE handler is implemented

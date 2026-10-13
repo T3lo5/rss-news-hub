@@ -33,7 +33,7 @@ export async function createApiKey(userId, name = 'Default') {
 }
 
 export async function verifyApiKey(key) {
-  if (!key || !key.startsWith(API_KEY_PREFIX)) return null;
+  if (!key?.startsWith(API_KEY_PREFIX)) return null;
 
   const keyHash = hashApiKey(key);
   const db = getDb();

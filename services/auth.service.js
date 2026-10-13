@@ -72,7 +72,7 @@ export async function getUserById(id) {
 
 export async function authenticateUser(email, password) {
   const user = await getUserByEmail(email);
-  if (!user || !user.passwordHash) return null;
+  if (!user?.passwordHash) return null;
 
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) return null;
@@ -110,14 +110,14 @@ export async function refreshAccessToken(refreshToken) {
   if (!user) return null;
 
   const accessToken = await createAccessToken(user);
-  const newRefreshToken = await createRefreshToken(user);
+  const _newRefreshToken = await createRefreshToken(user);
 
   return { accessToken, refreshToken };
 }
 
 export async function changePassword(userId, currentPassword, newPassword) {
   const user = await getUserById(userId);
-  if (!user || !user.passwordHash) return false;
+  if (!user?.passwordHash) return false;
 
   const valid = await verifyPassword(currentPassword, user.passwordHash);
   if (!valid) return false;

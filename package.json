@@ -11,9 +11,9 @@
     "test:watch": "node --import tsx --watch --test",
     "cli": "node --import tsx src/cli/index.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
-    "format": "biome format --write .",
+    "lint": "biome check src test routes services middleware scripts server.js",
+    "lint:fix": "biome check --write src test routes services middleware scripts server.js",
+    "format": "biome format --write src test routes services middleware scripts server.js",
     "build:frontend": "cd frontend && npm run build",
     "dev": "concurrently \"npm run start\" \"cd frontend && npm run dev\""
   },

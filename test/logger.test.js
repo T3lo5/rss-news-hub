@@ -3,11 +3,11 @@ import { beforeEach, describe, mock, test } from 'node:test';
 import { createModuleLogger, createRequestLogger, logger } from '../services/logger.js';
 
 describe('Logger', () => {
-  let originalConsole;
+  let _originalConsole;
   let logOutput;
 
   beforeEach(() => {
-    originalConsole = { ...console };
+    _originalConsole = { ...console };
     logOutput = [];
     console.log = mock.fn((msg) => logOutput.push(msg));
     console.error = mock.fn((msg) => logOutput.push(msg));
@@ -58,10 +58,10 @@ describe('Logger', () => {
 });
 
 describe('Request ID Middleware', () => {
-  let mockReq, mockRes, next;
+  let _mockReq, mockRes, _next;
 
   beforeEach(() => {
-    mockReq = {
+    _mockReq = {
       method: 'POST',
       headers: {},
       socket: { remoteAddress: '127.0.0.1' },
@@ -76,7 +76,7 @@ describe('Request ID Middleware', () => {
       }),
       getHeader: mock.fn((k) => mockRes.headers[k]),
     };
-    next = mock.fn();
+    _next = mock.fn();
   });
 
   test('placeholder for request ID middleware test', () => {

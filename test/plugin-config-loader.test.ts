@@ -1,14 +1,8 @@
 import assert from 'node:assert';
-import { existsSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
-import {
-  discoverLocalPlugins,
-  loadPluginConfig,
-  PluginYAMLConfig,
-  PluginYAMLEntry,
-} from '../src/plugins/config-loader.js';
-import { PluginManifest } from '../src/plugins/types.js';
+import { discoverLocalPlugins, loadPluginConfig } from '../src/plugins/config-loader.js';
 
 const TEST_DIR = resolve('/tmp/rss-news-hub-test');
 const CONFIG_FILE = join(TEST_DIR, 'plugins.yaml');
@@ -109,7 +103,7 @@ plugins:
 `;
       createConfigFile(yaml);
 
-      const { plugins, errors } = await loadPluginConfig(CONFIG_FILE);
+      const { plugins } = await loadPluginConfig(CONFIG_FILE);
 
       // npm plugins are just recorded, not actually loaded
       const npmPlugin = plugins.find((p) => p.manifest.name === 'custom-ai');
@@ -247,7 +241,7 @@ plugins:
       mkdirSync(invalidDir, { recursive: true });
       writeFileSync(join(invalidDir, 'package.json'), '{"name": "test"}');
 
-      const { plugins, errors } = await discoverLocalPlugins(PLUGINS_DIR);
+      const { plugins } = await discoverLocalPlugins(PLUGINS_DIR);
 
       // Should not crash, just skip invalid plugins
       assert.ok(Array.isArray(plugins));

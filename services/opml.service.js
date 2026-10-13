@@ -1,7 +1,3 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { DATA_DIR } from '../server.config.js';
-
 // Config provider function - can be overridden in tests
 let configProvider = null;
 
@@ -43,7 +39,7 @@ export function extractFeedsFromOPML(xmlString) {
 
   for (const outline of outlines) {
     // If this is a category/group outline (has text/title but no xmlUrl and no type=rss)
-    if (!outline.xmlUrl && !outline.type && (outline.text || outline.title)) {
+    if (!(outline.xmlUrl || outline.type) && (outline.text || outline.title)) {
       currentCategory = outline.text || outline.title;
       continue;
     }

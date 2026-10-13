@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 // Manual RSS fetcher - saves news to data/news.json
 import { DATA_DIR, NEWS_FILE, RSS_FEEDS } from '../server.config.js';
 

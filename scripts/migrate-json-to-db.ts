@@ -3,10 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 // Migration script: Import existing JSON data to SQLite database
 import { fileURLToPath } from 'node:url';
-import Database from 'better-sqlite3';
 import { eq, sql } from 'drizzle-orm';
 import { RSS_FEEDS } from '../server.config.js';
-import { generateFeedId } from '../services/config.service.js';
 import { getDb, schema } from '../src/db/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -46,7 +44,7 @@ function generateId(): string {
 
 async function migrateFeeds(db: ReturnType<typeof getDb>) {
   console.log('📦 Migrating feeds...');
-  const feedsData = readJsonFile(JSON_FILES.rssCache); // RSS cache has feed names
+  const _feedsData = readJsonFile(JSON_FILES.rssCache); // RSS cache has feed names
 
   for (const feed of RSS_FEEDS) {
     const existing = await db
@@ -73,7 +71,7 @@ async function migrateFeeds(db: ReturnType<typeof getDb>) {
 async function migrateNews(db: ReturnType<typeof getDb>) {
   console.log('📰 Migrating news items...');
   const news = readJsonFile(JSON_FILES.news);
-  if (!news || !news.length) {
+  if (!news?.length) {
     console.log('  ⏭️  No news items to migrate');
     return;
   }
@@ -317,7 +315,7 @@ async function migrateProfile(db: ReturnType<typeof getDb>) {
 async function migrateBookmarks(db: ReturnType<typeof getDb>) {
   console.log('🔖 Migrating bookmarks...');
   const bookmarks = readJsonFile(JSON_FILES.bookmarks);
-  if (!bookmarks || !bookmarks.length) {
+  if (!bookmarks?.length) {
     console.log('  ⏭️  No bookmarks to migrate');
     return;
   }
@@ -349,7 +347,7 @@ async function migrateBookmarks(db: ReturnType<typeof getDb>) {
 async function migrateNewsletterHistory(db: ReturnType<typeof getDb>) {
   console.log('📰 Migrating newsletter history...');
   const history = readJsonFile(JSON_FILES.newsletterHistory);
-  if (!history || !history.length) {
+  if (!history?.length) {
     console.log('  ⏭️  No newsletter history to migrate');
     return;
   }
@@ -381,7 +379,7 @@ async function migrateNewsletterHistory(db: ReturnType<typeof getDb>) {
 async function migrateTelegramQueue(db: ReturnType<typeof getDb>) {
   console.log('📱 Migrating Telegram queue...');
   const queue = readJsonFile(JSON_FILES.telegramQueue);
-  if (!queue || !queue.length) {
+  if (!queue?.length) {
     console.log('  ⏭️  No Telegram queue to migrate');
     return;
   }

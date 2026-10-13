@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ErrorCode, createError } from './errors.js';
+import { createError, ErrorCode } from './errors.js';
 
 const NewsItemSchema = z.object({
   id: z.string().optional(),
@@ -226,18 +226,24 @@ export function validateBody(schema) {
     const result = schema.safeParse(req.body);
 
     if (!result.success) {
-      const error = createError(ErrorCode.VALIDATION_FAILED, 'Validation failed', result.error.issues.map(issue => ({
-        field: issue.path.join('.'),
-        message: issue.message,
-      })));
-      
+      const error = createError(
+        ErrorCode.VALIDATION_FAILED,
+        'Validation failed',
+        result.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        }))
+      );
+
       res.writeHead(error.statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        ok: false,
-        error: error.message,
-        code: error.code,
-        details: error.details,
-      }));
+      res.end(
+        JSON.stringify({
+          ok: false,
+          error: error.message,
+          code: error.code,
+          details: error.details,
+        })
+      );
       return;
     }
 

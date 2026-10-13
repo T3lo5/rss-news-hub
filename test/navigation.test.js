@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { describe, mock, test } from 'node:test';
+import { describe, test } from 'node:test';
 
 describe('Keyboard Navigation Logic', () => {
   const mockFilteredNews = [
@@ -96,14 +96,14 @@ describe('Keyboard Navigation Logic', () => {
 
   test('selection resets when filteredNews changes', () => {
     let selectedIndex = 2;
-    let filteredNews = mockFilteredNews;
+    let _filteredNews = mockFilteredNews;
 
     // Simulate filter change - reset selection
     const resetSelection = () => {
       selectedIndex = -1;
     };
 
-    filteredNews = [mockFilteredNews[0]]; // filtered to 1 item
+    _filteredNews = [mockFilteredNews[0]]; // filtered to 1 item
     resetSelection();
 
     assert.strictEqual(selectedIndex, -1);

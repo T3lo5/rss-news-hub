@@ -25,7 +25,7 @@ export function hasRole(userRole, requiredRole) {
 
 export async function authenticateRequest(req, res) {
   const reqId = req.headers['x-request-id'] || crypto.randomUUID();
-  const log = createRequestLogger(reqId);
+  const _log = createRequestLogger(reqId);
 
   // Try Bearer token (JWT)
   const bearerToken = getTokenFromHeader(req.headers.authorization);
@@ -73,7 +73,7 @@ export function requireAuth(requiredRole = 'viewer') {
   return async (req, res, next) => {
     const authenticated = await authenticateRequest(req, res);
 
-    if (!authenticated || !req.user) {
+    if (!(authenticated && req.user)) {
       res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ ok: false, error: 'Authentication required' }));
       return;

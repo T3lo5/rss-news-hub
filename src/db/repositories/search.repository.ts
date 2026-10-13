@@ -1,6 +1,5 @@
-import { getDb } from '../index.js';
-import { sql } from 'drizzle-orm';
 import type { Database } from 'better-sqlite3';
+import { getDb } from '../index.js';
 
 function getSqlite(): Database {
   const db = getDb();
@@ -32,9 +31,18 @@ export interface SearchOptions {
 
 export async function searchNews(options: SearchOptions): Promise<SearchResult[]> {
   const sqlite = getSqlite();
-  const { query, limit = 20, offset = 0, minRelevanceScore, feedId, category, dateFrom, dateTo } = options;
+  const {
+    query,
+    limit = 20,
+    offset = 0,
+    minRelevanceScore,
+    feedId,
+    category,
+    dateFrom,
+    dateTo,
+  } = options;
 
-  let whereConditions = ['news_search MATCH ?'];
+  const whereConditions = ['news_search MATCH ?'];
   const params: unknown[] = [query];
 
   if (feedId) {
@@ -62,9 +70,7 @@ export async function searchNews(options: SearchOptions): Promise<SearchResult[]
     params.push(dateTo.getTime());
   }
 
-  const whereClause = whereConditions.length > 0
-    ? 'WHERE ' + whereConditions.join(' AND ')
-    : '';
+  const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
   const queryStr = `
     SELECT
@@ -100,7 +106,7 @@ export async function searchNews(options: SearchOptions): Promise<SearchResult[]
     rank: number;
   }>;
 
-  return rows.map(row => ({
+  return rows.map((row) => ({
     id: row.id,
     title: row.title,
     content: row.content,
@@ -113,11 +119,13 @@ export async function searchNews(options: SearchOptions): Promise<SearchResult[]
   }));
 }
 
-export async function searchNewsCount(options: Omit<SearchOptions, 'limit' | 'offset'>): Promise<number> {
+export async function searchNewsCount(
+  options: Omit<SearchOptions, 'limit' | 'offset'>
+): Promise<number> {
   const sqlite = getSqlite();
   const { query, minRelevanceScore, feedId, category, dateFrom, dateTo } = options;
 
-  let whereConditions = ['news_search MATCH ?'];
+  const whereConditions = ['news_search MATCH ?'];
   const params: unknown[] = [query];
 
   if (feedId) {
@@ -145,9 +153,7 @@ export async function searchNewsCount(options: Omit<SearchOptions, 'limit' | 'of
     params.push(dateTo.getTime());
   }
 
-  const whereClause = whereConditions.length > 0
-    ? 'WHERE ' + whereConditions.join(' AND ')
-    : '';
+  const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
   const queryStr = `
     SELECT COUNT(*) as count
@@ -165,18 +171,20 @@ export async function searchNewsCount(options: Omit<SearchOptions, 'limit' | 'of
 
 export async function rebuildSearchIndex(): Promise<void> {
   const sqlite = getSqlite();
-  
+
   // Delete all entries and re-insert
   sqlite.prepare('DELETE FROM news_search').run();
-  sqlite.prepare(`
+  sqlite
+    .prepare(`
     INSERT INTO news_search(rowid, id, title, content, source)
     SELECT rowid, id, title, content, source FROM news_items
-  `).run();
+  `)
+    .run();
 }
 
 export async function getSearchSuggestions(partialQuery: string, limit = 10): Promise<string[]> {
   const sqlite = getSqlite();
-  
+
   const stmt = sqlite.prepare(`
     SELECT DISTINCT title
     FROM news_items
@@ -184,10 +192,10 @@ export async function getSearchSuggestions(partialQuery: string, limit = 10): Pr
     ORDER BY pub_date DESC
     LIMIT ?
   `);
-  
+
   const rows = stmt.all(`%${partialQuery}%`, limit) as Array<{ title: string }>;
 
-  return rows.map(row => row.title);
+  return rows.map((row) => row.title);
 }
 
 export const searchRepository = {

@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url';
 import { validateConfig } from './config.js';
 import {
   type Plugin,
-  PluginConfig,
   type PluginLoader,
   type PluginManifest,
   type PluginType,
@@ -200,8 +199,9 @@ export class PluginLoaderImpl implements PluginLoader {
       throw new Error('Plugin manifest must have a version');
     }
     if (
-      !manifest.type ||
-      !['ai-provider', 'fetcher', 'output', 'transformer'].includes(manifest.type)
+      !(
+        manifest.type && ['ai-provider', 'fetcher', 'output', 'transformer'].includes(manifest.type)
+      )
     ) {
       throw new Error('Plugin manifest must have a valid type');
     }

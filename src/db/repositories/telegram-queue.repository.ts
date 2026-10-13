@@ -1,4 +1,4 @@
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, lte } from 'drizzle-orm';
 import { getDb, schema } from '../index.js';
 
 export class TelegramQueueRepository {

@@ -40,7 +40,7 @@ export function stopTelegramQueueWorker() {
 
 export function getTelegramQueueWorkerStatus() {
   return {
-    running: !!workerInterval,
+    running: Boolean(workerInterval),
     isProcessing,
     queueLength: getTelegramQueue().length,
   };

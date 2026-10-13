@@ -67,7 +67,7 @@ export function ShareModal({
   };
 
   const isNewsletter = contentType === 'newsletter';
-  const previewItems = isNewsletter ? selectedNews : news ? [news] : [];
+  const _previewItems = isNewsletter ? selectedNews : news ? [news] : [];
 
   // Filter templates by content type
   const typeTemplates = templates.filter((t) => t.type === contentType);

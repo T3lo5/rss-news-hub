@@ -1,5 +1,5 @@
 import { api } from '../services/api';
-import type { InterestProfile, NewsItem, ScoredNewsItem } from '../types';
+import type { InterestProfile, NewsItem } from '../types';
 
 export async function fetchProfile() {
   return api.getProfile();

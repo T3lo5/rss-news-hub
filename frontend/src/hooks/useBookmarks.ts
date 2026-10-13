@@ -1,5 +1,4 @@
 import { api } from '../services/api';
-import type { Bookmark } from '../types';
 
 export async function fetchBookmarks() {
   return api.getBookmarks();

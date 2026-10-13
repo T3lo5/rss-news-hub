@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { after, before, beforeEach, describe, it } from 'node:test';
+import { after, beforeEach, describe, it } from 'node:test';
 import {
   __resetScheduler,
   getStatus,
@@ -11,17 +11,17 @@ import {
 
 describe('scheduler.service', () => {
   let callCount = 0;
-  let lastCallTime = 0;
+  let _lastCallTime = 0;
   const mockFetchFn = async () => {
     callCount++;
-    lastCallTime = Date.now();
+    _lastCallTime = Date.now();
     await new Promise((r) => setTimeout(r, 10)); // simulate work
     return { total: 10, results: [] };
   };
 
   beforeEach(async () => {
     callCount = 0;
-    lastCallTime = 0;
+    _lastCallTime = 0;
     await __resetScheduler();
   });
 

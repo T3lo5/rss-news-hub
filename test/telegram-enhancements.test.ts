@@ -1,7 +1,6 @@
 import assert from 'node:assert';
 import { beforeEach, describe, mock, test } from 'node:test';
 import {
-  __resetTelegramQueue,
   cancelTelegramMessage,
   getTelegramQueue,
   processTelegramQueue,

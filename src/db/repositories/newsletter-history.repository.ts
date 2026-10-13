@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { desc, sql } from 'drizzle-orm';
 import { getDb, schema } from '../index.js';
 
 export class NewsletterHistoryRepository {

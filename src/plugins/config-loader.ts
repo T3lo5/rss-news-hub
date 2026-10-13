@@ -2,11 +2,9 @@
  * YAML Configuration Loader for Plugins
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, extname, join, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { parse as parseYAML } from 'yaml';
-import { mergeWithDefaults, validateConfig } from './config.js';
-import { PluginConfig, PluginManifest } from './types.js';
 
 export interface PluginYAMLConfig {
   plugins?: {

@@ -2,12 +2,7 @@
  * Built-in Transformer Plugins - PII redactor, summarizer, etc.
  */
 
-import {
-  PluginConfig,
-  PluginManifest,
-  type TransformContext,
-  type TransformerPlugin,
-} from '../types.js';
+import { type TransformContext, type TransformerPlugin } from '../types.js';
 
 export class PIIRedactorPlugin implements TransformerPlugin {
   manifest = {
@@ -138,7 +133,7 @@ export class SummarizerPlugin implements TransformerPlugin {
     // This would use an AI provider to generate a summary
     // For now, return a simple truncation as placeholder
     const maxLength = this.config.config.maxLength || 200;
-    const style = this.config.config.style || 'paragraph';
+    const _style = this.config.config.style || 'paragraph';
 
     if (content.length <= maxLength) return content;
 

@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  addFeed,
-  deleteFeed,
-  fetchFeeds,
-  reloadFeeds,
-  toggleFeed,
-  updateFeed,
-} from '../hooks/useFeeds';
+import { addFeed, deleteFeed, fetchFeeds, updateFeed } from '../hooks/useFeeds';
 import { exportOPML, importOPML } from '../hooks/useOPML';
 import type { FeedConfig, OPMLImportResult } from '../types';
 import { FeedFormModal } from './FeedFormModal';
@@ -50,7 +43,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
     setFeeds((prev) => prev.map((f) => (f.id === feed.id ? updated : f)));
     try {
       await updateFeed(feed.id, { enabled: !feed.enabled });
-    } catch (err) {
+    } catch {
       setFeeds((prev) => prev.map((f) => (f.id === feed.id ? feed : f)));
       setError('Failed to update feed');
     }
@@ -74,7 +67,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
     setFeeds((prev) => prev.filter((f) => f.id !== feed.id));
     try {
       await deleteFeed(feed.id);
-    } catch (err) {
+    } catch {
       loadFeeds();
       setError('Failed to delete feed');
     }

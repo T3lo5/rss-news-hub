@@ -105,7 +105,7 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
     }
   };
 
-  const isEditing = !!feed;
+  const isEditing = Boolean(feed);
 
   return (
     <div

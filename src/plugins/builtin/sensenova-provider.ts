@@ -2,7 +2,7 @@
  * SenseNova Provider Plugin
  */
 
-import { ChatMessage, ChatOptions, type PluginManifest } from '../types.js';
+import { type PluginManifest } from '../types.js';
 import { BaseAIProviderPlugin } from './ai-providers.js';
 
 export class SenseNovaProviderPlugin extends BaseAIProviderPlugin {

@@ -42,7 +42,7 @@ function formatDay(iso: string): string {
   }
 }
 
-function formatWeekRange(iso: string): string {
+function _formatWeekRange(iso: string): string {
   try {
     const date = new Date(iso);
     const start = new Date(date);
@@ -61,8 +61,8 @@ function getGroupKey(item: NewsItem, grouping: DigestGrouping): string {
   if (grouping === 'daily') {
     return date.toISOString().slice(0, 10); // YYYY-MM-DD
   } else if (grouping === 'weekly') {
-    const year = date.getFullYear();
-    const week = String(Math.ceil((date.getDate() + date.getDay()) / 7)).padStart(2, '0');
+    const _year = date.getFullYear();
+    const _week = String(Math.ceil((date.getDate() + date.getDay()) / 7)).padStart(2, '0');
     // Better: use ISO week
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     const dayNum = d.getUTCDay() || 7;

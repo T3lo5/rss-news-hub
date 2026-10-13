@@ -2,12 +2,7 @@
  * Built-in Output Plugins - Telegram, Discord, Slack, etc.
  */
 
-import {
-  type OutputOptions,
-  type OutputPlugin,
-  PluginConfig,
-  type PluginManifest,
-} from '../types.js';
+import { type OutputOptions, type OutputPlugin, type PluginManifest } from '../types.js';
 
 export class TelegramOutputPlugin implements OutputPlugin {
   manifest: PluginManifest & { type: 'output' } = {
@@ -49,11 +44,11 @@ export class TelegramOutputPlugin implements OutputPlugin {
   async send(content: string, options: OutputOptions = {}): Promise<void> {
     const config = this.config.config;
 
-    if (!config.botToken || !config.chatId) {
+    if (!(config.botToken && config.chatId)) {
       throw new Error('Telegram not configured');
     }
 
-    const url = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
+    const _url = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
 
     const parseMode = options.parseMode || config.defaultParseMode || 'Markdown';
 

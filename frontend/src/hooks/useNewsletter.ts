@@ -1,5 +1,5 @@
 import { api } from '../services/api';
-import type { NewsletterConfig, NewsletterHistoryEntry } from '../types';
+import type { NewsletterConfig } from '../types';
 
 export async function fetchNewsletterConfig() {
   return api.getNewsletterConfig();

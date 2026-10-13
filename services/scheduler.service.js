@@ -1,4 +1,3 @@
-import { readNews } from './news.service.js';
 import { generateAndSendNewsletter } from './newsletter.service.js';
 
 let intervalId = null;
@@ -24,7 +23,7 @@ function getNextCronRun(cron) {
   const now = new Date();
   const { minute, hour, dayOfMonth, month, dayOfWeek } = parseCron(cron);
 
-  const candidates = [];
+  const _candidates = [];
   for (let i = 0; i < 365; i++) {
     const candidate = new Date(now);
     candidate.setDate(candidate.getDate() + i);
@@ -35,8 +34,8 @@ function getNextCronRun(cron) {
     const matchDayOfMonth =
       dayOfMonth === '*' || dayOfMonth.split(',').includes(String(candidate.getDate()));
     const matchMonth = month === '*' || month.split(',').includes(String(candidate.getMonth() + 1));
-    const matchHour = hour === '*' || hour.split(',').includes(String(candidate.getHours()));
-    const matchMinute =
+    const _matchHour = hour === '*' || hour.split(',').includes(String(candidate.getHours()));
+    const _matchMinute =
       minute === '*' || minute.split(',').includes(String(candidate.getMinutes()));
 
     if (matchDayOfWeek && matchDayOfMonth && matchMonth) {
@@ -77,7 +76,7 @@ export function getStatus() {
     nextRun,
     lastResult,
     newsletter: {
-      running: !!newsletterJob,
+      running: Boolean(newsletterJob),
       cron: newsletterJob?.cron || null,
       lastRun: newsletterLastRun,
       nextRun: newsletterNextRun,

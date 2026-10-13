@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, or, sql } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { getDb, schema } from '../index.js';
 
 export class FeedRepository {

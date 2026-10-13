@@ -4,15 +4,11 @@
 
 import { mergeWithDefaults, validateConfig } from './config.js';
 import {
-  AIProviderPlugin,
-  FetcherPlugin,
-  OutputPlugin,
   type Plugin,
   type PluginConfig,
   type PluginManifest,
   type PluginRegistry,
   type PluginType,
-  TransformerPlugin,
   type ValidationResult,
 } from './types.js';
 
@@ -90,8 +86,9 @@ export class PluginRegistryImpl implements PluginRegistry {
       throw new Error('Plugin manifest must have a version');
     }
     if (
-      !manifest.type ||
-      !['ai-provider', 'fetcher', 'output', 'transformer'].includes(manifest.type)
+      !(
+        manifest.type && ['ai-provider', 'fetcher', 'output', 'transformer'].includes(manifest.type)
+      )
     ) {
       throw new Error('Plugin manifest must have a valid type');
     }

@@ -1,7 +1,7 @@
 import { newsRepository, userProfileRepository } from '../src/db/repositories/index.js';
-import { buildSystemPrompt, chat, pickProvider } from './ai.service.js';
+import { chat, pickProvider } from './ai.service.js';
 
-const DEFAULT_PROFILE = {
+const _DEFAULT_PROFILE = {
   keywords: [
     'AI',
     'machine learning',

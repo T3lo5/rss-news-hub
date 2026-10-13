@@ -37,7 +37,7 @@ function generateId() {
 }
 
 export async function telegramSend(text, parseMode = 'Markdown', config, options = {}) {
-  if (!config?.botToken || !config?.chatId) {
+  if (!(config?.botToken && config?.chatId)) {
     throw new Error('Telegram not configured');
   }
   const url = `https://api.telegram.org/bot${config.botToken}/sendMessage`;

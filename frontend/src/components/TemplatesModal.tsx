@@ -142,7 +142,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                   value={formData.id}
                   onChange={(e) => setFormData((prev) => ({ ...prev, id: e.target.value }))}
                   required
-                  disabled={!!editingTemplate}
+                  disabled={Boolean(editingTemplate)}
                   placeholder="ex: meu-template-custom"
                 />
                 <small style={{ color: 'var(--text-muted)' }}>
@@ -223,113 +223,111 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
             </form>
           </div>
         ) : (
-          <>
-            <div className="modal-body">
-              {error && (
-                <div className="error" style={{ marginBottom: '16px' }}>
-                  Erro: {error}
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '16px',
-                }}
-              >
-                <h3>Templates ({templates.length})</h3>
-                <button className="btn btn-primary" onClick={() => handleOpenForm()}>
-                  <span role="img" aria-label="add">
-                    ＋
-                  </span>{' '}
-                  Novo Template
-                </button>
+          <div className="modal-body">
+            {error && (
+              <div className="error" style={{ marginBottom: '16px' }}>
+                Erro: {error}
               </div>
+            )}
 
-              {loading ? (
-                <div className="loading">Carregando templates...</div>
-              ) : templates.length === 0 ? (
-                <p className="empty">Nenhum template encontrado.</p>
-              ) : (
-                <div className="table-container">
-                  <table className="stats-table">
-                    <thead>
-                      <tr>
-                        <th>ID</th>
-                        <th>Nome</th>
-                        <th>Tipo</th>
-                        <th>Variáveis</th>
-                        <th>Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {templates.map((template) => (
-                        <tr key={template.id}>
-                          <td
-                            className="feed-name"
-                            style={{ fontFamily: 'monospace', fontSize: '12px' }}
-                          >
-                            {template.id}
-                            {template.builtin && (
-                              <span
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <h3>Templates ({templates.length})</h3>
+              <button className="btn btn-primary" onClick={() => handleOpenForm()}>
+                <span role="img" aria-label="add">
+                  ＋
+                </span>{' '}
+                Novo Template
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="loading">Carregando templates...</div>
+            ) : templates.length === 0 ? (
+              <p className="empty">Nenhum template encontrado.</p>
+            ) : (
+              <div className="table-container">
+                <table className="stats-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Nome</th>
+                      <th>Tipo</th>
+                      <th>Variáveis</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {templates.map((template) => (
+                      <tr key={template.id}>
+                        <td
+                          className="feed-name"
+                          style={{ fontFamily: 'monospace', fontSize: '12px' }}
+                        >
+                          {template.id}
+                          {template.builtin && (
+                            <span
+                              style={{
+                                marginLeft: '8px',
+                                fontSize: '10px',
+                                background: 'var(--primary)',
+                                color: 'white',
+                                padding: '1px 6px',
+                                borderRadius: '3px',
+                              }}
+                            >
+                              padrão
+                            </span>
+                          )}
+                        </td>
+                        <td>{template.name}</td>
+                        <td>{template.type}</td>
+                        <td>{template.variables.join(', ') || '-'}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              className="btn btn-ghost"
+                              onClick={() => handleOpenForm(template)}
+                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                              disabled={template.builtin}
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              onClick={() => handleTest(template)}
+                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                            >
+                              🧪 Testar
+                            </button>
+                            {!template.builtin && (
+                              <button
+                                className="btn btn-ghost"
+                                onClick={() => handleDelete(template.id)}
                                 style={{
-                                  marginLeft: '8px',
-                                  fontSize: '10px',
-                                  background: 'var(--primary)',
-                                  color: 'white',
-                                  padding: '1px 6px',
-                                  borderRadius: '3px',
+                                  padding: '4px 8px',
+                                  fontSize: '12px',
+                                  color: 'var(--danger)',
                                 }}
                               >
-                                padrão
-                              </span>
+                                🗑️ Excluir
+                              </button>
                             )}
-                          </td>
-                          <td>{template.name}</td>
-                          <td>{template.type}</td>
-                          <td>{template.variables.join(', ') || '-'}</td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button
-                                className="btn btn-ghost"
-                                onClick={() => handleOpenForm(template)}
-                                style={{ padding: '4px 8px', fontSize: '12px' }}
-                                disabled={template.builtin}
-                              >
-                                ✏️ Editar
-                              </button>
-                              <button
-                                className="btn btn-ghost"
-                                onClick={() => handleTest(template)}
-                                style={{ padding: '4px 8px', fontSize: '12px' }}
-                              >
-                                🧪 Testar
-                              </button>
-                              {!template.builtin && (
-                                <button
-                                  className="btn btn-ghost"
-                                  onClick={() => handleDelete(template.id)}
-                                  style={{
-                                    padding: '4px 8px',
-                                    fontSize: '12px',
-                                    color: 'var(--danger)',
-                                  }}
-                                >
-                                  🗑️ Excluir
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

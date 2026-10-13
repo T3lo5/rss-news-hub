@@ -50,16 +50,20 @@ export const newsItems = sqliteTable(
     feedIdx: index('news_items_feed_idx').on(table.feedId),
   })
 );
- 
-export const newsSearch = sqliteTable('news_search', {
-  id: text('id').primaryKey(),
-  title: text('title').notNull(),
-  content: text('content'),
-  source: text('source').notNull(),
-}, (table) => ({
-  // FTS5 virtual table for full-text search
-  // We'll create this via raw SQL migration
-}));
+
+export const newsSearch = sqliteTable(
+  'news_search',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    content: text('content'),
+    source: text('source').notNull(),
+  },
+  (table) => ({
+    // FTS5 virtual table for full-text search
+    // We'll create this via raw SQL migration
+  })
+);
 
 export const newsHashes = sqliteTable('news_hashes', {
   hash: text('hash').primaryKey(),

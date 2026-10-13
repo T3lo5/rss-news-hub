@@ -6,7 +6,7 @@ import {
   validateFeedUrl,
   writeFeedsConfig,
 } from '../services/config.service.js';
-import { getTestDb, insertTestFeed, resetTestDb, testFixtures } from './setup.js';
+import { resetTestDb, testFixtures } from './setup.js';
 
 describe('config.service (DB-backed)', () => {
   beforeEach(() => {

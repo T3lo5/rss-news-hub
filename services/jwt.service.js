@@ -1,6 +1,4 @@
-import { eq } from 'drizzle-orm';
 import { jwtVerify, SignJWT } from 'jose';
-import { getDb, schema } from '../src/db/index.js';
 
 /**
  * Resolve the HMAC secret used to sign and verify JWTs.
@@ -76,7 +74,7 @@ export async function verifyAccessToken(token) {
 
 export async function verifyRefreshToken(token) {
   const payload = await verifyToken(token);
-  if (!payload || payload.type !== 'refresh') return null;
+  if (payload?.type !== 'refresh') return null;
   return payload;
 }
 

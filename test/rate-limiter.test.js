@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { afterEach, beforeEach, describe, mock, test } from 'node:test';
+import { beforeEach, describe, mock, test } from 'node:test';
 import { createRateLimiter, getClientIp, rateLimitMiddleware } from '../services/rate-limiter.js';
 
 describe('Rate Limiter', () => {

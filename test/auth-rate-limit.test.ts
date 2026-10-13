@@ -1,7 +1,7 @@
 import assert from 'node:assert';
 import { beforeEach, describe, test } from 'node:test';
 import { createUser } from '../services/auth.service.js';
-import { bearer, request, type TestResponse } from './helpers/auth-http.js';
+import { request, type TestResponse } from './helpers/auth-http.js';
 import { getTestDb, resetTestDb } from './setup.js';
 
 // Credential endpoints are rate limited per client IP. Every request()

@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { afterEach, beforeEach, describe, mock, test } from 'node:test';
+import { afterEach, beforeEach, describe, test } from 'node:test';
 import { pluginRegistry } from '../src/plugins/registry.js';
 import type { Plugin, PluginConfig, PluginManifest, PluginType } from '../src/plugins/types.js';
 

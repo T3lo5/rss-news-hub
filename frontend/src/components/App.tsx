@@ -13,7 +13,6 @@ import type {
   Language,
   NewsItem,
   Provider,
-  ScoredNewsItem,
   Template,
 } from '../types';
 import { AddModal } from './AddModal';
@@ -44,7 +43,7 @@ export function App() {
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
-  const [interestProfile, setInterestProfile] = useState<InterestProfile | null>(null);
+  const [_interestProfile, setInterestProfile] = useState<InterestProfile | null>(null);
   const [digestGrouping, setDigestGrouping] = useState<DigestGrouping>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('digestGrouping') as DigestGrouping) || 'none';

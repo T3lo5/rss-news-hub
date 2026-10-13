@@ -10,8 +10,7 @@ import {
   normalizeUrl,
 } from '../services/deduplication.js';
 import { schema } from '../src/db/index.js';
-import { newsHashRepository } from '../src/db/repositories/index.js';
-import { getTestDb, insertTestFeed, resetTestDb, testFixtures } from './setup.js';
+import { getTestDb, resetTestDb } from './setup.js';
 
 describe('Feed Deduplication (DB-backed)', () => {
   beforeEach(() => {

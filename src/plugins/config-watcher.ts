@@ -5,15 +5,10 @@
 import { existsSync, type FSWatcher, watch } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { createBuiltinPlugin } from './builtin/index.js';
-import {
-  discoverLocalPlugins,
-  loadPluginConfig,
-  type PluginYAMLConfig,
-  PluginYAMLEntry,
-} from './config-loader.js';
+import { loadPluginConfig, type PluginYAMLConfig } from './config-loader.js';
 import { pluginLoader } from './loader.js';
 import { pluginRegistry } from './registry.js';
-import { type Plugin, type PluginConfig, PluginManifest } from './types.js';
+import { type Plugin, type PluginConfig } from './types.js';
 
 /** Shape of one entry returned by loadPluginConfig(). */
 interface PluginConfigEntry {
@@ -223,7 +218,7 @@ export class ConfigWatcher {
     });
 
     watcher.on('unlink', (filename) => {
-      if (filename && filename.endsWith('plugin.json')) {
+      if (filename?.endsWith('plugin.json')) {
         this.scheduleReload();
       }
     });

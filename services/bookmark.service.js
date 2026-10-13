@@ -21,7 +21,7 @@ export async function removeBookmark(newsId) {
 
 export async function isBookmarked(newsId) {
   const bookmark = await bookmarkRepository.findByNewsId(newsId);
-  return !!bookmark;
+  return Boolean(bookmark);
 }
 
 export async function getBookmarkedNewsIds() {

@@ -1,11 +1,6 @@
 import assert from 'node:assert';
 import { beforeEach, describe, test } from 'node:test';
-import {
-  getFeedHealth,
-  recordFeedResult,
-  recordFetchResult,
-  recordFetchStart,
-} from '../services/stats.service.js';
+import { getFeedHealth, recordFeedResult, recordFetchStart } from '../services/stats.service.js';
 import { getTestDb, insertTestFeed, resetTestDb, testFixtures } from './setup.js';
 
 describe('Feed Health Dashboard (DB-backed)', () => {

@@ -1,13 +1,10 @@
 import { setDefaultResultOrder } from 'node:dns';
-import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import {
   authenticateRequest,
-  optionalAuth,
   requireAdmin,
-  requireAuth,
   requireUser,
   requireViewer,
 } from './middleware/auth.js';
@@ -20,13 +17,18 @@ import {
   validateFeedUrl,
   writeFeedsConfig,
 } from './services/config.service.js';
+import {
+  generateAndSendDigest,
+  generateDigestPreview,
+  getDigestConfig,
+  updateDigestConfig,
+} from './services/digest.service.js';
+import { createError, ErrorCode } from './services/errors.js';
 import { fetchAllFeeds, fetchFeedByUrl, parseRSS } from './services/fetch.service.js';
-import { createRequestLogger, logger } from './services/logger.js';
+import { createRequestLogger } from './services/logger.js';
 import { addNews, readNews } from './services/news.service.js';
 import { generateOpenApiSpec } from './services/openapi.js';
 import { rateLimitMiddleware } from './services/rate-limiter.js';
-import { ErrorCode, createError, formatErrorResponse } from './services/errors.js';
-import { getDigestConfig, updateDigestConfig, startDigestJob, stopDigestJob, generateAndSendDigest, generateDigestPreview } from './services/digest.service.js';
 import {
   getStatus as getSchedulerStatus,
   setIntervalMs as setSchedulerInterval,
@@ -43,7 +45,7 @@ import {
   startTelegramQueueWorker,
   stopTelegramQueueWorker,
 } from './services/telegram-worker.js';
-import { getDefaultTemplateId, getTemplateSystemPrompt } from './services/templates.js';
+import { getTemplateSystemPrompt } from './services/templates.js';
 import { schemas, validateBody } from './services/validation.js';
 import { createConfigWatcher } from './src/plugins/config-watcher.js';
 
@@ -88,7 +90,7 @@ async function sendFile(res, path) {
 }
 
 async function handleHealthCheck(req, res, log) {
-  const startTime = Date.now();
+  const _startTime = Date.now();
 
   // Check data/news.json readable
   let dbStatus = 'ok';
@@ -268,11 +270,29 @@ export async function handleRequest(req, res) {
           return sendJSON(res, 400, { ok: false, error: 'Query parameter "q" is required' });
         }
 
-        const { searchNews, searchNewsCount } = await import('./src/db/repositories/search.repository.js');
-        
+        const { searchNews, searchNewsCount } = await import(
+          './src/db/repositories/search.repository.js'
+        );
+
         const [results, total] = await Promise.all([
-          searchNews({ query, limit, offset, minRelevanceScore: minScore, feedId, category, dateFrom, dateTo }),
-          searchNewsCount({ query, minRelevanceScore: minScore, feedId, category, dateFrom, dateTo }),
+          searchNews({
+            query,
+            limit,
+            offset,
+            minRelevanceScore: minScore,
+            feedId,
+            category,
+            dateFrom,
+            dateTo,
+          }),
+          searchNewsCount({
+            query,
+            minRelevanceScore: minScore,
+            feedId,
+            category,
+            dateFrom,
+            dateTo,
+          }),
         ]);
 
         return sendJSON(res, 200, { ok: true, data: { results, total, limit, offset } });
@@ -615,7 +635,7 @@ export async function handleRequest(req, res) {
         }
         const body = Buffer.concat(chunks);
 
-        const boundaryBytes = Buffer.from('\r\n--' + boundary);
+        const _boundaryBytes = Buffer.from('\r\n--' + boundary);
         const parts = body.toString('binary').split('--' + boundary + '\r\n');
 
         let fileBuffer = null;

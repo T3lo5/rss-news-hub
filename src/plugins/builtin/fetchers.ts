@@ -5,8 +5,6 @@
 import {
   type FeedConfig,
   type FetcherPlugin,
-  ParsedFeedItem,
-  PluginConfig,
   type PluginManifest,
   type RawFeedItem,
 } from '../types.js';
@@ -128,7 +126,7 @@ export class RSSFetcherPlugin implements FetcherPlugin {
     const content =
       this.extractTag(raw, 'content:encoded') || this.extractTag(raw, 'description') || '';
 
-    if (!title || !link) return null;
+    if (!(title && link)) return null;
 
     return {
       id: guid || link,
@@ -148,7 +146,7 @@ export class RSSFetcherPlugin implements FetcherPlugin {
     const published = this.extractTag(raw, 'published') || this.extractTag(raw, 'updated');
     const summary = this.extractTag(raw, 'summary') || this.extractTag(raw, 'content');
 
-    if (!title || !link) return null;
+    if (!(title && link)) return null;
 
     return {
       id: id || link,

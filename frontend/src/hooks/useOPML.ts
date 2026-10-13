@@ -1,5 +1,4 @@
 import { api } from '../services/api';
-import type { OPMLImportResult } from '../types';
 
 export async function exportOPML() {
   return api.exportOPML();

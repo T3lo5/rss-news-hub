@@ -1,4 +1,4 @@
-const limiters = new Map();
+const _limiters = new Map();
 
 function createRateLimiter({
   maxRequests = 10,

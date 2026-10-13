@@ -2,12 +2,10 @@
  * Plugin Discovery - Find and load plugins from various sources
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pluginLoader } from './loader.js';
-import { pluginRegistry } from './registry.js';
-import { Plugin, type PluginConfig, type PluginManifest, PluginType } from './types.js';
+import { type PluginConfig, type PluginManifest } from './types.js';
 
 export interface DiscoveryOptions {
   pluginsDir?: string;
@@ -35,7 +33,7 @@ export class PluginDiscovery {
 
   async discoverAll(): Promise<{ plugins: any[]; errors: string[] }> {
     const plugins: any[] = [];
-    const errors: string[] = [];
+    const _errors: string[] = [];
 
     // Load builtin plugins
     if (this.options.includeBuiltin !== false) {
@@ -105,7 +103,7 @@ export class PluginDiscovery {
         const manifest = JSON.parse(manifestContent);
 
         // Validate manifest
-        if (!manifest.name || !manifest.type) {
+        if (!(manifest.name && manifest.type)) {
           console.warn(`Invalid manifest for ${entry.name}`);
           continue;
         }
@@ -195,7 +193,7 @@ export class PluginDiscovery {
           };
         }
 
-        const plugin = new pluginClass() as any;
+        const _plugin = new pluginClass() as any;
 
         plugins.push({
           manifest: manifest,

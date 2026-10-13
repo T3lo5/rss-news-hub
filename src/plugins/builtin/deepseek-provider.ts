@@ -2,7 +2,7 @@
  * DeepSeek Provider Plugin
  */
 
-import { ChatMessage, ChatOptions, type PluginManifest } from '../types.js';
+import { type PluginManifest } from '../types.js';
 import { BaseAIProviderPlugin } from './ai-providers.js';
 
 export class DeepSeekProviderPlugin extends BaseAIProviderPlugin {
@@ -48,7 +48,7 @@ export class DeepSeekProviderPlugin extends BaseAIProviderPlugin {
   }
 
   async chat(messages: any[], options: any): Promise<string> {
-    const opts = this.getDefaultOptions(options);
+    const _opts = this.getDefaultOptions(options);
 
     const response = await fetch(`${this.config.config.baseUrl}/v1/chat/completions`, {
       method: 'POST',

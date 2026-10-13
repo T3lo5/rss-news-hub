@@ -1,7 +1,6 @@
 import { RSS_FEEDS } from '../server.config.js';
 import {
   feedCacheRepository,
-  feedRepository,
   newsHashRepository,
   newsRepository,
 } from '../src/db/repositories/index.js';
@@ -198,7 +197,7 @@ async function fetchAllFeeds() {
       // Track new vs duplicate items using hash index
       let itemsNew = 0;
       let itemsDuplicate = 0;
-      let itemsSkipped = 0;
+      let _itemsSkipped = 0;
       const filteredItems = [];
 
       for (const item of items) {
@@ -207,7 +206,7 @@ async function fetchAllFeeds() {
         // Check both existing news IDs and hash index
         if (existingIds.has(item.id) || (await newsHashRepository.exists(hash))) {
           itemsDuplicate++;
-          itemsSkipped++;
+          _itemsSkipped++;
         } else {
           itemsNew++;
           existingIds.add(item.id);

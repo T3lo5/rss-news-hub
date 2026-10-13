@@ -14,7 +14,7 @@ export function AddModal({ onSubmit, onClose }: AddModalProps) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !link.trim()) return;
+    if (!(title.trim() && link.trim())) return;
 
     setSubmitting(true);
     try {
@@ -55,7 +55,6 @@ export function AddModal({ onSubmit, onClose }: AddModalProps) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                autoFocus
               />
             </div>
             <div className="form-group">

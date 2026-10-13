@@ -5,33 +5,15 @@
  */
 
 import { spawn } from 'node:child_process';
-import {
-  accessSync,
-  constants,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { parse as parseYAML, stringify as stringifyYAML } from 'yaml';
-import { BUILTIN_PLUGINS, createBuiltinPlugin } from '../plugins/builtin/index.js';
-import {
-  discoverLocalPlugins,
-  loadPluginConfig,
-  PluginYAMLConfig,
-  PluginYAMLEntry,
-} from '../plugins/config-loader.js';
-import { createConfigWatcher } from '../plugins/config-watcher.js';
+import { loadPluginConfig } from '../plugins/config-loader.js';
 import { discoverPlugins as discoverPluginsFn } from '../plugins/discovery.js';
-import { pluginLoader } from '../plugins/loader.js';
 import { pluginRegistry } from '../plugins/registry.js';
-import { PluginConfig, PluginManifest, PluginType } from '../plugins/types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, '..', '..');
@@ -49,7 +31,7 @@ program
   .option('--enabled-only', 'Show only enabled plugins')
   .option('--json', 'Output as JSON')
   .action(async (options) => {
-    const { plugins, errors } = await discoverAllPlugins({
+    const { plugins } = await discoverAllPlugins({
       pluginsDir: resolve(PROJECT_ROOT, 'plugins'),
       npmPackages: [],
       includeBuiltin: true,
@@ -643,7 +625,7 @@ export default ${className}TransformerPlugin;
 `,
   };
 
-  return templates[type] || templates['transformer'];
+  return templates[type] || templates.transformer;
 }
 
 function generateConfigTemplate(type: string): object {

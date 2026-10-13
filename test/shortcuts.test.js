@@ -66,7 +66,7 @@ describe('Keyboard Shortcuts Logic', () => {
     const event = createKeyboardEvent('s');
     event.target = { tagName: 'INPUT' };
 
-    if (!shortcuts[0].disabledInInputs || !isInputElement(event.target)) {
+    if (!(shortcuts[0].disabledInInputs && isInputElement(event.target))) {
       handleKeyDown(event, shortcuts);
     }
 
@@ -80,7 +80,7 @@ describe('Keyboard Shortcuts Logic', () => {
     const event = createKeyboardEvent('s');
     event.target = { tagName: 'DIV' };
 
-    if (!shortcuts[0].disabledInInputs || !isInputElement(event.target)) {
+    if (!(shortcuts[0].disabledInInputs && isInputElement(event.target))) {
       handleKeyDown(event, shortcuts);
     }
 

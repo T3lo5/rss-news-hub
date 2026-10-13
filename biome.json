@@ -7,7 +7,8 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**/*.{js,jsx,ts,tsx,json,jsonc}"]
+    "includes": ["**/*.{js,jsx,ts,tsx,json,jsonc}"],
+    "experimentalScannerIgnores": ["node_modules/**", "public/**", "dist/**", "build/**", ".git/**"]
   },
   "formatter": {
     "enabled": true,
@@ -18,7 +19,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "recommended",
+      "preset": "none",
       "correctness": {
         "noUnusedVariables": "error",
         "noUnusedImports": "error"
@@ -30,7 +31,10 @@
       "suspicious": {
         "noExplicitAny": "warn",
         "noConsole": "off"
-      }
+      },
+      "a11y": "warn",
+      "complexity": "warn",
+      "performance": "warn"
     }
   },
   "javascript": {

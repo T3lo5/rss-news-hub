@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { beforeEach, describe, mock, test } from 'node:test';
+import { describe, mock, test } from 'node:test';
 import { schemas, validateBody } from '../services/validation.js';
 
 describe('Validation Schemas', () => {
