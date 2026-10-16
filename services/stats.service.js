@@ -64,18 +64,18 @@ export async function getStatsAsync() {
     feedRepository.findAll(),
   ]);
 
-  const feedsObj = {};
+  const feedsArray = [];
   for (const f of feedStats) {
     const latencies = JSON.parse(f.latencies || '[]');
     const avgLatencyMs =
       latencies.length > 0
         ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
         : 0;
-    feedsObj[f.feedId] = {
+    feedsArray.push({
       ...f,
       avgLatencyMs,
       latencies: undefined,
-    };
+    });
   }
 
   return {
@@ -84,7 +84,7 @@ export async function getStatsAsync() {
       intervalMs: 0,
       nextRun: null,
     },
-    feeds: feedsObj,
+    feeds: feedsArray,
     totals: {
       totalFetches: globalStats.totalFetches,
       totalItems: globalStats.totalItems,

@@ -83,13 +83,13 @@ describe('stats.service (DB-backed)', () => {
       await recordFeedResult('Hacker News', { success: true, items: 3, etagHit: false });
 
       const stats = await getStatsAsync();
-      const openai = stats.feeds['openai-blog'];
+      const openai = stats.feeds.find((f) => f.feedId === 'openai-blog');
       assert.strictEqual(openai.lastStatus, 'ok');
       assert.strictEqual(openai.itemsFetched, 10);
       assert.strictEqual(openai.etagHits, 1);
       assert(openai.lastFetch > 0);
 
-      const hn = stats.feeds['hacker-news'];
+      const hn = stats.feeds.find((f) => f.feedId === 'hacker-news');
       assert.strictEqual(hn.itemsFetched, 3);
       assert.strictEqual(hn.etagHits, 0);
     });
@@ -97,7 +97,7 @@ describe('stats.service (DB-backed)', () => {
     test('records per-feed metrics on error', async () => {
       await recordFeedResult('Broken Feed', { success: false, error: 'timeout' });
       const stats = await getStatsAsync();
-      const feed = stats.feeds['broken-feed'];
+      const feed = stats.feeds.find((f) => f.feedId === 'broken-feed');
       assert.strictEqual(feed.lastStatus, 'error');
       assert.strictEqual(feed.lastError, 'timeout');
     });

@@ -132,13 +132,13 @@ describe('Test Infrastructure', () => {
     await insertTestFeed(db, testFixtures.feed({ id: 'test-feed' }));
     await insertTestNews(db, testFixtures.newsItem({ id: 'news-1', feedId: 'test-feed' }));
 
-    const bm = await bookmarkRepository.add(testFixtures.bookmark({ newsId: 'news-1' }));
+    const bm = await bookmarkRepository.add('default', testFixtures.bookmark({ newsId: 'news-1' }));
     assert.ok(bm, 'Bookmark should be created');
 
-    const found = await bookmarkRepository.findByNewsId('news-1');
+    const found = await bookmarkRepository.findByNewsId('default', 'news-1');
     assert.ok(found, 'Bookmark should be found');
 
-    const removed = await bookmarkRepository.remove('news-1');
+    const removed = await bookmarkRepository.remove('default', 'news-1');
     assert.ok(removed, 'Bookmark should be removed');
   });
 

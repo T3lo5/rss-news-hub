@@ -73,10 +73,15 @@ export class NewsRepository {
   async upsert(item: schema.NewNewsItem): Promise<schema.NewsItem> {
     const existing = await this.findById(item.id);
     if (existing) {
-      const updated = await this.update(item.id, item);
+      // Never touch the relevance score on re-fetch: NULL means "unscored"
+      // and must survive until scoreNewItems() assigns a real score.
+      const { relevanceScore: _ignored, ...rest } = item;
+      const updated = await this.update(item.id, rest);
       return updated!;
     }
-    return this.create(item);
+    // New items start unscored (NULL). findUnscored() only matches NULL,
+    // so an explicit NULL here is required regardless of the column default.
+    return this.create({ relevanceScore: null, ...item });
   }
 
   async upsertMany(items: schema.NewNewsItem[]): Promise<schema.NewsItem[]> {
@@ -104,19 +109,24 @@ export class NewsRepository {
   ): Promise<void> {
     if (updates.length === 0) return;
 
-    await this.db.transaction(async (tx) => {
-      for (const { id, relevanceScore } of updates) {
-        await tx
-          .update(schema.newsItems)
-          .set({ relevanceScore, updatedAt: sql`(strftime('%s', 'now') * 1000)` })
-          .where(eq(schema.newsItems.id, id));
-      }
-    });
+    for (const { id, relevanceScore } of updates) {
+      await this.db
+        .update(schema.newsItems)
+        .set({ relevanceScore, updatedAt: sql`(strftime('%s', 'now') * 1000)` })
+        .where(eq(schema.newsItems.id, id));
+    }
   }
 
   async delete(id: string): Promise<boolean> {
     const result = await this.db.delete(schema.newsItems).where(eq(schema.newsItems.id, id));
     return result.changes > 0;
+  }
+
+  async deleteByFeedId(feedId: string): Promise<number> {
+    const result = await this.db
+      .delete(schema.newsItems)
+      .where(eq(schema.newsItems.feedId, feedId));
+    return result.changes;
   }
 
   async deleteOlderThan(cutoffDate: Date): Promise<number> {

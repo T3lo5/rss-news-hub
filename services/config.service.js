@@ -24,18 +24,32 @@ export async function readFeedsConfig() {
 }
 
 export async function writeFeedsConfig(feeds) {
-  // Sync feeds to database
+  const db = await import('../src/db/repositories/index.js').then(m => m.feedRepository);
+
+  // Get existing feed IDs from database
+  const existingFeeds = await db.findAll();
+  const existingIds = new Set(existingFeeds.map(f => f.id));
+  const providedIds = new Set(feeds.map(f => f.id));
+
+  // Delete feeds that are no longer in the provided list
+  for (const existingId of existingIds) {
+    if (!providedIds.has(existingId)) {
+      await db.delete(existingId);
+    }
+  }
+
+  // Create or update feeds from the provided list
   for (const feed of feeds) {
-    const existing = await feedRepository.findById(feed.id);
+    const existing = await db.findById(feed.id);
     if (existing) {
-      await feedRepository.update(feed.id, {
+      await db.update(feed.id, {
         name: feed.name,
         url: feed.url,
         enabled: feed.enabled,
         category: feed.category,
       });
     } else {
-      await feedRepository.create({
+      await db.create({
         id: feed.id,
         name: feed.name,
         url: feed.url,

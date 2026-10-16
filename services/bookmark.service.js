@@ -1,29 +1,34 @@
 import { bookmarkRepository } from '../src/db/repositories/index.js';
+import { randomBytes } from 'node:crypto';
 
-export async function readBookmarks() {
-  return bookmarkRepository.findAll();
+function generateBookmarkId() {
+  return randomBytes(16).toString('hex');
 }
 
-export async function addBookmark(newsItem) {
-  return bookmarkRepository.add({
-    id: newsItem.id, // Use news ID as bookmark ID
+export async function readBookmarks(userId) {
+  return bookmarkRepository.findAll(userId);
+}
+
+export async function addBookmark(userId, newsItem) {
+  return bookmarkRepository.add(userId, {
+    id: generateBookmarkId(),
     newsId: newsItem.id,
     title: newsItem.title,
     link: newsItem.link,
     source: newsItem.source,
-    bookmarkedAt: Date.now(),
+    bookmarkedAt: new Date(),
   });
 }
 
-export async function removeBookmark(newsId) {
-  return bookmarkRepository.remove(newsId);
+export async function removeBookmark(userId, newsId) {
+  return bookmarkRepository.remove(userId, newsId);
 }
 
-export async function isBookmarked(newsId) {
-  const bookmark = await bookmarkRepository.findByNewsId(newsId);
+export async function isBookmarked(userId, newsId) {
+  const bookmark = await bookmarkRepository.findByNewsId(userId, newsId);
   return Boolean(bookmark);
 }
 
-export async function getBookmarkedNewsIds() {
-  return bookmarkRepository.getBookmarkedNewsIds();
+export async function getBookmarkedNewsIds(userId) {
+  return bookmarkRepository.getBookmarkedNewsIds(userId);
 }

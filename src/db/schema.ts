@@ -34,6 +34,9 @@ export const newsItems = sqliteTable(
     pubDate: integer('pub_date', { mode: 'timestamp_ms' }).notNull(),
     description: text('description'),
     content: text('content'),
+    // NULL = never scored (findUnscored() matches IS NULL). 0 is a real
+    // score ("irrelevant"), so inserts must use explicit NULL for new items
+    // (see NewsRepository.upsert) instead of relying on this default.
     relevanceScore: integer('relevance_score').default(0),
     feedId: text('feed_id').references(() => feeds.id),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
@@ -120,6 +123,8 @@ export const bookmarks = sqliteTable(
   'bookmarks',
   {
     id: text('id').primaryKey(),
+    userId: text('user_id')
+      .references(() => users.id, { onDelete: 'cascade' }),
     newsId: text('news_id')
       .notNull()
       .references(() => newsItems.id),
@@ -131,7 +136,8 @@ export const bookmarks = sqliteTable(
       .default(sql`(strftime('%s', 'now') * 1000)`),
   },
   (table) => ({
-    newsIdx: index('bookmarks_news_idx').on(table.newsId),
+    userIdx: index('bookmarks_user_idx').on(table.userId),
+    userNewsIdx: index('bookmarks_user_news_idx').on(table.userId, table.newsId),
   })
 );
 
