@@ -15,7 +15,8 @@
     "lint:fix": "biome check --write src test routes services middleware scripts server.js",
     "format": "biome format --write src test routes services middleware scripts server.js",
     "build:frontend": "cd frontend && npm run build",
-    "dev": "concurrently \"npm run start\" \"cd frontend && npm run dev\""
+    "dev": "bash start-dev.sh",
+    "dev:parallel": "concurrently \"npm run start\" \"cd frontend && npm run dev\""
   },
   "engines": {
     "node": ">=20"
