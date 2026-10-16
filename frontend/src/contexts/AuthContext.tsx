@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { api, logoutSession, refreshSession, setAuthToken } from '../services/api';
 
 interface User {
@@ -6,6 +6,7 @@ interface User {
   email: string;
   name: string;
   role: 'admin' | 'user' | 'viewer';
+  language?: 'pt' | 'en';
 }
 
 interface AuthContextType {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { TelegramQueueItem, TelegramWorkerStatus } from '../types';
 
@@ -15,14 +16,9 @@ function formatWhen(value?: number | string): string {
   return date.toLocaleString();
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Pendente',
-  sent: 'Enviada',
-  failed: 'Falhou',
-};
-
 export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const isAdmin = user?.role === 'admin';
 
   const [queue, setQueue] = useState<TelegramQueueItem[]>([]);
@@ -47,9 +43,9 @@ export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps)
       setQueue(items);
       setStatus(worker);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar a fila');
+      setError(err instanceof Error ? err.message : t('queue.errLoad'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -64,10 +60,10 @@ export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps)
     setError(null);
     try {
       await api.cancelTelegramQueued(item.id);
-      flash('Mensagem cancelada.');
+      flash(t('queue.cancelled'));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao cancelar');
+      setError(err instanceof Error ? err.message : t('queue.errCancel'));
     } finally {
       setBusy(false);
     }
@@ -78,10 +74,10 @@ export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps)
     setError(null);
     try {
       await api.processTelegramQueue();
-      flash('Fila processada.');
+      flash(t('queue.processed'));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao processar a fila');
+      setError(err instanceof Error ? err.message : t('queue.errProcess'));
     } finally {
       setBusy(false);
     }
@@ -95,9 +91,9 @@ export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps)
         ? await api.stopTelegramWorker()
         : await api.startTelegramWorker();
       setStatus(worker);
-      flash(worker.running ? 'Worker iniciado.' : 'Worker parado.');
+      flash(worker.running ? t('queue.workerStarted') : t('queue.workerStopped'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao alterar o worker');
+      setError(err instanceof Error ? err.message : t('queue.errWorker'));
     } finally {
       setBusy(false);
     }
@@ -119,8 +115,8 @@ export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps)
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3 id="telegram-queue-title">📨 Fila do Telegram</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Fechar">
+          <h3 id="telegram-queue-title">{t('queue.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -149,15 +145,15 @@ export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps)
             }}
           >
             <span className={`scheduler-badge ${status?.running ? 'running' : 'stopped'}`}>
-              Worker: {status?.running ? 'ON' : 'OFF'}
+              {status?.running ? t('queue.workerOn') : t('queue.workerOff')}
             </span>
             <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-              {queue.length} mensagem(ns) na fila
-              {status?.isProcessing ? ' · processando…' : ''}
+              {t('queue.count', { count: queue.length })}
+              {status?.isProcessing ? ` · ${t('queue.processing')}` : ''}
             </span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
               <button className="btn btn-secondary btn-sm" onClick={handleProcess} disabled={busy}>
-                ▶️ Processar agora
+                {t('queue.processNow')}
               </button>
               {isAdmin && (
                 <button
@@ -165,23 +161,23 @@ export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps)
                   onClick={handleToggleWorker}
                   disabled={busy}
                 >
-                  {status?.running ? '⏹️ Parar worker' : '▶️ Iniciar worker'}
+                  {status?.running ? t('queue.stopWorker') : t('queue.startWorker')}
                 </button>
               )}
             </div>
           </div>
 
           {loading && queue.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)' }}>Carregando…</p>
+            <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
           ) : queue.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)' }}>Nenhuma mensagem agendada.</p>
+            <p style={{ color: 'var(--text-secondary)' }}>{t('queue.empty')}</p>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: 'var(--text-secondary)' }}>
-                  <th style={{ padding: '8px 6px' }}>Mensagem</th>
-                  <th style={{ padding: '8px 6px' }}>Agendada para</th>
-                  <th style={{ padding: '8px 6px' }}>Status</th>
+                  <th style={{ padding: '8px 6px' }}>{t('queue.colMessage')}</th>
+                  <th style={{ padding: '8px 6px' }}>{t('queue.colScheduled')}</th>
+                  <th style={{ padding: '8px 6px' }}>{t('queue.colStatus')}</th>
                   <th style={{ padding: '8px 6px' }} />
                 </tr>
               </thead>
@@ -210,7 +206,11 @@ export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps)
                     </td>
                     <td style={{ padding: '8px 6px' }}>{formatWhen(item.scheduledAt)}</td>
                     <td style={{ padding: '8px 6px' }}>
-                      {STATUS_LABEL[item.status ?? ''] ?? item.status ?? '—'}
+                      {item.status
+                        ? t(
+                            `queue.status${item.status.charAt(0).toUpperCase()}${item.status.slice(1)}`
+                          )
+                        : '—'}
                       {item.retryCount ? ` (${item.retryCount})` : ''}
                     </td>
                     <td style={{ padding: '8px 6px' }}>
@@ -219,7 +219,7 @@ export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps)
                         onClick={() => handleCancel(item)}
                         disabled={busy}
                       >
-                        Cancelar
+                        {t('common.cancel')}
                       </button>
                     </td>
                   </tr>

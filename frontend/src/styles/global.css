@@ -945,6 +945,22 @@ input::placeholder, textarea::placeholder {
   border-color: var(--accent);
 }
 
+/* Language selector */
+.language-select {
+  height: 40px;
+  padding: 0 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.language-select:hover {
+  border-color: var(--accent);
+}
+
 /* Shortcuts Help Modal */
 .shortcuts-modal {
   max-width: 500px;

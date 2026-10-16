@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { api } from '../services/api';
-import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n';
+import { api } from '../services/api';
+import { LanguageSelector } from './LanguageSelector';
+import { ThemeToggle } from './ThemeToggle';
 
 interface SchedulerStatus {
   running: boolean;
@@ -50,6 +52,7 @@ export function Header({
 }: HeaderProps) {
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const { user, logout } = useAuth();
+  const { t } = useI18n();
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -77,7 +80,7 @@ export function Header({
           </span>
           RSS News Hub
         </h1>
-        <span className="subtitle">Notícias coletadas manualmente + IA + Telegram</span>
+        <span className="subtitle">{t('header.subtitle')}</span>
       </div>
       <div className="header-actions">
         <div
@@ -85,43 +88,45 @@ export function Header({
           style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '16px' }}
         >
           <span className={`scheduler-badge ${schedulerStatus?.running ? 'running' : 'stopped'}`}>
-            {schedulerStatus?.running ? 'Auto: ON' : 'Auto: OFF'}
+            {schedulerStatus?.running ? t('header.autoOn') : t('header.autoOff')}
           </span>
           <span className="next-fetch">
-            Próxima busca: <strong>{formatCountdown(schedulerStatus?.nextRun || null)}</strong>
+            {t('header.nextFetch')}{' '}
+            <strong>{formatCountdown(schedulerStatus?.nextRun || null)}</strong>
           </span>
         </div>
+        <LanguageSelector />
         <ThemeToggle />
         <button className="btn btn-primary" onClick={onRefresh}>
           <span role="img" aria-label="refresh">
             🔄
           </span>{' '}
-          Atualizar RSS
+          {t('header.refresh')}
         </button>
         <button className="btn btn-secondary" onClick={onAddClick}>
           <span role="img" aria-label="add">
             ＋
           </span>{' '}
-          Adicionar
+          {t('header.add')}
         </button>
         <button className="btn btn-secondary" onClick={onFeedsClick}>
           <span role="img" aria-label="feeds">
             📋
           </span>{' '}
-          Feeds
+          {t('header.feeds')}
         </button>
         <button className="btn btn-secondary" onClick={onStatsClick}>
           <span role="img" aria-label="stats">
             📊
           </span>{' '}
-          Estatísticas
+          {t('header.stats')}
         </button>
         {user?.role === 'admin' && (
           <button className="btn btn-secondary" onClick={onDigestClick}>
             <span role="img" aria-label="digest">
               🧠
             </span>{' '}
-            Digest
+            {t('header.digest')}
           </button>
         )}
         {user?.role === 'admin' && (
@@ -129,7 +134,7 @@ export function Header({
             <span role="img" aria-label="settings">
               ⚙️
             </span>{' '}
-            Configurações
+            {t('header.settings')}
           </button>
         )}
         {user?.role === 'admin' && (
@@ -137,7 +142,7 @@ export function Header({
             <span role="img" aria-label="users">
               👥
             </span>{' '}
-            Usuários
+            {t('header.users')}
           </button>
         )}
         {(user?.role === 'admin' || user?.role === 'user') && (
@@ -145,21 +150,28 @@ export function Header({
             <span role="img" aria-label="telegram queue">
               📨
             </span>{' '}
-            Fila
+            {t('header.queue')}
           </button>
         )}
         {user ? (
-          <div className="user-menu" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '16px' }}>
+          <div
+            className="user-menu"
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '16px' }}
+          >
             <span className="user-name" style={{ fontSize: '14px', color: '#666' }}>
               {user.name} ({user.role})
             </span>
             <button className="btn btn-secondary" onClick={logout} style={{ padding: '8px 12px' }}>
-              Sair
+              {t('header.logout')}
             </button>
           </div>
         ) : (
-          <button className="btn btn-primary" onClick={() => window.location.href = '/login'} style={{ marginLeft: '16px' }}>
-            Entrar
+          <button
+            className="btn btn-primary"
+            onClick={() => (window.location.href = '/login')}
+            style={{ marginLeft: '16px' }}
+          >
+            {t('header.login')}
           </button>
         )}
       </div>

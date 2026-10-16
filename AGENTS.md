@@ -44,7 +44,9 @@ docker compose up --build  # full stack incl. SQLite database (named volume)
 - `plugins/` — user plugins directory; `example-wordcount` (transformer) and
   `example-webhook-output` (output) serve as references.
 - `frontend/` — React + Vite; `npm run build` outputs to `public/`
-  (served by `server.js`).
+  (served by `server.js`). i18n lives in `frontend/src/i18n/` (flat-key
+  dictionaries `pt`/`en` + `useI18n()`); the language is chosen per user and
+  stored on `users.language`.
 - `test/*.test.ts` — node:test suites (run all: `npm test`; single file:
   `node --import tsx --test test/<name>.test.ts`).
 - `server.config.js` — loads `.env`, exports PORT/telegram/feeds config.

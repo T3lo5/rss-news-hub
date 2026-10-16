@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { User, UserRole } from '../types';
 
@@ -10,14 +11,9 @@ interface UsersModalProps {
 
 const ROLES: UserRole[] = ['admin', 'user', 'viewer'];
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  admin: 'Admin',
-  user: 'Usuário',
-  viewer: 'Leitor',
-};
-
 export function UsersModal({ isOpen, onClose }: UsersModalProps) {
   const { user: currentUser } = useAuth();
+  const { t } = useI18n();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +42,7 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
     try {
       setUsers(await api.getUsers());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar usuários');
+      setError(err instanceof Error ? err.message : t('users.errLoad'));
     } finally {
       setLoading(false);
     }
@@ -80,10 +76,10 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
       setNewName('');
       setNewPassword('');
       setNewRole('user');
-      flash('Usuário criado!');
+      flash(t('users.created'));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao criar usuário');
+      setError(err instanceof Error ? err.message : t('users.errCreate'));
     } finally {
       setCreating(false);
     }
@@ -94,10 +90,10 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
     setError(null);
     try {
       await api.updateUser(user.id, { role });
-      flash(`Papel de ${user.email} atualizado.`);
+      flash(t('users.roleUpdated', { email: user.email }));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao atualizar papel');
+      setError(err instanceof Error ? err.message : t('users.errRole'));
     } finally {
       setBusyId(null);
     }
@@ -105,7 +101,7 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
 
   const handleResetPassword = async (user: User) => {
     if (resetPassword.length < 8) {
-      setError('A nova senha precisa ter ao menos 8 caracteres.');
+      setError(t('users.passwordTooShort'));
       return;
     }
     setBusyId(user.id);
@@ -114,24 +110,24 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
       await api.updateUser(user.id, { password: resetPassword });
       setPasswordFor(null);
       setResetPassword('');
-      flash(`Senha de ${user.email} redefinida.`);
+      flash(t('users.passwordReset', { email: user.email }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao redefinir senha');
+      setError(err instanceof Error ? err.message : t('users.errPassword'));
     } finally {
       setBusyId(null);
     }
   };
 
   const handleDelete = async (user: User) => {
-    if (!window.confirm(`Excluir ${user.email}? Esta ação não pode ser desfeita.`)) return;
+    if (!window.confirm(t('users.confirmDelete', { email: user.email }))) return;
     setBusyId(user.id);
     setError(null);
     try {
       await api.deleteUser(user.id);
-      flash('Usuário excluído.');
+      flash(t('users.deleted'));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao excluir usuário');
+      setError(err instanceof Error ? err.message : t('users.errDelete'));
     } finally {
       setBusyId(null);
     }
@@ -139,8 +135,7 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
 
   if (!isOpen) return null;
 
-  const canCreate =
-    newEmail.trim().length > 0 && newPassword.length >= 8 && !creating;
+  const canCreate = newEmail.trim().length > 0 && newPassword.length >= 8 && !creating;
 
   return (
     <div
@@ -156,8 +151,8 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3 id="users-title">👥 Usuários</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Fechar">
+          <h3 id="users-title">{t('users.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -177,10 +172,10 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
           )}
 
           <section style={{ marginBottom: '28px' }}>
-            <h4 style={{ marginBottom: '12px' }}>Criar usuário</h4>
+            <h4 style={{ marginBottom: '12px' }}>{t('users.createTitle')}</h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-end' }}>
               <div className="form-group" style={{ flex: '1 1 200px', margin: 0 }}>
-                <label htmlFor="newUserEmail">E-mail</label>
+                <label htmlFor="newUserEmail">{t('common.email')}</label>
                 <input
                   id="newUserEmail"
                   type="email"
@@ -190,7 +185,7 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
                 />
               </div>
               <div className="form-group" style={{ flex: '1 1 160px', margin: 0 }}>
-                <label htmlFor="newUserName">Nome (opcional)</label>
+                <label htmlFor="newUserName">{t('users.nameOptional')}</label>
                 <input
                   id="newUserName"
                   value={newName}
@@ -198,17 +193,17 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
                 />
               </div>
               <div className="form-group" style={{ flex: '1 1 160px', margin: 0 }}>
-                <label htmlFor="newUserPassword">Senha</label>
+                <label htmlFor="newUserPassword">{t('common.password')}</label>
                 <input
                   id="newUserPassword"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="mín. 8 caracteres"
+                  placeholder={t('users.passwordPlaceholder')}
                 />
               </div>
               <div className="form-group" style={{ flex: '0 0 130px', margin: 0 }}>
-                <label htmlFor="newUserRole">Papel</label>
+                <label htmlFor="newUserRole">{t('common.role')}</label>
                 <select
                   id="newUserRole"
                   value={newRole}
@@ -216,29 +211,29 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
                 >
                   {ROLES.map((role) => (
                     <option key={role} value={role}>
-                      {ROLE_LABEL[role]}
+                      {t(`role.${role}`)}
                     </option>
                   ))}
                 </select>
               </div>
               <button className="btn btn-primary" onClick={handleCreate} disabled={!canCreate}>
-                {creating ? 'Criando…' : 'Criar'}
+                {creating ? t('common.creating') : t('common.create')}
               </button>
             </div>
           </section>
 
           <section>
-            <h4 style={{ marginBottom: '12px' }}>Usuários ({users.length})</h4>
+            <h4 style={{ marginBottom: '12px' }}>{t('users.list', { count: users.length })}</h4>
             {loading && users.length === 0 ? (
-              <p style={{ color: 'var(--text-secondary)' }}>Carregando…</p>
+              <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: 'var(--text-secondary)' }}>
-                    <th style={{ padding: '8px 6px' }}>E-mail</th>
-                    <th style={{ padding: '8px 6px' }}>Nome</th>
-                    <th style={{ padding: '8px 6px' }}>Papel</th>
-                    <th style={{ padding: '8px 6px' }}>Ações</th>
+                    <th style={{ padding: '8px 6px' }}>{t('common.email')}</th>
+                    <th style={{ padding: '8px 6px' }}>{t('common.name')}</th>
+                    <th style={{ padding: '8px 6px' }}>{t('common.role')}</th>
+                    <th style={{ padding: '8px 6px' }}>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -250,9 +245,13 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
                           {user.email}
                           {isSelf && (
                             <span
-                              style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}
+                              style={{
+                                marginLeft: '6px',
+                                fontSize: '11px',
+                                color: 'var(--text-secondary)',
+                              }}
                             >
-                              (você)
+                              {t('users.you')}
                             </span>
                           )}
                         </td>
@@ -262,23 +261,25 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
                             value={user.role}
                             onChange={(e) => handleRoleChange(user, e.target.value as UserRole)}
                             disabled={isSelf || busyId === user.id}
-                            title={isSelf ? 'Você não pode alterar o próprio papel' : undefined}
+                            title={isSelf ? t('users.selfRoleHint') : undefined}
                           >
                             {ROLES.map((role) => (
                               <option key={role} value={role}>
-                                {ROLE_LABEL[role]}
+                                {t(`role.${role}`)}
                               </option>
                             ))}
                           </select>
                         </td>
                         <td style={{ padding: '8px 6px' }}>
                           {passwordFor === user.id ? (
-                            <span style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                            <span
+                              style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}
+                            >
                               <input
                                 type="password"
                                 value={resetPassword}
                                 onChange={(e) => setResetPassword(e.target.value)}
-                                placeholder="nova senha"
+                                placeholder={t('users.newPasswordPlaceholder')}
                                 style={{ width: '130px' }}
                               />
                               <button
@@ -286,7 +287,7 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
                                 onClick={() => handleResetPassword(user)}
                                 disabled={busyId === user.id}
                               >
-                                Salvar
+                                {t('common.save')}
                               </button>
                               <button
                                 className="btn btn-ghost btn-sm"
@@ -295,7 +296,7 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
                                   setResetPassword('');
                                 }}
                               >
-                                Cancelar
+                                {t('common.cancel')}
                               </button>
                             </span>
                           ) : (
@@ -307,15 +308,15 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
                                   setResetPassword('');
                                 }}
                               >
-                                Senha
+                                {t('users.passwordBtn')}
                               </button>
                               <button
                                 className="btn btn-ghost btn-sm"
                                 onClick={() => handleDelete(user)}
                                 disabled={isSelf || busyId === user.id}
-                                title={isSelf ? 'Você não pode excluir a si mesmo' : undefined}
+                                title={isSelf ? t('users.selfDeleteHint') : undefined}
                               >
-                                Excluir
+                                {t('common.delete')}
                               </button>
                             </span>
                           )}

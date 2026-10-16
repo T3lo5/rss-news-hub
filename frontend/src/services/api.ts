@@ -32,8 +32,8 @@ import type {
   SchedulerStatus,
   ScoredNewsItem,
   StatsResponse,
-  TelegramResponse,
   TelegramQueueItem,
+  TelegramResponse,
   TelegramSettings,
   TelegramSettingsUpdate,
   TelegramWorkerStatus,
@@ -191,6 +191,19 @@ export const api = {
       ok: boolean;
       data: { id: string; email: string; name: string; role: string };
     }>(res);
+    return data.data;
+  },
+
+  async updateMyProfile(payload: {
+    name?: string;
+    email?: string;
+    language?: 'pt' | 'en';
+  }): Promise<User> {
+    const res = await fetchWithAuth('/api/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    const data = await handleResponse<{ ok: boolean; data: User }>(res);
     return data.data;
   },
 
@@ -430,7 +443,9 @@ export const api = {
 
   async scoreNewItems(): Promise<{ scored: number; total: number }> {
     const res = await fetchWithAuth('/api/ai/score-new', { method: 'POST' });
-    const data = await handleResponse<{ ok: boolean; data: { scored: number; total: number } }>(res);
+    const data = await handleResponse<{ ok: boolean; data: { scored: number; total: number } }>(
+      res
+    );
     return data.data;
   },
 
@@ -442,8 +457,7 @@ export const api = {
     const data = await handleResponse<{ ok: boolean; data: any }>(res);
     const raw = Array.isArray(data.data) ? data.data : (data.data?.templates ?? []);
     const templates = raw.map(normalizeTemplate);
-    const defaultTemplateIds =
-      data.data?.defaultTemplateIds ?? ({} as Record<string, string>);
+    const defaultTemplateIds = data.data?.defaultTemplateIds ?? ({} as Record<string, string>);
     return { templates, defaultTemplateIds };
   },
 
@@ -562,7 +576,8 @@ export const api = {
     return data.data;
   },
 
-  async getRetentionSettings(): Promise<RetentionSettings> {    const res = await fetchWithAuth('/api/settings/retention');
+  async getRetentionSettings(): Promise<RetentionSettings> {
+    const res = await fetchWithAuth('/api/settings/retention');
     const data = await handleResponse<{ ok: boolean; data: RetentionSettings }>(res);
     return data.data;
   },

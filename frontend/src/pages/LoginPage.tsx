@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n';
 
 export function LoginPage() {
   const { login, register, user } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -31,7 +33,7 @@ export function LoginPage() {
       }
       // navigate is triggered by useEffect above when user is set
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      setError(err instanceof Error ? err.message : t('login.unknownError'));
     } finally {
       setLoading(false);
     }
@@ -40,14 +42,14 @@ export function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h2>{isLogin ? 'Entrar' : 'Criar conta'}</h2>
-        
+        <h2>{isLogin ? t('login.signIn') : t('login.signUp')}</h2>
+
         {error && <div className="error-message">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           {!isLogin && (
             <div className="form-group">
-              <label htmlFor="name">Nome</label>
+              <label htmlFor="name">{t('login.name')}</label>
               <input
                 id="name"
                 type="text"
@@ -61,7 +63,7 @@ export function LoginPage() {
           )}
 
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t('login.email')}</label>
             <input
               id="email"
               type="email"
@@ -74,7 +76,7 @@ export function LoginPage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Senha</label>
+            <label htmlFor="password">{t('login.password')}</label>
             <input
               id="password"
               type="password"
@@ -87,18 +89,21 @@ export function LoginPage() {
           </div>
 
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? 'Carregando...' : (isLogin ? 'Entrar' : 'Criar conta')}
+            {loading ? t('login.submitting') : isLogin ? t('login.signIn') : t('login.signUp')}
           </button>
         </form>
 
         <p className="switch-mode">
-          {isLogin ? 'Não tem conta?' : 'Já tem conta?'} {' '}
+          {isLogin ? t('login.noAccount') : t('login.hasAccount')}{' '}
           <button
             type="button"
             className="btn-link"
-            onClick={() => { setIsLogin(!isLogin); setError(''); }}
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError('');
+            }}
           >
-            {isLogin ? 'Criar conta' : 'Entrar'}
+            {isLogin ? t('login.signUp') : t('login.signIn')}
           </button>
         </p>
       </div>

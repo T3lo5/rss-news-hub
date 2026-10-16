@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
+import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { FeedStat, HealthStatus, StatsResponse } from '../types';
 
-function formatDate(timestamp: number | null): string {
-  if (!timestamp) return 'Nunca';
+function formatDate(timestamp: number | null, never: string, locale: string): string {
+  if (!timestamp) return never;
   try {
-    return new Date(timestamp).toLocaleString('pt-BR', {
+    return new Date(timestamp).toLocaleString(locale, {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
     });
   } catch {
-    return 'Inválido';
+    return never;
   }
 }
 
@@ -38,6 +39,8 @@ interface StatsModalProps {
 }
 
 export function StatsModal({ onClose }: StatsModalProps) {
+  const { t, language } = useI18n();
+  const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,7 +53,7 @@ export function StatsModal({ onClose }: StatsModalProps) {
         const data = await api.getStats();
         setStats(data);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erro ao carregar estatísticas');
+        setError(e instanceof Error ? e.message : t('stats.errLoad'));
       } finally {
         setLoading(false);
       }
@@ -66,20 +69,24 @@ export function StatsModal({ onClose }: StatsModalProps) {
 
     fetchStats();
     fetchHealth();
-  }, []);
+  }, [t]);
+
+  const header = (
+    <div className="modal-header">
+      <h2>{t('stats.title')}</h2>
+      <button className="btn-close" onClick={onClose} aria-label={t('common.close')}>
+        ×
+      </button>
+    </div>
+  );
 
   if (loading) {
     return (
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal stats-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h2>📊 Estatísticas dos Feeds</h2>
-            <button className="btn-close" onClick={onClose} aria-label="Fechar">
-              ×
-            </button>
-          </div>
+          {header}
           <div className="modal-body">
-            <div className="loading">Carregando estatísticas...</div>
+            <div className="loading">{t('stats.loading')}</div>
           </div>
         </div>
       </div>
@@ -90,14 +97,9 @@ export function StatsModal({ onClose }: StatsModalProps) {
     return (
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal stats-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h2>📊 Estatísticas dos Feeds</h2>
-            <button className="btn-close" onClick={onClose} aria-label="Fechar">
-              ×
-            </button>
-          </div>
+          {header}
           <div className="modal-body">
-            <div className="error">Erro: {error}</div>
+            <div className="error">{error}</div>
           </div>
         </div>
       </div>
@@ -107,75 +109,75 @@ export function StatsModal({ onClose }: StatsModalProps) {
   const feeds = stats?.feeds || [];
   const totals = stats?.totals;
   const scheduler = stats?.scheduler;
+  const never = t('stats.never');
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal stats-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>📊 Estatísticas dos Feeds</h2>
-          <button className="btn-close" onClick={onClose} aria-label="Fechar">
-            ×
-          </button>
-        </div>
+        {header}
 
         <div className="modal-body">
           {/* System health */}
           {health && (
             <div className="stats-section">
-              <h3>🩺 Sistema</h3>
+              <h3>{t('stats.system')}</h3>
               <div className="stats-grid">
                 <div className="stat-card">
-                  <span className="stat-label">Estado</span>
+                  <span className="stat-label">{t('stats.state')}</span>
                   <span className={`stat-value ${health.ok ? 'success' : 'danger'}`}>
-                    {health.ok ? '🟢 Saudável' : '🔴 Indisponível'}
+                    {health.ok ? t('stats.healthy') : t('stats.unavailable')}
                   </span>
                 </div>
                 <div className="stat-card">
-                  <span className="stat-label">Versão</span>
+                  <span className="stat-label">{t('stats.version')}</span>
                   <span className="stat-value">{health.version || '—'}</span>
                 </div>
                 <div className="stat-card">
-                  <span className="stat-label">Uptime</span>
+                  <span className="stat-label">{t('stats.uptime')}</span>
                   <span className="stat-value">{formatUptime(health.uptime)}</span>
                 </div>
                 <div className="stat-card">
-                  <span className="stat-label">Banco de dados</span>
+                  <span className="stat-label">{t('stats.database')}</span>
                   <span className={`stat-value ${health.db.ok ? 'success' : 'danger'}`}>
-                    {health.db.ok ? '🟢 OK' : '🔴 Erro'}
+                    {health.db.ok ? t('stats.dbOk') : t('stats.dbError')}
                   </span>
                 </div>
                 <div className="stat-card">
-                  <span className="stat-label">Provedores IA ativos</span>
+                  <span className="stat-label">{t('stats.providers')}</span>
                   <span className="stat-value">
                     {health.providers.configured.length
                       ? health.providers.configured.join(', ')
-                      : 'nenhum'}
+                      : t('stats.none')}
                   </span>
                 </div>
                 <div className="stat-card">
-                  <span className="stat-label">Retenção</span>
+                  <span className="stat-label">{t('stats.retention')}</span>
                   <span className="stat-value">
                     {health.schedulers.retention?.retentionDays
-                      ? `${health.schedulers.retention.retentionDays} dias`
-                      : 'desligada'}
+                      ? t('stats.retentionDays', {
+                          days: health.schedulers.retention.retentionDays,
+                        })
+                      : t('stats.retentionOff')}
                   </span>
                 </div>
                 <div className="stat-card">
-                  <span className="stat-label">Worker Telegram</span>
+                  <span className="stat-label">{t('stats.telegramWorker')}</span>
                   <span
                     className={`stat-value ${
                       health.schedulers.telegram?.running ? 'success' : 'danger'
                     }`}
                   >
-                    {health.schedulers.telegram?.running ? '🟢 ON' : '🔴 OFF'}
+                    {health.schedulers.telegram?.running ? t('stats.running') : t('stats.stopped')}
                   </span>
                 </div>
                 <div className="stat-card">
-                  <span className="stat-label">Digest</span>
+                  <span className="stat-label">{t('stats.digest')}</span>
                   <span className="stat-value">
                     {health.schedulers.digest?.enabled
-                      ? `próx. ${formatDate(health.schedulers.digest.nextRun ?? null)}`
-                      : 'desligado'}
+                      ? t('stats.digestNext', {
+                          when: formatDate(health.schedulers.digest.nextRun ?? null, never, locale),
+                        })
+                      : t('stats.digestOff')}
                   </span>
                 </div>
               </div>
@@ -184,68 +186,74 @@ export function StatsModal({ onClose }: StatsModalProps) {
 
           {/* Scheduler Summary */}
           <div className="stats-section">
-            <h3>⚙️ Agendador</h3>
+            <h3>{t('stats.scheduler')}</h3>
             <div className="stats-grid">
               <div className="stat-card">
-                <span className="stat-label">Status</span>
+                <span className="stat-label">{t('stats.status')}</span>
                 <span className={`stat-value ${scheduler?.running ? 'success' : 'danger'}`}>
-                  {scheduler?.running ? '🟢 Rodando' : '🔴 Parado'}
+                  {scheduler?.running ? t('stats.running') : t('stats.stopped')}
                 </span>
               </div>
               <div className="stat-card">
-                <span className="stat-label">Intervalo</span>
+                <span className="stat-label">{t('stats.interval')}</span>
                 <span className="stat-value">{formatInterval(scheduler?.intervalMs || 0)}</span>
               </div>
               <div className="stat-card">
-                <span className="stat-label">Última execução</span>
-                <span className="stat-value">{formatDate(scheduler?.lastRun || null)}</span>
+                <span className="stat-label">{t('stats.lastRun')}</span>
+                <span className="stat-value">
+                  {formatDate(scheduler?.lastRun || null, never, locale)}
+                </span>
               </div>
               <div className="stat-card">
-                <span className="stat-label">Próxima execução</span>
-                <span className="stat-value">{formatDate(scheduler?.nextRun || null)}</span>
+                <span className="stat-label">{t('stats.nextRun')}</span>
+                <span className="stat-value">
+                  {formatDate(scheduler?.nextRun || null, never, locale)}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Totals */}
           <div className="stats-section">
-            <h3>📈 Totais</h3>
+            <h3>{t('stats.totals')}</h3>
             <div className="stats-grid">
               <div className="stat-card">
-                <span className="stat-label">Total de buscas</span>
+                <span className="stat-label">{t('stats.totalFetches')}</span>
                 <span className="stat-value">{totals?.totalFetches || 0}</span>
               </div>
               <div className="stat-card">
-                <span className="stat-label">Total de notícias</span>
+                <span className="stat-label">{t('stats.totalItems')}</span>
                 <span className="stat-value">{totals?.totalItems || 0}</span>
               </div>
               <div className="stat-card">
-                <span className="stat-label">Total de erros</span>
+                <span className="stat-label">{t('stats.totalErrors')}</span>
                 <span className="stat-value danger">{totals?.totalErrors || 0}</span>
               </div>
               <div className="stat-card">
-                <span className="stat-label">Última busca completa</span>
-                <span className="stat-value">{formatDate(totals?.lastFullFetch || null)}</span>
+                <span className="stat-label">{t('stats.lastFullFetch')}</span>
+                <span className="stat-value">
+                  {formatDate(totals?.lastFullFetch || null, never, locale)}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Feed Health Table */}
           <div className="stats-section">
-            <h3>🏥 Saúde dos Feeds</h3>
+            <h3>{t('stats.feedHealth')}</h3>
             {feeds.length === 0 ? (
-              <p className="empty">Nenhum dado de feed disponível. Execute uma busca primeiro.</p>
+              <p className="empty">{t('stats.noFeedData')}</p>
             ) : (
               <div className="table-container">
                 <table className="stats-table">
                   <thead>
                     <tr>
-                      <th>Fonte</th>
-                      <th>Status</th>
-                      <th>Última busca</th>
-                      <th>Notícias coletadas</th>
-                      <th>ETag Hits</th>
-                      <th>Último erro</th>
+                      <th>{t('stats.colSource')}</th>
+                      <th>{t('stats.colStatus')}</th>
+                      <th>{t('stats.colLastFetch')}</th>
+                      <th>{t('stats.colItems')}</th>
+                      <th>{t('stats.colEtag')}</th>
+                      <th>{t('stats.colLastError')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -255,13 +263,13 @@ export function StatsModal({ onClose }: StatsModalProps) {
                         <td>
                           <span className={`status-badge ${feed.lastStatus || 'unknown'}`}>
                             {feed.lastStatus === 'ok'
-                              ? '✅ OK'
+                              ? `✅ ${t('stats.ok')}`
                               : feed.lastStatus === 'error'
-                                ? '❌ Erro'
+                                ? `❌ ${t('stats.errorWord')}`
                                 : '⏳ --'}
                           </span>
                         </td>
-                        <td>{formatDate(feed.lastFetch)}</td>
+                        <td>{formatDate(feed.lastFetch, never, locale)}</td>
                         <td>{feed.itemsFetched}</td>
                         <td>{feed.etagHits}</td>
                         <td className="error-cell">{feed.lastError || '-'}</td>

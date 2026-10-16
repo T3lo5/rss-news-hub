@@ -8,6 +8,10 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- **Seletor de idioma (PT/EN)** no cabeçalho: a escolha é salva por usuário no
+  banco e aplicada na hora; infraestrutura de i18n no frontend
+  (`frontend/src/i18n/`) com dicionários `pt`/`en` e hook `useI18n()` — telas
+  migradas: cabeçalho, login, usuários, fila do Telegram e estatísticas
 - **Idioma por usuário**: cada conta guarda sua preferência (`pt`/`en`) no banco
   (migração `0010_user_language`), exposta em `GET/PUT /api/auth/me`
 - Endpoint público **`GET /api/health`** (uptime, versão, banco, estados dos
