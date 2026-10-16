@@ -356,6 +356,33 @@ registerPath(
   [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
 );
 registerPath(
+  'put',
+  '/api/settings/email',
+  'Update email settings',
+  'Update SMTP settings for newsletter/digest delivery (admin). pass omitted = keep, null = clear.',
+  schemas.emailSettingsSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'post',
+  '/api/email/send',
+  'Send email',
+  'Send an email using the configured SMTP server. to defaults to the configured recipients.',
+  schemas.emailSendSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'post',
+  '/api/email/test',
+  'Test email',
+  'Verify the SMTP connection and send a test message (admin).',
+  schemas.emailTestSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
   'get',
   '/api/bookmarks',
   'List bookmarks',

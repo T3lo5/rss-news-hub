@@ -10,10 +10,11 @@
 // Telegram and newsletter config objects are mutated in place (server.js holds
 // those references and passes them around).
 
-import { ai, newsletterConfig, telegram } from '../server.config.js';
+import { ai, email, newsletterConfig, telegram } from '../server.config.js';
 import { settingsRepository } from '../src/db/repositories/index.js';
 import { __setAiConfig } from './ai.service.js';
 import { getDigestConfig, updateDigestConfig } from './digest.service.js';
+import { __resetTransport } from './email.service.js';
 import { decryptSecret, encryptSecret } from './secrets.js';
 
 const AI_PROVIDER_IDS = ['sensenova', 'deepseek', 'openai'];
@@ -29,6 +30,7 @@ const AI_PROVIDER_LABELS = {
 const ENV_AI = structuredClone(ai);
 const ENV_TELEGRAM = { ...telegram };
 const ENV_NEWSLETTER = { ...newsletterConfig };
+const ENV_EMAIL = structuredClone(email);
 
 async function readArea(area) {
   const raw = await settingsRepository.get(area);
@@ -76,11 +78,29 @@ function buildTelegramConfig(stored = {}) {
   };
 }
 
+function buildEmailConfig(stored = {}) {
+  return {
+    enabled: stored.enabled !== undefined ? stored.enabled : ENV_EMAIL.enabled,
+    host: stored.host || ENV_EMAIL.host,
+    port: stored.port || ENV_EMAIL.port,
+    secure: stored.secure !== undefined ? stored.secure : ENV_EMAIL.secure,
+    user: stored.user !== undefined ? stored.user : ENV_EMAIL.user,
+    pass: stored.pass ? decryptSecret(stored.pass) : ENV_EMAIL.pass,
+    from: stored.from || ENV_EMAIL.from,
+    recipients: stored.recipients !== undefined ? stored.recipients : ENV_EMAIL.recipients,
+  };
+}
+
 // Admin view: effective (env + persisted) config with secrets masked.
 export async function getPublicSettings() {
-  const [aiStored, tgStored] = await Promise.all([readArea('ai'), readArea('telegram')]);
+  const [aiStored, tgStored, emailStored] = await Promise.all([
+    readArea('ai'),
+    readArea('telegram'),
+    readArea('email'),
+  ]);
   const effectiveAi = buildAiConfig(aiStored);
   const effectiveTg = buildTelegramConfig(tgStored);
+  const effectiveEmail = buildEmailConfig(emailStored);
 
   return {
     ai: {
@@ -96,6 +116,16 @@ export async function getPublicSettings() {
     telegram: {
       chatId: effectiveTg.chatId,
       botTokenSet: Boolean(effectiveTg.botToken),
+    },
+    email: {
+      enabled: effectiveEmail.enabled,
+      host: effectiveEmail.host,
+      port: effectiveEmail.port,
+      secure: effectiveEmail.secure,
+      user: effectiveEmail.user,
+      from: effectiveEmail.from,
+      passwordSet: Boolean(effectiveEmail.pass),
+      recipients: effectiveEmail.recipients,
     },
     newsletter: { ...newsletterConfig },
     digest: getDigestConfig(),
@@ -157,6 +187,29 @@ export async function updateTelegramSettings(data = {}) {
   return (await getPublicSettings()).telegram;
 }
 
+export async function updateEmailSettings(data = {}) {
+  const stored = await readArea('email');
+  const next = { ...stored };
+
+  if (data.enabled !== undefined) next.enabled = data.enabled;
+  if (data.host !== undefined) next.host = data.host;
+  if (data.port !== undefined) next.port = data.port;
+  if (data.secure !== undefined) next.secure = data.secure;
+  if (data.user !== undefined) next.user = data.user;
+  if (data.from !== undefined) next.from = data.from;
+  if (Array.isArray(data.recipients)) next.recipients = data.recipients;
+
+  if (Object.prototype.hasOwnProperty.call(data, 'pass')) {
+    if (data.pass === null || data.pass === '') delete next.pass;
+    else next.pass = encryptSecret(data.pass);
+  }
+
+  await writeArea('email', next);
+  Object.assign(email, buildEmailConfig(next));
+  __resetTransport();
+  return (await getPublicSettings()).email;
+}
+
 // Newsletter/digest already have PUT endpoints that mutate their runtime
 // config; these mirror the current state to the DB so it survives restarts.
 export async function persistNewsletterSettings() {
@@ -170,25 +223,29 @@ export async function persistDigestSettings() {
 // Load persisted areas and apply them to the running process. Called once at
 // boot after the DB is ready and before schedulers/jobs start.
 export async function initSettings() {
-  const [aiStored, tgStored, nlStored, dgStored] = await Promise.all([
+  const [aiStored, tgStored, nlStored, dgStored, emailStored] = await Promise.all([
     readArea('ai'),
     readArea('telegram'),
     readArea('newsletter'),
     readArea('digest'),
+    readArea('email'),
   ]);
 
   if (hasKeys(aiStored)) __setAiConfig(buildAiConfig(aiStored));
   if (hasKeys(tgStored)) Object.assign(telegram, buildTelegramConfig(tgStored));
   if (hasKeys(nlStored)) Object.assign(newsletterConfig, nlStored);
   if (hasKeys(dgStored)) updateDigestConfig(dgStored);
+  if (hasKeys(emailStored)) Object.assign(email, buildEmailConfig(emailStored));
 }
 
 // Exposed for tests.
 export const __settingsInternals = {
   AI_PROVIDER_IDS,
   buildAiConfig,
+  buildEmailConfig,
   buildTelegramConfig,
   ENV_AI,
+  ENV_EMAIL,
   ENV_NEWSLETTER,
   ENV_TELEGRAM,
 };

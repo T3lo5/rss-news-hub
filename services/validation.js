@@ -95,6 +95,7 @@ export const updateNewsletterConfigSchema = z.object({
   language: z.enum(['en', 'pt']).optional(),
   provider: z.enum(['auto', 'sensenova', 'deepseek', 'openai']).optional(),
   telegramEnabled: z.boolean().optional(),
+  emailEnabled: z.boolean().optional(),
 });
 
 export const updateDigestConfigSchema = z.object({
@@ -106,6 +107,7 @@ export const updateDigestConfigSchema = z.object({
   provider: z.enum(['auto', 'sensenova', 'deepseek', 'openai']).optional(),
   format: z.enum(['thread', 'summary', 'linkedin']).optional(),
   language: z.enum(['en', 'pt']).optional(),
+  emailEnabled: z.boolean().optional(),
 });
 
 // Per-provider overrides for the AI settings (admin). apiKey: omitted = keep,
@@ -126,6 +128,34 @@ export const aiSettingsSchema = z.object({
 export const telegramSettingsSchema = z.object({
   botToken: z.string().max(1000).nullable().optional(),
   chatId: z.string().max(200).optional(),
+});
+
+// Email/SMTP settings (admin). pass: omitted = keep, null/'' = clear.
+export const emailSettingsSchema = z.object({
+  enabled: z.boolean().optional(),
+  host: z.string().max(255).optional(),
+  port: z.number().int().min(1).max(65535).optional(),
+  secure: z.boolean().optional(),
+  user: z.string().max(255).optional(),
+  pass: z.string().max(1000).nullable().optional(),
+  from: z.string().max(320).optional(),
+  recipients: z.array(z.string().email()).max(50).optional(),
+});
+
+export const emailSendSchema = z
+  .object({
+    to: z.array(z.string().email()).max(50).optional(),
+    subject: z.string().min(1).max(300),
+    text: z.string().max(200000).optional(),
+    html: z.string().max(500000).optional(),
+  })
+  .refine((data) => Boolean(data.text || data.html), {
+    message: 'text or html is required',
+    path: ['text'],
+  });
+
+export const emailTestSchema = z.object({
+  to: z.array(z.string().email()).max(50).optional(),
 });
 
 export const updateProfileSchema = z.object({
@@ -243,6 +273,9 @@ export const schemas = {
   updateUserProfileSchema,
   aiSettingsSchema,
   telegramSettingsSchema,
+  emailSettingsSchema,
+  emailSendSchema,
+  emailTestSchema,
 };
 
 export function validateBody(schema) {

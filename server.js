@@ -9,7 +9,7 @@ import {
   requireViewer,
 } from './middleware/auth.js';
 import { handleAuthRoutes } from './routes/auth.routes.js';
-import { newsletterConfig, PORT, telegram } from './server.config.js';
+import { email, newsletterConfig, PORT, telegram } from './server.config.js';
 import {
   buildNewsUserContent,
   buildSystemPrompt,
@@ -29,9 +29,11 @@ import {
   getDigestConfig,
   updateDigestConfig,
 } from './services/digest.service.js';
+import { sendEmail, verifyEmailConfig } from './services/email.service.js';
 import { createError, ErrorCode } from './services/errors.js';
 import { fetchAllFeeds, fetchFeedByUrl, parseRSS } from './services/fetch.service.js';
 import { createRequestLogger } from './services/logger.js';
+import { renderEmailHtml } from './services/markdown.js';
 import { addNews, readNews } from './services/news.service.js';
 import { generateOpenApiSpec } from './services/openapi.js';
 import { rateLimitMiddleware } from './services/rate-limiter.js';
@@ -51,6 +53,7 @@ import {
   persistDigestSettings,
   persistNewsletterSettings,
   updateAiSettings,
+  updateEmailSettings,
   updateTelegramSettings,
 } from './services/settings.service.js';
 import { getFeedHealth, getStatsAsync } from './services/stats.service.js';
@@ -84,6 +87,11 @@ const telegramSendLimiter = rateLimitMiddleware({
   maxRequests: 5,
   windowMs: 60000,
   keyPrefix: 'tg:send:',
+});
+const emailSendLimiter = rateLimitMiddleware({
+  maxRequests: 5,
+  windowMs: 60000,
+  keyPrefix: 'email:send:',
 });
 const fetchLimiter = rateLimitMiddleware({ maxRequests: 2, windowMs: 60000, keyPrefix: 'fetch:' });
 
@@ -727,7 +735,7 @@ export async function handleRequest(req, res) {
         try {
           Object.assign(newsletterConfig, updates);
           await persistNewsletterSettings();
-          startNewsletterJob(newsletterConfig, { telegram });
+          startNewsletterJob(newsletterConfig, { telegram, email });
           return sendJSON(res, 200, { ok: true, data: newsletterConfig });
         } catch (err) {
           return sendJSON(res, 500, { ok: false, error: err.message });
@@ -740,7 +748,7 @@ export async function handleRequest(req, res) {
     if (path === '/api/newsletter/trigger' && req.method === 'POST') {
       try {
         const { generateAndSendNewsletter } = await import('./services/newsletter.service.js');
-        const result = await generateAndSendNewsletter(newsletterConfig, { telegram });
+        const result = await generateAndSendNewsletter(newsletterConfig, { telegram, email });
         return sendJSON(res, 200, { ok: true, data: result });
       } catch (err) {
         return sendJSON(res, 500, { ok: false, error: err.message });
@@ -885,6 +893,21 @@ export async function handleRequest(req, res) {
           try {
             const telegramSettings = await updateTelegramSettings(req.body);
             return sendJSON(res, 200, { ok: true, data: telegramSettings });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        });
+      });
+      return;
+    }
+
+    // PUT /api/settings/email - update email/SMTP settings (admin)
+    if (path === '/api/settings/email' && req.method === 'PUT') {
+      requireAdmin()(req, res, () => {
+        validateBody(schemas.emailSettingsSchema)(req, res, async () => {
+          try {
+            const emailSettings = await updateEmailSettings(req.body);
+            return sendJSON(res, 200, { ok: true, data: emailSettings });
           } catch (err) {
             return sendJSON(res, 500, { ok: false, error: err.message });
           }
@@ -1171,6 +1194,64 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    // POST /api/email/send - send an arbitrary email (newsletter builder, etc.)
+    if (path === '/api/email/send' && req.method === 'POST') {
+      requireUser()(req, res, () => {
+        emailSendLimiter(req, res, () => {
+          validateBody(schemas.emailSendSchema)(req, res, async () => {
+            try {
+              // Render the markdown body to HTML when the client only sends text.
+              const payload = { ...req.body };
+              if (!payload.html && payload.text) payload.html = renderEmailHtml(payload.text);
+              const result = await sendEmail(payload, email);
+              return sendJSON(res, 200, { ok: true, data: result });
+            } catch (err) {
+              const msg = err?.message || 'Email send failed';
+              log.error({ err }, 'Email send failed');
+              if (!res.headersSent) {
+                const status = /network|timeout|ECONN|EAUTH|getaddrinfo/i.test(msg) ? 502 : 400;
+                return sendJSON(res, status, { ok: false, error: msg });
+              }
+            }
+          });
+        });
+      });
+      return;
+    }
+
+    // POST /api/email/test - verify SMTP connection and send a test message (admin)
+    if (path === '/api/email/test' && req.method === 'POST') {
+      requireAdmin()(req, res, () => {
+        validateBody(schemas.emailTestSchema)(req, res, async () => {
+          try {
+            await verifyEmailConfig(email);
+            const recipients = req.body.to?.length ? req.body.to : email.recipients;
+            if (!recipients?.length) {
+              return sendJSON(res, 400, {
+                ok: false,
+                error: 'Nenhum destinatário configurado',
+              });
+            }
+            const result = await sendEmail(
+              {
+                to: recipients,
+                subject: 'RSS News Hub — teste de conexão',
+                text: 'Conexão SMTP OK! Este é um e-mail de teste do RSS News Hub.',
+                html: '<p>Conexão SMTP OK! Este é um e-mail de teste do <strong>RSS News Hub</strong>.</p>',
+              },
+              email
+            );
+            return sendJSON(res, 200, { ok: true, data: { ...result, verified: true } });
+          } catch (err) {
+            const msg = err?.message || 'Email test failed';
+            log.error({ err }, 'Email test failed');
+            return sendJSON(res, 502, { ok: false, error: msg });
+          }
+        });
+      });
+      return;
+    }
+
     // POST /api/telegram/schedule - schedule a message for later
     if (path === '/api/telegram/schedule' && req.method === 'POST') {
       telegramSendLimiter(req, res, () => {
@@ -1380,7 +1461,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // Start scheduler: fetch every 30 minutes
   startScheduler(30 * 60 * 1000, fetchAllFeeds);
   // Start newsletter job if enabled
-  startNewsletterJob(newsletterConfig, { telegram });
+  startNewsletterJob(newsletterConfig, { telegram, email });
   // Start Telegram queue worker (every minute)
   startTelegramQueueWorker(telegram, 60000);
 

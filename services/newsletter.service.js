@@ -1,5 +1,7 @@
 import { newsletterHistoryRepository, newsRepository } from '../src/db/repositories/index.js';
 import { buildSystemPrompt, chat, pickProvider } from './ai.service.js';
+import { isEmailConfigured, sendEmail } from './email.service.js';
+import { markdownToHtml, renderEmailHtml } from './markdown.js';
 import { telegramSend } from './telegram.service.js';
 
 function filterNewsByConfig(news, config) {
@@ -17,27 +19,6 @@ function filterNewsByConfig(news, config) {
   return filtered;
 }
 
-function markdownToHtml(md) {
-  return md
-    .replace(/^# (.+)$/gm, '<h1 style="color:#1a1a2e;margin:24px 0 12px;font-size:24px;">$1</h1>')
-    .replace(/^## (.+)$/gm, '<h2 style="color:#1a1a2e;margin:20px 0 10px;font-size:20px;">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 style="color:#1a1a2e;margin:16px 0 8px;font-size:18px;">$1</h3>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(
-      /`(.+?)`/g,
-      '<code style="background:#f0f0f0;padding:2px 4px;border-radius:3px;">$1</code>'
-    )
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#2563eb;">$1</a>')
-    .replace(/^- (.+)$/gm, '<li style="margin:8px 0;">$1</li>')
-    .replace(/(<li.*>.*<\/li>)/s, '<ul style="margin:12px 0;padding-left:20px;">$1</ul>')
-    .replace(/\n\n/g, '</p><p style="margin:12px 0;line-height:1.6;">')
-    .replace(/^(.+)$/gm, '<p style="margin:12px 0;line-height:1.6;">$1</p>')
-    .replace(/<p style="margin:12px 0;line-height:1.6;"><\/p>/g, '')
-    .replace(/<p style="margin:12px 0;line-height:1.6;">(<h[1-3].*<\/h[1-3]>)<\/p>/g, '$1')
-    .replace(/<p style="margin:12px 0;line-height:1.6;">(<ul.*<\/ul>)<\/p>/g, '$1');
-}
-
 export async function readHistory(limit = 50) {
   return newsletterHistoryRepository.findAll(limit);
 }
@@ -53,7 +34,7 @@ export async function addHistoryEntry(entry) {
   });
 }
 
-export async function generateAndSendNewsletter(config, newsletterConfig) {
+export async function generateAndSendNewsletter(config, delivery = {}) {
   const startTime = Date.now();
   const entry = {
     id: `nl-${startTime}`,
@@ -92,13 +73,21 @@ export async function generateAndSendNewsletter(config, newsletterConfig) {
     const content = await chat(systemPrompt, userContent, config.provider);
     entry.contentPreview = content.slice(0, 200);
 
-    if (
-      config.telegramEnabled &&
-      newsletterConfig.telegram?.botToken &&
-      newsletterConfig.telegram?.chatId
-    ) {
+    if (config.telegramEnabled && delivery.telegram?.botToken && delivery.telegram?.chatId) {
       const html = markdownToHtml(content);
-      await telegramSend(html, 'HTML', newsletterConfig.telegram);
+      await telegramSend(html, 'HTML', delivery.telegram);
+    }
+
+    if (config.emailEnabled && isEmailConfigured(delivery.email)) {
+      const locale = config.language === 'pt' ? 'pt-BR' : 'en-US';
+      await sendEmail(
+        {
+          subject: `RSS News Hub — Newsletter ${new Date().toLocaleDateString(locale)}`,
+          text: content,
+          html: renderEmailHtml(content),
+        },
+        delivery.email
+      );
     }
 
     entry.success = true;

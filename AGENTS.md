@@ -27,7 +27,8 @@ docker compose up --build  # full stack incl. SQLite database (named volume)
   (Bearer JWT or API key; role hierarchy admin > user > viewer).
 - `services/*.js` — business logic in plain ESM JS: `ai` (SenseNova → DeepSeek
   → OpenAI fallback), `fetch` (regex-based RSS), `telegram` (queue + worker),
-  `auth`, `jwt`, `templates`, `stats`, `scheduler`, `validation` (zod).
+  `auth`, `jwt`, `templates`, `stats`, `scheduler`, `validation` (zod),
+  `email` (SMTP via nodemailer), `secrets` (AES-256-GCM), `settings`.
 - `src/db/` — drizzle + better-sqlite3. DB file `data/rss-news-hub.db`.
   Migrations in `src/db/migrations/` are **applied automatically at boot**
   (`getDb()`); `test/setup.ts` uses an in-memory DB with the same migrations.
@@ -55,6 +56,9 @@ Copy `.env.example` to `.env` and fill in:
 - `JWT_SECRET` — **mandatory in production**: the app refuses to boot when
   `NODE_ENV=production` and no secret is set (`resolveJwtSecret()` in
   `services/jwt.service.js`). Dev keeps a warned fallback.
+- Optional SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
+  `SMTP_PASS`, `SMTP_FROM`, `NEWSLETTER_RECIPIENTS`) for e-mail delivery; can
+  also be set from the admin Settings screen, which takes precedence over `.env`.
 
 ## Key conventions
 - ESM (`"type": "module"`). Use `import`/`export`, not `require`.

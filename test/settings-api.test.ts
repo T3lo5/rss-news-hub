@@ -1,8 +1,9 @@
 import assert from 'node:assert';
 import { beforeEach, describe, test } from 'node:test';
-import { newsletterConfig, telegram } from '../server.config.js';
+import { email, newsletterConfig, telegram } from '../server.config.js';
 import { __getAiConfig, __setAiConfig } from '../services/ai.service.js';
 import { createUser } from '../services/auth.service.js';
+import { __resetTransport, __setCreateTransport } from '../services/email.service.js';
 import { __settingsInternals, initSettings } from '../services/settings.service.js';
 import { settingsRepository } from '../src/db/repositories/index.js';
 import { bearer, request } from './helpers/auth-http.js';
@@ -27,6 +28,8 @@ async function createUserToken(): Promise<string> {
 }
 
 describe('Settings API', () => {
+  let sentEmails: any[] = [];
+
   beforeEach(() => {
     resetTestDb();
     getTestDb();
@@ -34,6 +37,18 @@ describe('Settings API', () => {
     __setAiConfig(structuredClone(__settingsInternals.ENV_AI));
     Object.assign(telegram, __settingsInternals.ENV_TELEGRAM);
     Object.assign(newsletterConfig, __settingsInternals.ENV_NEWSLETTER);
+    Object.assign(email, structuredClone(__settingsInternals.ENV_EMAIL));
+
+    // Never hit real SMTP in tests.
+    sentEmails = [];
+    __setCreateTransport(() => ({
+      sendMail: async (opts: any) => {
+        sentEmails.push(opts);
+        return { messageId: 'test-msg', accepted: [opts.to], rejected: [], response: '250 OK' };
+      },
+      verify: async () => true,
+    }));
+    __resetTransport();
   });
 
   test('GET /api/settings requires authentication', async () => {
@@ -58,6 +73,8 @@ describe('Settings API', () => {
       assert.strictEqual(provider.apiKey, undefined);
     }
     assert.strictEqual(typeof res.json.data.telegram.botTokenSet, 'boolean');
+    assert.strictEqual(typeof res.json.data.email.passwordSet, 'boolean');
+    assert.ok(Array.isArray(res.json.data.email.recipients));
     assert.ok(res.json.data.newsletter);
     assert.ok(res.json.data.digest);
   });
@@ -183,5 +200,150 @@ describe('Settings API', () => {
     await initSettings();
 
     assert.strictEqual(__getAiConfig().openai.apiKey, 'sk-boot-key');
+  });
+
+  test('PUT /api/settings/email stores the password encrypted and applies the config', async () => {
+    const token = await createAdminToken();
+    const res = await request(
+      'PUT',
+      '/api/settings/email',
+      {
+        enabled: true,
+        host: 'smtp.example.com',
+        port: 465,
+        secure: true,
+        user: 'mailer@example.com',
+        pass: 'smtp-super-secret',
+        from: 'News <noreply@example.com>',
+        recipients: ['one@example.com', 'two@example.com'],
+      },
+      bearer(token)
+    );
+
+    assert.strictEqual(res.status, 200, res.raw);
+    assert.strictEqual(res.json.data.host, 'smtp.example.com');
+    assert.strictEqual(res.json.data.passwordSet, true);
+    assert.deepStrictEqual(res.json.data.recipients, ['one@example.com', 'two@example.com']);
+
+    // Applied to the runtime config.
+    assert.strictEqual(email.host, 'smtp.example.com');
+    assert.strictEqual(email.pass, 'smtp-super-secret');
+    assert.strictEqual(email.secure, true);
+
+    // Persisted encrypted at rest, never in plain text.
+    const raw = await settingsRepository.get('email');
+    assert.ok(raw?.includes('enc:v1:'));
+    assert.ok(!raw?.includes('smtp-super-secret'));
+
+    // GET never leaks the secret.
+    const get = await request('GET', '/api/settings', undefined, bearer(token));
+    assert.ok(!get.raw.includes('smtp-super-secret'));
+  });
+
+  test('PUT /api/settings/email with null clears the stored password', async () => {
+    const token = await createAdminToken();
+    await request(
+      'PUT',
+      '/api/settings/email',
+      { host: 'smtp.example.com', from: 'a@example.com', pass: 'to-be-cleared' },
+      bearer(token)
+    );
+
+    const res = await request('PUT', '/api/settings/email', { pass: null }, bearer(token));
+    assert.strictEqual(res.status, 200, res.raw);
+    assert.strictEqual(res.json.data.passwordSet, false);
+
+    const stored = JSON.parse((await settingsRepository.get('email')) || '{}');
+    assert.strictEqual(stored.pass, undefined);
+  });
+
+  test('PUT /api/settings/email rejects an invalid recipient', async () => {
+    const token = await createAdminToken();
+    const res = await request(
+      'PUT',
+      '/api/settings/email',
+      { recipients: ['not-an-email'] },
+      bearer(token)
+    );
+    assert.strictEqual(res.status, 400, res.raw);
+  });
+
+  test('POST /api/email/send requires authentication', async () => {
+    const res = await request('POST', '/api/email/send', { subject: 'x', text: 'y' });
+    assert.strictEqual(res.status, 401, res.raw);
+  });
+
+  test('POST /api/email/send validates the payload', async () => {
+    const token = await createUserToken();
+    const res = await request('POST', '/api/email/send', { text: 'no subject' }, bearer(token));
+    assert.strictEqual(res.status, 400, res.raw);
+  });
+
+  test('POST /api/email/send delivers using the configured SMTP settings', async () => {
+    const admin = await createAdminToken();
+    await request(
+      'PUT',
+      '/api/settings/email',
+      {
+        enabled: true,
+        host: 'smtp.example.com',
+        from: 'a@example.com',
+        recipients: ['dest@example.com'],
+      },
+      bearer(admin)
+    );
+
+    const token = await createUserToken();
+    const res = await request(
+      'POST',
+      '/api/email/send',
+      { subject: 'Minha newsletter', text: 'Conteúdo', html: '<p>Conteúdo</p>' },
+      bearer(token)
+    );
+
+    assert.strictEqual(res.status, 200, res.raw);
+    assert.strictEqual(sentEmails.length, 1);
+    assert.strictEqual(sentEmails[0].to, 'dest@example.com');
+    assert.strictEqual(sentEmails[0].subject, 'Minha newsletter');
+  });
+
+  test('POST /api/email/test is admin-only and sends a test message', async () => {
+    const user = await createUserToken();
+    const denied = await request('POST', '/api/email/test', {}, bearer(user));
+    assert.strictEqual(denied.status, 403, denied.raw);
+
+    const admin = await createAdminToken();
+    await request(
+      'PUT',
+      '/api/settings/email',
+      {
+        enabled: true,
+        host: 'smtp.example.com',
+        from: 'a@example.com',
+        recipients: ['dest@example.com'],
+      },
+      bearer(admin)
+    );
+
+    const res = await request('POST', '/api/email/test', {}, bearer(admin));
+    assert.strictEqual(res.status, 200, res.raw);
+    assert.strictEqual(res.json.data.verified, true);
+    assert.strictEqual(sentEmails.length, 1);
+  });
+
+  test('initSettings applies persisted email settings on boot', async () => {
+    const token = await createAdminToken();
+    await request(
+      'PUT',
+      '/api/settings/email',
+      { host: 'smtp.boot.test', from: 'boot@example.com', pass: 'boot-pass' },
+      bearer(token)
+    );
+
+    Object.assign(email, structuredClone(__settingsInternals.ENV_EMAIL));
+    await initSettings();
+
+    assert.strictEqual(email.host, 'smtp.boot.test');
+    assert.strictEqual(email.pass, 'boot-pass');
   });
 });

@@ -1,5 +1,8 @@
+import { email as emailConfig } from '../server.config.js';
 import { newsRepository } from '../src/db/repositories/index.js';
 import { chat, pickProvider } from './ai.service.js';
+import { isEmailConfigured, sendEmail } from './email.service.js';
+import { renderEmailHtml } from './markdown.js';
 import { readProfile, scoreNewItems } from './relevance.service.js';
 import { telegramSend } from './telegram.service.js';
 
@@ -12,6 +15,7 @@ const DEFAULT_DIGEST_CONFIG = {
   provider: 'auto',
   format: 'thread',
   language: 'en',
+  emailEnabled: false,
 };
 
 let digestConfig = { ...DEFAULT_DIGEST_CONFIG };
@@ -175,6 +179,19 @@ export async function generateAndSendDigest(telegram, options = {}) {
     // Send to Telegram if configured
     if (telegram?.botToken && telegram.chatId) {
       await telegramSend(content, 'Markdown', telegram);
+    }
+
+    // Mirror to email when enabled and SMTP is configured
+    if (config.emailEnabled && isEmailConfigured(emailConfig)) {
+      const locale = config.language === 'pt' ? 'pt-BR' : 'en-US';
+      await sendEmail(
+        {
+          subject: `RSS News Hub — Digest ${new Date().toLocaleDateString(locale)}`,
+          text: content,
+          html: renderEmailHtml(content),
+        },
+        emailConfig
+      );
     }
 
     return { success: true, itemsCount: filteredItems.length, content };

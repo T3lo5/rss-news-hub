@@ -122,6 +122,23 @@ const newsletterConfig = {
   language: 'en',
   provider: 'auto',
   telegramEnabled: true,
+  emailEnabled: false,
+};
+
+// SMTP delivery (optional). Disabled unless a host is provided, so the app
+// still boots fine without email configured.
+const email = {
+  enabled: process.env.SMTP_HOST ? process.env.SMTP_ENABLED !== 'false' : false,
+  host: process.env.SMTP_HOST || '',
+  port: parseInt(process.env.SMTP_PORT || '587', 10),
+  secure: process.env.SMTP_SECURE === 'true',
+  user: process.env.SMTP_USER || '',
+  pass: process.env.SMTP_PASS || '',
+  from: process.env.SMTP_FROM || process.env.SMTP_USER || '',
+  recipients: (process.env.NEWSLETTER_RECIPIENTS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean),
 };
 
 export {
@@ -129,6 +146,7 @@ export {
   BOOKMARKS_FILE,
   CACHE_FILE,
   DATA_DIR,
+  email,
   FEED_STATS_FILE,
   NEWS_FILE,
   NEWSLETTER_HISTORY_FILE,
