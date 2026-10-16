@@ -7,6 +7,8 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-16
+
 ### Added
 - Busca full-text com SQLite FTS5 (`/api/news/search`)
 - Sistema de códigos de erro estruturados (60+ codes)
@@ -15,14 +17,35 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - Biome para lint/format (substitui oxlint + prettier)
 - CLI de plugins (`plugin:list/install/enable/disable/create/remove/status`)
 - Rate limiting por usuário/API key (além de IP)
+- Sessão longa: refresh token em cookie **HttpOnly** (escopo `/api/auth`),
+  com rotação a cada renovação e `POST /api/auth/logout`
+- Renovação automática do access token no frontend (refresh silencioso no 401)
+- Resiliência de rede (`services/net.js`): retry com backoff para falhas
+  transitórias (DNS/conexão) em feeds, IA e Telegram
+- Fallback de provedores de IA em runtime no modo `auto` (SenseNova → DeepSeek → OpenAI)
+- Reenvio de conteúdo já gerado por notícia (persistido em localStorage)
+- Migrações `0007` (relevance unscored = NULL) e `0008` (bookmarks por usuário)
+- Script `start-dev.sh` que sobe o backend e só então o frontend
 
 ### Changed
+- Tokens: access `1h` / refresh `30d` (antes `15m` / `7d`)
+- Telegram: `splitMessage` divide mensagens longas (limite seguro de 4000 chars),
+  converte CommonMark `**bold**` → `*bold*` e faz fallback para texto puro
+- Cap do texto em `/api/telegram/send` elevado para 100000 (split no servidor)
+- Bookmarks passam a ser por usuário; endpoints de feeds/bookmarks exigem role
+  e/ou usuário autenticado, com delete de feed em cascata
+- Prompt do LinkedIn retorna apenas o post final (com o link original)
 - Migração de JSON files para SQLite + Drizzle ORM
 - Autenticação JWT + API Keys com roles (admin/user/viewer)
 - Hot reload de plugins via `config/plugins.yaml`
 - Docker multi-stage build (frontend → public/)
 
 ### Fixed
+- `.gitignore` com comentários inline não aplicava regras sensíveis
+  (`data/`, `public/`, `.env`, `*.pem`, `*.key`)
+- Posts do LinkedIn não vazam mais seções editoriais (`stripEditorialMeta`)
+- Erros de rede transitórios não derrubam o processo nem poluem os logs
+- Envio no Telegram não trava mais e cai para texto puro se as entidades quebrarem
 - Race conditions no scheduler de feeds
 - Memory leaks no Telegram queue worker
 - Validação Zod v4 compatível
