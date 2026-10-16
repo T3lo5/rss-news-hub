@@ -25,6 +25,7 @@ interface HeaderProps {
   onFeedsClick: () => void;
   onSettingsClick: () => void;
   onDigestClick: () => void;
+  onUsersClick: () => void;
 }
 
 function formatCountdown(nextRun: number | null): string {
@@ -43,6 +44,7 @@ export function Header({
   onFeedsClick,
   onSettingsClick,
   onDigestClick,
+  onUsersClick,
 }: HeaderProps) {
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const { user, logout } = useAuth();
@@ -126,6 +128,14 @@ export function Header({
               ⚙️
             </span>{' '}
             Configurações
+          </button>
+        )}
+        {user?.role === 'admin' && (
+          <button className="btn btn-secondary" onClick={onUsersClick}>
+            <span role="img" aria-label="users">
+              👥
+            </span>{' '}
+            Usuários
           </button>
         )}
         {user ? (

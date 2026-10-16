@@ -302,3 +302,50 @@ export interface DigestTriggerResult {
   error?: string;
 }
 
+export type UserRole = 'admin' | 'user' | 'viewer';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  createdAt?: string;
+}
+
+export interface CreateUserRequest {
+  email: string;
+  password: string;
+  name?: string;
+  role?: UserRole;
+}
+
+export interface UpdateUserRequest {
+  name?: string | null;
+  role?: UserRole;
+  password?: string;
+}
+
+export interface TelegramQueueItem {
+  id: string;
+  chatId?: string;
+  text: string;
+  scheduledAt?: number;
+  status?: string;
+  createdAt?: number;
+}
+
+export interface TelegramWorkerStatus {
+  running: boolean;
+  intervalMs: number;
+  pending?: number;
+}
+
+export interface HealthStatus {
+  ok: boolean;
+  uptime: number;
+  version?: string;
+  db: { ok: boolean };
+  schedulers: Record<string, unknown>;
+  providers: { configured: string[] };
+}
+

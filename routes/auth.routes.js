@@ -269,18 +269,46 @@ export async function handleAuthRoutes(req, res, path) {
     return true;
   }
 
+  // POST /api/users - admin creates a user with an explicit role
+  if (path === '/api/users' && req.method === 'POST') {
+    requireAdmin()(req, res, () => {
+      validateBody(schemas.adminCreateUserSchema)(req, res, async () => {
+        const { email, password, name, role } = req.body;
+        try {
+          const user = await createUser(email, password, name ?? null, role ?? 'user');
+          const { passwordHash: _passwordHash, ...safe } = user;
+          sendJSON(res, 201, { ok: true, data: safe });
+        } catch (err) {
+          const conflict = /unique|already exists/i.test(err.message);
+          sendJSON(res, conflict ? 409 : 400, { ok: false, error: err.message });
+        }
+      });
+    });
+    return true;
+  }
+
   // PUT /api/users/:id
   if (path.match(/^\/api\/users\/[^/]+$/) && req.method === 'PUT') {
-    requireAdmin()(req, res, async () => {
-      const userId = path.split('/').pop();
-      const updated = await updateUser(userId, req.body);
+    requireAdmin()(req, res, () => {
+      validateBody(schemas.updateUserSchema)(req, res, async () => {
+        const userId = path.split('/').pop();
 
-      if (!updated) {
-        sendJSON(res, 404, { ok: false, error: 'User not found' });
-        return;
-      }
+        // An admin cannot change their own role: that could lock everyone out.
+        if (userId === req.user.id && req.body.role && req.body.role !== req.user.role) {
+          sendJSON(res, 400, { ok: false, error: 'Cannot change your own role' });
+          return;
+        }
 
-      sendJSON(res, 200, { ok: true, data: updated });
+        const updated = await updateUser(userId, req.body);
+
+        if (!updated) {
+          sendJSON(res, 404, { ok: false, error: 'User not found' });
+          return;
+        }
+
+        const { passwordHash: _passwordHash, ...safe } = updated;
+        sendJSON(res, 200, { ok: true, data: safe });
+      });
     });
     return true;
   }

@@ -564,6 +564,42 @@ registerPath(
 );
 registerPath(
   'get',
+  '/api/users',
+  'List users',
+  'List all users (admin)',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'post',
+  '/api/users',
+  'Create user',
+  'Create a user with an explicit role (admin)',
+  schemas.adminCreateUserSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'put',
+  '/api/users/{id}',
+  'Update user',
+  'Update a user name/role or reset their password (admin)',
+  schemas.updateUserSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'delete',
+  '/api/users/{id}',
+  'Delete user',
+  'Delete a user (admin, cannot delete yourself)',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'get',
   '/api/templates',
   'List templates',
   'List all content templates',

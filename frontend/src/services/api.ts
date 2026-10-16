@@ -7,6 +7,7 @@ import type {
   AiTestResult,
   AppSettings,
   Bookmark,
+  CreateUserRequest,
   DigestConfig,
   DigestPreview,
   DigestStatus,
@@ -33,6 +34,8 @@ import type {
   TelegramSettingsUpdate,
   Template,
   TemplatesResponse,
+  UpdateUserRequest,
+  User,
 } from '../types';
 
 const API_BASE = '';
@@ -183,6 +186,38 @@ export const api = {
       ok: boolean;
       data: { id: string; email: string; name: string; role: string };
     }>(res);
+    return data.data;
+  },
+
+  async getUsers(): Promise<User[]> {
+    const res = await fetchWithAuth('/api/users');
+    const data = await handleResponse<{ ok: boolean; data: User[] }>(res);
+    return data.data;
+  },
+
+  async createUser(payload: CreateUserRequest): Promise<User> {
+    const res = await fetchWithAuth('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const data = await handleResponse<{ ok: boolean; data: User }>(res);
+    return data.data;
+  },
+
+  async updateUser(id: string, payload: UpdateUserRequest): Promise<User> {
+    const res = await fetchWithAuth(`/api/users/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    const data = await handleResponse<{ ok: boolean; data: User }>(res);
+    return data.data;
+  },
+
+  async deleteUser(id: string): Promise<{ deleted: boolean }> {
+    const res = await fetchWithAuth(`/api/users/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    const data = await handleResponse<{ ok: boolean; data: { deleted: boolean } }>(res);
     return data.data;
   },
 

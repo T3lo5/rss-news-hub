@@ -144,6 +144,11 @@ export async function updateUser(userId, updates) {
     }
   }
 
+  // Admin password reset: hash it here so the plain value never reaches the DB.
+  if (typeof updates.password === 'string' && updates.password.length > 0) {
+    filtered.passwordHash = await hashPassword(updates.password);
+  }
+
   if (Object.keys(filtered).length === 0) return null;
 
   const result = await db

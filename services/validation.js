@@ -256,6 +256,19 @@ export const updateUserProfileSchema = z.object({
   email: z.string().email().optional(),
 });
 
+export const adminCreateUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  name: z.string().max(100).optional(),
+  role: z.enum(['admin', 'user', 'viewer']).optional(),
+});
+
+export const updateUserSchema = z.object({
+  name: z.string().max(100).nullable().optional(),
+  role: z.enum(['admin', 'user', 'viewer']).optional(),
+  password: z.string().min(8).max(128).optional(),
+});
+
 export const schemas = {
   addNewsSchema,
   generateContentSchema,
@@ -276,6 +289,8 @@ export const schemas = {
   changePasswordSchema,
   createApiKeySchema,
   updateUserProfileSchema,
+  adminCreateUserSchema,
+  updateUserSchema,
   aiSettingsSchema,
   telegramSettingsSchema,
   aiTestSchema,

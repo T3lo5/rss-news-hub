@@ -248,7 +248,8 @@ export async function handleRequest(req, res) {
   // Auth routes. Credentials (Bearer token / API key) are resolved first so
   // handlers like GET /api/auth/me and the API-key routes see req.user;
   // anonymous requests simply leave req.user unset for the handler to check.
-  if (path.startsWith('/api/auth/')) {
+  // /api/users (admin user management) also lives in the auth router.
+  if (path.startsWith('/api/auth/') || path === '/api/users' || path.startsWith('/api/users/')) {
     try {
       await authenticateRequest(req, res);
       const handled = await handleAuthRoutes(req, res, path);

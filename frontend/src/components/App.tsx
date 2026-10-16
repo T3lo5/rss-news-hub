@@ -51,6 +51,7 @@ import { NewsletterConfigModal } from './NewsletterConfigModal';
 import { NewsletterBuilderModal } from './NewsletterBuilderModal';
 import { SettingsModal } from './SettingsModal';
 import { DigestConfigModal } from './DigestConfigModal';
+import { UsersModal } from './UsersModal';
 import { ShareModal } from './ShareModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { StatsModal } from './StatsModal';
@@ -93,6 +94,7 @@ function AppContent() {
   const [showNewsletterBuilder, setShowNewsletterBuilder] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showDigestConfig, setShowDigestConfig] = useState(false);
+  const [showUsers, setShowUsers] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
@@ -434,6 +436,7 @@ function AppContent() {
         onFeedsClick={() => setShowFeedManager(true)}
         onSettingsClick={() => setShowSettings(true)}
         onDigestClick={() => setShowDigestConfig(true)}
+        onUsersClick={() => setShowUsers(true)}
       />
       <main className="main">
         <div className="toolbar-container">
@@ -550,6 +553,7 @@ function AppContent() {
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       <DigestConfigModal isOpen={showDigestConfig} onClose={() => setShowDigestConfig(false)} />
+      <UsersModal isOpen={showUsers} onClose={() => setShowUsers(false)} />
 
       <BookmarksModal isOpen={showBookmarks} onClose={() => setShowBookmarks(false)} />
 

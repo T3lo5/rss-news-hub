@@ -8,6 +8,10 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- Tela **Usuários** (admin) para criar contas, definir o papel
+  (admin/usuário/leitor), redefinir senha e excluir — com salvaguardas contra
+  alterar o próprio papel ou excluir a si mesmo; endpoint `POST /api/users`
+  (admin) e validação `updateUserSchema` para o `PUT /api/users/:id`
 - Tela **Configurações** (admin) no frontend para gerenciar chaves de IA e
   credenciais do Telegram sem editar `.env`
 - Endpoints administrativos `GET /api/settings`, `PUT /api/settings/ai`,
@@ -35,6 +39,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   opção "enviar também por e-mail" na newsletter agendada e no digest
 
 ### Fixed
+- **`/api/users` inacessível**: o roteador só entregava caminhos `/api/auth/*`
+  ao router de autenticação, então a gestão de usuários (que vive nele)
+  respondia 404. Agora `/api/users` e `/api/users/:id` também são roteados
 - Agendamento por **cron de verdade** para newsletter e digest: o digest usava um
   intervalo aproximado e ignorava horário/dia da semana (ex.: "Seg-Sex 9:00"
   rodava na hora e a cada 7 dias). Agora há um parser de cron completo
