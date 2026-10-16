@@ -110,9 +110,9 @@ export async function refreshAccessToken(refreshToken) {
   if (!user) return null;
 
   const accessToken = await createAccessToken(user);
-  const _newRefreshToken = await createRefreshToken(user);
+  const newRefreshToken = await createRefreshToken(user);
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken: newRefreshToken };
 }
 
 export async function changePassword(userId, currentPassword, newPassword) {

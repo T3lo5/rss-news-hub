@@ -35,7 +35,8 @@ Responderemos em até 48 horas e trabalharemos na correção.
 - Use prepared statements (Drizzle ORM previne SQL injection)
 - Rate limiting implementado em endpoints sensíveis
 - Senhas hasheadas com Argon2 (`@node-rs/argon2`)
-- JWT com expiração curta (access) + refresh tokens
+- JWT com expiração curta (access 1h) + refresh tokens (30 dias) guardados em
+  cookie `HttpOnly` + `SameSite=Lax` (inacessível ao JS, renovação automática)
 - API Keys hasheadas (não armazenadas em plain text)
 
 ## Endpoints Protegidos

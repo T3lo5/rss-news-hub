@@ -182,7 +182,9 @@ export const loginSchema = z.object({
 });
 
 export const refreshSchema = z.object({
-  refreshToken: z.string().min(1),
+  // Optional: the refresh token normally travels in the HttpOnly cookie. The
+  // body field is kept for API clients that prefer explicit tokens.
+  refreshToken: z.string().min(1).optional(),
 });
 
 export const changePasswordSchema = z.object({

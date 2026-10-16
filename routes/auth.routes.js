@@ -13,8 +13,35 @@ import {
   revokeApiKey,
   updateUser,
 } from '../services/auth.service.js';
+import { clearCookie, parseCookies, serializeCookie } from '../services/cookies.js';
+import { REFRESH_TOKEN_TTL_SECONDS } from '../services/jwt.service.js';
 import { rateLimitMiddleware } from '../services/rate-limiter.js';
 import { schemas, validateBody } from '../services/validation.js';
+
+// The refresh token lives in an HttpOnly cookie scoped to the auth endpoints,
+// so it is never exposed to client-side JavaScript (and survives cache clears).
+const REFRESH_COOKIE = 'refresh_token';
+const REFRESH_COOKIE_PATH = '/api/auth';
+// Outside production the refresh token is also returned in the JSON body to
+// keep CLI/API clients and tests working; production relies on the cookie only.
+const INCLUDE_REFRESH_IN_BODY = process.env.NODE_ENV !== 'production';
+
+function setRefreshCookie(res, req, token) {
+  res.setHeader(
+    'Set-Cookie',
+    serializeCookie(REFRESH_COOKIE, token, {
+      maxAge: REFRESH_TOKEN_TTL_SECONDS,
+      path: REFRESH_COOKIE_PATH,
+      httpOnly: true,
+      sameSite: 'Lax',
+      req,
+    })
+  );
+}
+
+function clearRefreshCookie(res, req) {
+  res.setHeader('Set-Cookie', clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH, req }));
+}
 
 // Brute-force protection for credential endpoints, keyed by client IP.
 // Applied before validateBody so rejected payloads still consume budget.
@@ -71,13 +98,14 @@ export async function handleAuthRoutes(req, res, path) {
         const user = await createUser(email, password, name, 'user');
 
         const { accessToken, refreshToken } = await loginUser(email, password);
+        setRefreshCookie(res, req, refreshToken);
 
         sendJSON(res, 201, {
           ok: true,
           data: {
             user: { id: user.id, email: user.email, name: user.name, role: user.role },
             accessToken,
-            refreshToken,
+            ...(INCLUDE_REFRESH_IN_BODY ? { refreshToken } : {}),
           },
         });
       } catch (err) {
@@ -99,7 +127,11 @@ export async function handleAuthRoutes(req, res, path) {
         return;
       }
 
-      sendJSON(res, 200, { ok: true, data: result });
+      setRefreshCookie(res, req, result.refreshToken);
+      const data = INCLUDE_REFRESH_IN_BODY
+        ? result
+        : { user: result.user, accessToken: result.accessToken };
+      sendJSON(res, 200, { ok: true, data });
     });
     return true;
   }
@@ -108,16 +140,31 @@ export async function handleAuthRoutes(req, res, path) {
   if (path === '/api/auth/refresh' && req.method === 'POST') {
     if (!applyLimiter(refreshLimiter, req, res)) return true;
     validateBody(schemas.refreshSchema)(req, res, async () => {
-      const { refreshToken } = req.body;
-      const tokens = await refreshAccessToken(refreshToken);
+      // Prefer the HttpOnly cookie; fall back to the body for API clients.
+      const cookieToken = parseCookies(req)[REFRESH_COOKIE];
+      const provided = cookieToken || req.body?.refreshToken;
+      const tokens = await refreshAccessToken(provided);
 
       if (!tokens) {
+        clearRefreshCookie(res, req);
         sendJSON(res, 401, { ok: false, error: 'Invalid refresh token' });
         return;
       }
 
-      sendJSON(res, 200, { ok: true, data: tokens });
+      // Rotate: issue a fresh refresh token and extend the cookie.
+      setRefreshCookie(res, req, tokens.refreshToken);
+      const data = INCLUDE_REFRESH_IN_BODY
+        ? tokens
+        : { accessToken: tokens.accessToken };
+      sendJSON(res, 200, { ok: true, data });
     });
+    return true;
+  }
+
+  // POST /api/auth/logout
+  if (path === '/api/auth/logout' && req.method === 'POST') {
+    clearRefreshCookie(res, req);
+    sendJSON(res, 200, { ok: true, data: { loggedOut: true } });
     return true;
   }
 

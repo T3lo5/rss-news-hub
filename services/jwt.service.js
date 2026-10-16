@@ -31,8 +31,10 @@ function resolveJwtSecret() {
 }
 
 const JWT_SECRET = new TextEncoder().encode(resolveJwtSecret());
-const ACCESS_TOKEN_EXPIRY = '15m';
-const REFRESH_TOKEN_EXPIRY = '7d';
+const ACCESS_TOKEN_EXPIRY = '1h';
+const REFRESH_TOKEN_EXPIRY = '30d';
+// Kept in sync with REFRESH_TOKEN_EXPIRY; used for the HttpOnly cookie Max-Age.
+export const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export async function createAccessToken(user) {
   return new SignJWT({

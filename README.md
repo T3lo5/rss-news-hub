@@ -231,6 +231,12 @@ curl http://localhost:3000/api/news \
   -H "Authorization: Bearer <accessToken>"
 ```
 
+> **Sessão longa:** o access token expira em 1h, mas o refresh token (30 dias)
+> fica em um cookie **HttpOnly** (`refresh_token`, escopo `/api/auth`), então o
+> navegador o renova automaticamente sem novo login — inclusive após limpar o
+> cache. O cookie nunca é acessível ao JavaScript. Em produção, defina
+> `NODE_ENV=production` para o flag `Secure` (ou force com `COOKIE_SECURE=true`).
+
 **Opção 2: API Key**
 ```bash
 # Crie uma API Key na interface (Perfil → API Keys) ou via API
@@ -257,8 +263,9 @@ curl http://localhost:3000/api/news \
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | POST | `/api/auth/register` | Registrar usuário |
-| POST | `/api/auth/login` | Login (retorna access + refresh token) |
-| POST | `/api/auth/refresh` | Renovar access token |
+| POST | `/api/auth/login` | Login (retorna access token + cookie de refresh) |
+| POST | `/api/auth/refresh` | Renovar access token (lê o cookie HttpOnly) |
+| POST | `/api/auth/logout` | Encerra a sessão (limpa o cookie de refresh) |
 | GET | `/api/auth/me` | Perfil do usuário logado |
 | PUT | `/api/auth/me` | Atualizar perfil |
 | POST | `/api/auth/change-password` | Trocar senha |

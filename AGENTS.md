@@ -66,6 +66,10 @@ Copy `.env.example` to `.env` and fill in:
   legacy `data/news.json` as an export only.
 - Auth: roles `admin`/`user`/`viewer`; protected routes return 401 JSON when
   anonymous. Write new auth-sensitive endpoints with the `requireX()` wrappers.
+  The refresh token lives in an HttpOnly cookie (`refresh_token`, path
+  `/api/auth`) set by login/register/refresh; `POST /api/auth/logout` clears it.
+  Outside production the token is also returned in the JSON body for API/CLI
+  clients and tests.
 - Plugins: 4 types (`ai-provider`, `fetcher`, `output`, `transformer`);
   enabled/disabled state and settings live in `config/plugins.yaml`.
 - Auth endpoints are rate limited per IP (register 5/min, login 10/min,

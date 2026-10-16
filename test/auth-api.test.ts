@@ -87,6 +87,51 @@ describe('Auth API (HTTP-level)', () => {
     assert.ok(refreshed.json.data.refreshToken, 'expected new refreshToken');
   });
 
+  test('login sets an HttpOnly refresh_token cookie scoped to /api/auth', async () => {
+    await createUser('cookie@example.com', 'senha12345', 'Cookie', 'user');
+
+    const res = await request('POST', '/api/auth/login', {
+      email: 'cookie@example.com',
+      password: 'senha12345',
+    });
+
+    const setCookie = String(res.headers['set-cookie'] || '');
+    assert.match(setCookie, /refresh_token=/, setCookie);
+    assert.match(setCookie, /HttpOnly/, setCookie);
+    assert.match(setCookie, /Path=\/api\/auth/, setCookie);
+    assert.match(setCookie, /SameSite=Lax/, setCookie);
+  });
+
+  test('POST /api/auth/refresh accepts the refresh token from the cookie', async () => {
+    const register = await request('POST', '/api/auth/register', {
+      email: 'cookie2@example.com',
+      password: 'senha12345',
+      name: 'Cookie2',
+    });
+    const cookie = String(register.headers['set-cookie']).split(';')[0];
+
+    const refreshed = await request('POST', '/api/auth/refresh', {}, { cookie });
+
+    assert.strictEqual(refreshed.status, 200, `unexpected status: ${refreshed.raw}`);
+    assert.ok(refreshed.json.data.accessToken, 'expected new accessToken');
+    // A rotated cookie is set on refresh as well.
+    assert.match(String(refreshed.headers['set-cookie'] || ''), /refresh_token=/, refreshed.raw);
+  });
+
+  test('POST /api/auth/refresh without a cookie or body token returns 401', async () => {
+    const refreshed = await request('POST', '/api/auth/refresh', {});
+    assert.strictEqual(refreshed.status, 401, refreshed.raw);
+  });
+
+  test('POST /api/auth/logout clears the refresh cookie', async () => {
+    const res = await request('POST', '/api/auth/logout');
+
+    assert.strictEqual(res.status, 200, res.raw);
+    const setCookie = String(res.headers['set-cookie'] || '');
+    assert.match(setCookie, /refresh_token=;/, setCookie);
+    assert.match(setCookie, /Max-Age=0/, setCookie);
+  });
+
   test('API keys can be created and listed (api_keys table)', async () => {
     const register = await request('POST', '/api/auth/register', {
       email: 'eve@example.com',

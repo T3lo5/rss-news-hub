@@ -22,7 +22,83 @@ import type {
 
 const API_BASE = '';
 
+const TOKEN_KEY = 'auth_token';
+
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
+function buildHeaders(options: RequestInit, token: string | null): Headers {
+  const headers = new Headers(options.headers);
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  if (!headers.has('Content-Type') && options.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+  return headers;
+}
+
+// Ask the API for a fresh access token. The refresh token is sent
+// automatically in an HttpOnly cookie (credentials: 'include'), so it never
+// touches JavaScript or localStorage. The refresh endpoint is not called
+// through fetchWithAuth, so it cannot recurse.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function performRefresh(): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const newAccess = data?.data?.accessToken;
+    if (!newAccess) return null;
+
+    authToken = newAccess;
+    if (typeof window !== 'undefined') localStorage.setItem(TOKEN_KEY, newAccess);
+    return newAccess;
+  } catch {
+    return null;
+  }
+}
+
+// Coalesce concurrent 401s into a single refresh request.
+export function refreshSession(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = performRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+export async function logoutSession(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // Best-effort: local state is cleared regardless.
+  }
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
+  if (res.status === 401) {
+    // Refresh already had its chance in fetchWithAuth — this is a real logout.
+    authToken = null;
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem('auth_user');
+    window.location.href = '/login';
+    throw new Error('Authentication required');
+  }
+
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || `HTTP ${res.status}`);
@@ -30,17 +106,74 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json();
 }
 
+async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  let res = await fetch(`${API_BASE}${url}`, {
+    ...options,
+    credentials: 'include',
+    headers: buildHeaders(options, authToken),
+  });
+
+  // Access token expired: silently refresh (HttpOnly cookie) and retry the
+  // request once, so the session only ends when the refresh token itself
+  // expires (30 days) or is revoked.
+  if (res.status === 401) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      res = await fetch(`${API_BASE}${url}`, {
+        ...options,
+        credentials: 'include',
+        headers: buildHeaders(options, authToken),
+      });
+    }
+  }
+
+  return res;
+}
+
+// Backend GET /api/templates returns raw DB rows (variables as a JSON
+// string, isBuiltin flag); normalize to the frontend Template shape here
+// so every consumer stays safe.
+function normalizeTemplate(t: any): Template {
+  let variables: string[] = [];
+  if (Array.isArray(t?.variables)) {
+    variables = t.variables;
+  } else if (typeof t?.variables === 'string') {
+    try {
+      const parsed = JSON.parse(t.variables);
+      variables = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      variables = [];
+    }
+  }
+  return {
+    id: t.id,
+    name: t.name,
+    type: t.type,
+    systemPrompt: t.systemPrompt,
+    variables,
+    builtin: t.builtin ?? t.isBuiltin ?? false,
+  };
+}
+
 export const api = {
   async fetchNews(): Promise<NewsItem[]> {
-    const res = await fetch(`${API_BASE}/api/news`);
+    const res = await fetchWithAuth('/api/news');
     const data = await handleResponse<NewsResponse>(res);
     return data.data;
   },
 
+  async getMe(): Promise<{ id: string; email: string; name: string; role: string }> {
+    const res = await fetchWithAuth('/api/auth/me');
+    const data = await handleResponse<{
+      ok: boolean;
+      data: { id: string; email: string; name: string; role: string };
+    }>(res);
+    return data.data;
+  },
+
   async addNews(news: AddNewsRequest): Promise<NewsItem> {
-    const res = await fetch(`${API_BASE}/api/news`, {
+    const res = await fetchWithAuth('/api/news', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(news),
     });
     const data = await handleResponse<NewsResponse>(res);
@@ -48,46 +181,38 @@ export const api = {
   },
 
   async fetchRss(): Promise<FetchRssResponse> {
-    const res = await fetch(`${API_BASE}/api/fetch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const res = await fetchWithAuth('/api/fetch', { method: 'POST' });
     return handleResponse<FetchRssResponse>(res);
   },
 
   async getSchedulerStatus(): Promise<SchedulerStatus> {
-    const res = await fetch(`${API_BASE}/api/scheduler/status`);
+    const res = await fetchWithAuth('/api/scheduler/status');
     const data = await handleResponse<{ ok: boolean; data: SchedulerStatus }>(res);
     return data.data;
   },
 
   async triggerScheduler(): Promise<FetchRssResponse> {
-    const res = await fetch(`${API_BASE}/api/scheduler/trigger`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const res = await fetchWithAuth('/api/scheduler/trigger', { method: 'POST' });
     return handleResponse<FetchRssResponse>(res);
   },
 
   async setSchedulerInterval(intervalMs: number): Promise<{ intervalMs: number }> {
-    const res = await fetch(`${API_BASE}/api/scheduler/config`, {
+    const res = await fetchWithAuth('/api/scheduler/config', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ intervalMs }),
     });
     return handleResponse<{ ok: boolean; data: { intervalMs: number } }>(res);
   },
 
   async getStats(): Promise<StatsResponse> {
-    const res = await fetch(`${API_BASE}/api/stats`);
+    const res = await fetchWithAuth('/api/stats');
     const data = await handleResponse<{ ok: boolean; data: StatsResponse }>(res);
     return data.data;
   },
 
   async generateContent(request: GenerateContentRequest): Promise<string> {
-    const res = await fetch(`${API_BASE}/api/ai/generate`, {
+    const res = await fetchWithAuth('/api/ai/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
     });
     const data = await handleResponse<AIResponse>(res);
@@ -95,9 +220,8 @@ export const api = {
   },
 
   async sendToTelegram(text: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/telegram/send`, {
+    const res = await fetchWithAuth('/api/telegram/send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, parseMode: 'Markdown' }),
     });
     await handleResponse<TelegramResponse>(res);
@@ -105,15 +229,14 @@ export const api = {
 
   // Feed management
   async getFeeds(): Promise<FeedConfig[]> {
-    const res = await fetch(`${API_BASE}/api/feeds`);
+    const res = await fetchWithAuth('/api/feeds');
     const data = await handleResponse<{ ok: boolean; data: FeedConfig[] }>(res);
     return data.data;
   },
 
   async addFeed(feed: Omit<FeedConfig, 'id'>): Promise<FeedConfig> {
-    const res = await fetch(`${API_BASE}/api/feeds`, {
+    const res = await fetchWithAuth('/api/feeds', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(feed),
     });
     const data = await handleResponse<{ ok: boolean; data: FeedConfig }>(res);
@@ -121,9 +244,8 @@ export const api = {
   },
 
   async updateFeed(id: string, updates: Partial<FeedConfig>): Promise<FeedConfig> {
-    const res = await fetch(`${API_BASE}/api/feeds/${id}`, {
+    const res = await fetchWithAuth(`/api/feeds/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
     const data = await handleResponse<{ ok: boolean; data: FeedConfig }>(res);
@@ -131,39 +253,32 @@ export const api = {
   },
 
   async deleteFeed(id: string): Promise<{ id: string }> {
-    const res = await fetch(`${API_BASE}/api/feeds/${id}`, {
-      method: 'DELETE',
-    });
+    const res = await fetchWithAuth(`/api/feeds/${id}`, { method: 'DELETE' });
     return handleResponse<{ ok: boolean; data: { id: string } }>(res);
   },
 
   async testFeed(id: string): Promise<FeedTestResponse> {
-    const res = await fetch(`${API_BASE}/api/feeds/${id}/test`, {
-      method: 'POST',
-    });
+    const res = await fetchWithAuth(`/api/feeds/${id}/test`, { method: 'POST' });
     const data = await handleResponse<{ ok: boolean; data: FeedTestResponse }>(res);
     return data.data;
   },
 
   async reloadFeeds(): Promise<FeedConfig[]> {
-    const res = await fetch(`${API_BASE}/api/feeds/reload`, {
-      method: 'POST',
-    });
+    const res = await fetchWithAuth('/api/feeds/reload', { method: 'POST' });
     const data = await handleResponse<{ ok: boolean; data: FeedConfig[] }>(res);
     return data.data;
   },
 
   // Newsletter
   async getNewsletterConfig(): Promise<NewsletterConfig> {
-    const res = await fetch(`${API_BASE}/api/newsletter/config`);
+    const res = await fetchWithAuth('/api/newsletter/config');
     const data = await handleResponse<{ ok: boolean; data: NewsletterConfig }>(res);
     return data.data;
   },
 
   async updateNewsletterConfig(config: Partial<NewsletterConfig>): Promise<NewsletterConfig> {
-    const res = await fetch(`${API_BASE}/api/newsletter/config`, {
+    const res = await fetchWithAuth('/api/newsletter/config', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     });
     const data = await handleResponse<{ ok: boolean; data: NewsletterConfig }>(res);
@@ -171,30 +286,27 @@ export const api = {
   },
 
   async triggerNewsletter(): Promise<NewsletterHistoryEntry> {
-    const res = await fetch(`${API_BASE}/api/newsletter/trigger`, {
-      method: 'POST',
-    });
+    const res = await fetchWithAuth('/api/newsletter/trigger', { method: 'POST' });
     const data = await handleResponse<{ ok: boolean; data: NewsletterHistoryEntry }>(res);
     return data.data;
   },
 
   async getNewsletterHistory(): Promise<NewsletterHistoryEntry[]> {
-    const res = await fetch(`${API_BASE}/api/newsletter/history`);
+    const res = await fetchWithAuth('/api/newsletter/history');
     const data = await handleResponse<{ ok: boolean; data: NewsletterHistoryEntry[] }>(res);
     return data.data;
   },
 
   // Bookmarks
   async getBookmarks(): Promise<Bookmark[]> {
-    const res = await fetch(`${API_BASE}/api/bookmarks`);
+    const res = await fetchWithAuth('/api/bookmarks');
     const data = await handleResponse<{ ok: boolean; data: Bookmark[] }>(res);
     return data.data;
   },
 
   async addBookmark(newsId: string): Promise<Bookmark> {
-    const res = await fetch(`${API_BASE}/api/bookmarks`, {
+    const res = await fetchWithAuth('/api/bookmarks', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ newsId }),
     });
     const data = await handleResponse<{ ok: boolean; data: Bookmark }>(res);
@@ -202,16 +314,15 @@ export const api = {
   },
 
   async removeBookmark(newsId: string): Promise<{ removed: boolean }> {
-    const res = await fetch(`${API_BASE}/api/bookmarks/${newsId}`, {
-      method: 'DELETE',
-    });
+    const encodedNewsId = encodeURIComponent(newsId);
+    const res = await fetchWithAuth(`/api/bookmarks/${encodedNewsId}`, { method: 'DELETE' });
     const data = await handleResponse<{ ok: boolean; data: { removed: boolean } }>(res);
     return data.data;
   },
 
   // OPML
   async exportOPML(): Promise<Blob> {
-    const res = await fetch(`${API_BASE}/api/feeds/opml`);
+    const res = await fetchWithAuth('/api/feeds/opml');
     if (!res.ok) {
       const error = await res.json().catch(() => ({ error: 'Export failed' }));
       throw new Error(error.error || `HTTP ${res.status}`);
@@ -224,6 +335,7 @@ export const api = {
     formData.append('file', file);
     const res = await fetch(`${API_BASE}/api/feeds/opml`, {
       method: 'POST',
+      headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
       body: formData,
     });
     const data = await handleResponse<{ ok: boolean; data: OPMLImportResult }>(res);
@@ -232,15 +344,14 @@ export const api = {
 
   // Relevance
   async getProfile(): Promise<InterestProfile> {
-    const res = await fetch(`${API_BASE}/api/ai/profile`);
+    const res = await fetchWithAuth('/api/ai/profile');
     const data = await handleResponse<{ ok: boolean; data: InterestProfile }>(res);
     return data.data;
   },
 
   async updateProfile(profile: Partial<InterestProfile>): Promise<InterestProfile> {
-    const res = await fetch(`${API_BASE}/api/ai/profile`, {
+    const res = await fetchWithAuth('/api/ai/profile', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(profile),
     });
     const data = await handleResponse<{ ok: boolean; data: InterestProfile }>(res);
@@ -248,9 +359,8 @@ export const api = {
   },
 
   async scoreItems(items: NewsItem[], profile?: InterestProfile): Promise<ScoredNewsItem[]> {
-    const res = await fetch(`${API_BASE}/api/ai/score`, {
+    const res = await fetchWithAuth('/api/ai/score', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items, profile }),
     });
     const data = await handleResponse<{ ok: boolean; data: ScoredNewsItem[] }>(res);
@@ -258,46 +368,44 @@ export const api = {
   },
 
   async scoreNewItems(): Promise<{ scored: number; total: number }> {
-    const res = await fetch(`${API_BASE}/api/ai/score-new`, {
-      method: 'POST',
-    });
-    const data = await handleResponse<{ ok: boolean; data: { scored: number; total: number } }>(
-      res
-    );
+    const res = await fetchWithAuth('/api/ai/score-new', { method: 'POST' });
+    const data = await handleResponse<{ ok: boolean; data: { scored: number; total: number } }>(res);
     return data.data;
   },
 
   // Templates
+  // Backend returns DB rows (variables as JSON string, isBuiltin flag);
+  // normalize to the frontend Template shape here so all consumers are safe.
   async getTemplates(): Promise<TemplatesResponse> {
-    const res = await fetch(`${API_BASE}/api/templates`);
-    const data = await handleResponse<{ ok: boolean; data: TemplatesResponse }>(res);
-    return data.data;
+    const res = await fetchWithAuth('/api/templates');
+    const data = await handleResponse<{ ok: boolean; data: any }>(res);
+    const raw = Array.isArray(data.data) ? data.data : (data.data?.templates ?? []);
+    const templates = raw.map(normalizeTemplate);
+    const defaultTemplateIds =
+      data.data?.defaultTemplateIds ?? ({} as Record<string, string>);
+    return { templates, defaultTemplateIds };
   },
 
   async createTemplate(template: Omit<Template, 'builtin'>): Promise<Template> {
-    const res = await fetch(`${API_BASE}/api/templates`, {
+    const res = await fetchWithAuth('/api/templates', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(template),
     });
-    const data = await handleResponse<{ ok: boolean; data: Template }>(res);
-    return data.data;
+    const data = await handleResponse<{ ok: boolean; data: any }>(res);
+    return normalizeTemplate(data.data);
   },
 
   async updateTemplate(id: string, updates: Partial<Template>): Promise<Template> {
-    const res = await fetch(`${API_BASE}/api/templates/${id}`, {
+    const res = await fetchWithAuth(`/api/templates/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
-    const data = await handleResponse<{ ok: boolean; data: Template }>(res);
-    return data.data;
+    const data = await handleResponse<{ ok: boolean; data: any }>(res);
+    return normalizeTemplate(data.data);
   },
 
   async deleteTemplate(id: string): Promise<{ deleted: boolean }> {
-    const res = await fetch(`${API_BASE}/api/templates/${id}`, {
-      method: 'DELETE',
-    });
+    const res = await fetchWithAuth(`/api/templates/${id}`, { method: 'DELETE' });
     return handleResponse<{ ok: boolean; data: { deleted: boolean } }>(res);
   },
 
@@ -307,9 +415,8 @@ export const api = {
     type?: string,
     news?: NewsItem
   ): Promise<{ templateId: string; systemPrompt: string; variables: Record<string, string> }> {
-    const res = await fetch(`${API_BASE}/api/templates/${templateId}/test`, {
+    const res = await fetchWithAuth(`/api/templates/${templateId}/test`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ templateId, variables, type, news }),
     });
     const data = await handleResponse<{
@@ -319,3 +426,9 @@ export const api = {
     return data.data;
   },
 };
+
+// Initialize token from localStorage on load
+if (typeof window !== 'undefined') {
+  const stored = localStorage.getItem(TOKEN_KEY);
+  if (stored) setAuthToken(stored);
+}
