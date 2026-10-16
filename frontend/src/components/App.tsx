@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAI } from '../hooks/useAI';
 import { addBookmark, fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -6,6 +7,7 @@ import { useNews } from '../hooks/useNews';
 import { fetchProfile } from '../hooks/useRelevance';
 import { useTelegram } from '../hooks/useTelegram';
 import { api } from '../services/api';
+import { formatGeneratedContent } from '../utils/content';
 import type {
   ContentType,
   DigestGrouping,
@@ -15,6 +17,29 @@ import type {
   Provider,
   Template,
 } from '../types';
+
+// Persisted map of newsId -> generated content, so a post that was already
+// generated can be reopened and re-sent (e.g. after a failed Telegram send)
+// without regenerating it.
+const GENERATED_STORE_KEY = 'generated_content_by_news';
+
+interface GeneratedEntry {
+  content: string;
+  contentType: ContentType;
+  updatedAt: number;
+  sentAt?: number;
+}
+
+function loadGeneratedStore(): Record<string, GeneratedEntry> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(GENERATED_STORE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 import { AddModal } from './AddModal';
 import { BookmarksModal } from './BookmarksModal';
 import { DigestView } from './DigestView';
@@ -29,10 +54,32 @@ import { StatsModal } from './StatsModal';
 import { Status } from './Status';
 import { TemplatesModal } from './TemplatesModal';
 import { Toolbar } from './Toolbar';
+import { LoginPage } from '../pages/LoginPage';
+import { useAuth } from '../contexts/AuthContext';
 
-export function App() {
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="app" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div>Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppContent() {
+  const { user, loading: authLoading } = useAuth();
   const { news, loading, error, fetchNews, addNews, fetchRss, fetchingRss } = useNews();
-  const { generatedContent, generating, error: aiError, generate, clear: clearAI } = useAI();
+  const { generatedContent, generating, error: aiError, generate, clear: clearAI, setContent: setAIContent } = useAI();
   const { sending, error: tgError, success: tgSuccess, send, reset: resetTG } = useTelegram();
 
   const [showShareModal, setShowShareModal] = useState(false);
@@ -62,6 +109,8 @@ export function App() {
   const [templateId, setTemplateId] = useState<string>('');
   const [templateVariables, setTemplateVariables] = useState<Record<string, string>>({});
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [generatedByNews, setGeneratedByNews] =
+    useState<Record<string, GeneratedEntry>>(loadGeneratedStore);
   const [status, setStatus] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
@@ -85,623 +134,354 @@ export function App() {
       result = result.filter((item) => item.source === sourceFilter);
     }
 
-    result.sort((a, b) => {
-      if (sortOrder === 'relevance') {
-        const scoreA = a.relevanceScore ?? -1;
-        const scoreB = b.relevanceScore ?? -1;
-        if (scoreA !== scoreB) return scoreB - scoreA;
-        // Fallback to date for ties
-        return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
-      }
-      const dateA = new Date(a.pubDate).getTime();
-      const dateB = new Date(b.pubDate).getTime();
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-    });
+    switch (sortOrder) {
+      case 'newest':
+        result.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+        break;
+      case 'oldest':
+        result.sort((a, b) => new Date(a.pubDate).getTime() - new Date(b.pubDate).getTime());
+        break;
+      case 'relevance':
+        result.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+        break;
+    }
 
     return result;
   }, [news, searchQuery, sourceFilter, sortOrder]);
 
-  const showStatus = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    setStatus({ message, type });
-    setTimeout(() => setStatus(null), 3000);
-  }, []);
+  const sources = useMemo(() => [...new Set(news.map((n) => n.source))], [news]);
 
-  const handleOpenShare = useCallback(
-    (item: NewsItem) => {
-      setSelectedNews(item);
-      setShowShareModal(true);
-      clearAI();
-      resetTG();
+  const generatedIds = useMemo(() => {
+    const set = new Set<string>();
+    Object.entries(generatedByNews).forEach(([id, entry]) => {
+      if (entry?.content) set.add(id);
+    });
+    return set;
+  }, [generatedByNews]);
+
+  const sentIds = useMemo(() => {
+    const set = new Set<string>();
+    Object.entries(generatedByNews).forEach(([id, entry]) => {
+      if (entry?.sentAt) set.add(id);
+    });
+    return set;
+  }, [generatedByNews]);
+
+  const selectedHasGenerated = selectedNews ? generatedIds.has(selectedNews.id) : false;
+
+  // Fetch news immediately (public or auth-protected based on backend)
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]);
+
+  // Fetch bookmarks, templates, profile ONLY after auth is ready and user is logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchBookmarks()
+        .then((bookmarks) => {
+          if (Array.isArray(bookmarks)) {
+            setBookmarkedIds(new Set(bookmarks.map((b: { newsId: string }) => b.newsId)));
+          }
+        })
+        .catch(() => {
+          // Ignore errors
+        });
+      api
+        .getTemplates()
+        .then((data) => setTemplates(Array.isArray(data?.templates) ? data.templates : []))
+        .catch(() => {
+          // Templates are optional for share flow
+        });
+      fetchProfile()
+        .then((profile) => setInterestProfile(profile))
+        .catch(() => {
+          // Ignore errors
+        });
+    }
+  }, [authLoading, user, fetchNews]);
+
+  // Persist generated content per news item so it survives reloads and can be
+  // re-sent later.
+  useEffect(() => {
+    try {
+      localStorage.setItem(GENERATED_STORE_KEY, JSON.stringify(generatedByNews));
+    } catch {
+      // Ignore quota/serialization errors — persistence is best-effort.
+    }
+  }, [generatedByNews]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowShareModal(false);
+        setShowAddModal(false);
+        setShowStatsModal(false);
+        setShowFeedManager(false);
+        setShowNewsletterConfig(false);
+        setShowBookmarks(false);
+        setShowProfileModal(false);
+        setShowTemplatesModal(false);
+        setDigestView(false);
+        setSelectedNews(null);
+        clearAI();
+        resetTG();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [clearAI, resetTG]);
+
+  const handleAddNews = useCallback(
+    async (data: { title: string; link: string; source?: string; description?: string }) => {
+      setShowAddModal(false);
+      try {
+        await addNews(data);
+      } catch (err) {
+        console.error(err);
+      }
     },
-    [clearAI, resetTG]
+    [addNews]
   );
 
-  const handleCloseShare = useCallback(() => {
-    setShowShareModal(false);
-    setSelectedNews(null);
-    clearAI();
-  }, [clearAI]);
+  const handleShare = useCallback(
+    (item: NewsItem) => {
+      setSelectedNews(item);
+      resetTG();
+      const saved = generatedByNews[item.id];
+      if (saved) {
+        // Restore the previously generated post (and its content type) so the
+        // user can just re-send instead of regenerating.
+        setAIContent(saved.content);
+        setContentType(saved.contentType);
+      } else {
+        clearAI();
+      }
+      setShowShareModal(true);
+    },
+    [clearAI, resetTG, generatedByNews, setAIContent]
+  );
+
+  const handleCopy = useCallback(async () => {
+    if (!generatedContent) return;
+    try {
+      const formattedContent = formatGeneratedContent(generatedContent, contentType);
+      await navigator.clipboard.writeText(formattedContent);
+      setStatus({ message: 'Conteúdo copiado!', type: 'success' });
+      setTimeout(() => setStatus(null), 3000);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [generatedContent, contentType]);
 
   const handleGenerate = useCallback(async () => {
-    if (contentType === 'newsletter') {
-      const selectedItems = filteredNews.filter((n) => selectedIds.has(n.id));
-      if (selectedItems.length === 0) return;
-      try {
-        await generate(
-          selectedItems,
+    const isNewsletter = contentType === 'newsletter';
+    const newsPayload = isNewsletter
+      ? filteredNews.filter((n) => selectedIds.has(n.id))
+      : selectedNews;
+    if (!newsPayload || (Array.isArray(newsPayload) && newsPayload.length === 0)) return;
+    try {
+      const content = await generate(
+        newsPayload,
+        contentType,
+        language,
+        provider,
+        templateId || undefined,
+        templateVariables
+      );
+      // Remember the generated post for this specific news item so it can be
+      // reopened and re-sent later.
+      if (!isNewsletter && selectedNews && content) {
+        const entry: GeneratedEntry = {
+          content,
           contentType,
-          language,
-          provider,
-          templateId || undefined,
-          templateVariables || undefined
-        );
-      } catch {
-        // Error handled in hook
+          updatedAt: Date.now(),
+        };
+        setGeneratedByNews((prev) => {
+          const existing = prev[selectedNews.id];
+          return {
+            ...prev,
+            [selectedNews.id]: {
+              ...entry,
+              sentAt: existing?.sentAt, // keep prior sent marker on regenerate
+            },
+          };
+        });
       }
-    } else {
-      if (!selectedNews) return;
-      try {
-        await generate(
-          selectedNews,
-          contentType,
-          language,
-          provider,
-          templateId || undefined,
-          templateVariables || undefined
-        );
-      } catch {
-        // Error handled in hook
-      }
+    } catch (err) {
+      console.error(err);
     }
   }, [
+    generate,
     selectedNews,
-    selectedIds,
     filteredNews,
+    selectedIds,
     contentType,
     language,
     provider,
     templateId,
     templateVariables,
-    generate,
   ]);
 
   const handleSendTelegram = useCallback(async () => {
     if (!generatedContent) return;
     try {
-      await send(generatedContent);
-      showStatus('Enviado para o Telegram!', 'success');
-    } catch {
-      showStatus('Erro ao enviar para o Telegram', 'error');
+      const formattedContent = formatGeneratedContent(generatedContent, contentType);
+      await send(formattedContent);
+      // Mark as sent so the grid can show the current delivery status.
+      if (selectedNews) {
+        setGeneratedByNews((prev) => {
+          const existing = prev[selectedNews.id];
+          if (!existing) return prev;
+          return { ...prev, [selectedNews.id]: { ...existing, sentAt: Date.now() } };
+        });
+      }
+      setStatus({ message: 'Enviado para o Telegram!', type: 'success' });
+      setTimeout(() => setStatus(null), 3000);
+    } catch (err) {
+      console.error(err);
     }
-  }, [generatedContent, send, showStatus]);
+  }, [send, generatedContent, contentType, selectedNews]);
 
-  const handleCopy = useCallback(async () => {
-    if (!generatedContent) return;
+  const handleRefresh = useCallback(async () => {
+    setStatus({ message: 'Buscando feeds...', type: 'success' });
     try {
-      await navigator.clipboard.writeText(generatedContent);
-      showStatus('Copiado!', 'success');
-    } catch {
-      showStatus('Falha ao copiar', 'error');
+      await fetchRss();
+      setStatus({ message: 'Feeds atualizados!', type: 'success' });
+    } catch (err) {
+      setStatus({ message: 'Erro ao buscar feeds', type: 'error' });
     }
-  }, [generatedContent, showStatus]);
+    setTimeout(() => setStatus(null), 3000);
+  }, [fetchRss]);
 
-  // Selection handlers
-  const handleSelect = useCallback(
-    (id: string, shiftKey = false) => {
+  const handleToggleSelect = useCallback(
+    (id: string, shiftKey?: boolean) => {
       setSelectedIds((prev) => {
         const next = new Set(prev);
         if (shiftKey && lastSelectedId && lastSelectedId !== id) {
-          // Range selection
-          const allIds = filteredNews.map((n) => n.id);
-          const start = allIds.indexOf(lastSelectedId);
-          const end = allIds.indexOf(id);
-          const [min, max] = start < end ? [start, end] : [end, start];
-          for (let i = min; i <= max; i++) {
-            next.add(allIds[i]);
+          const ids = filteredNews.map((n) => n.id);
+          const from = ids.indexOf(lastSelectedId);
+          const to = ids.indexOf(id);
+          if (from !== -1 && to !== -1) {
+            const [start, end] = from < to ? [from, to] : [to, from];
+            ids.slice(start, end + 1).forEach((rangeId) => next.add(rangeId));
+            return next;
           }
+        }
+        if (next.has(id)) {
+          next.delete(id);
         } else {
-          // Toggle single
-          if (next.has(id)) {
-            next.delete(id);
-          } else {
-            next.add(id);
-          }
+          next.add(id);
         }
         return next;
       });
       setLastSelectedId(id);
+      const index = filteredNews.findIndex((n) => n.id === id);
+      if (index !== -1) {
+        setSelectedIndex(index);
+        setSelectedNews(filteredNews[index]);
+      }
     },
     [filteredNews, lastSelectedId]
   );
 
-  const handleSelectAll = useCallback(() => {
-    const allIds = new Set(filteredNews.map((n) => n.id));
-    if (selectedIds.size === allIds.size && selectedIds.size > 0) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(allIds);
-    }
-    setLastSelectedId(null);
-  }, [filteredNews, selectedIds]);
-
-  const handleClearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-    setLastSelectedId(null);
-  }, []);
-
-  const selectedCount = selectedIds.size;
-
-  const selectedNewsItems = useMemo(
-    () => filteredNews.filter((n) => selectedIds.has(n.id)),
-    [filteredNews, selectedIds]
-  );
-
-  const handleCopyHtml = useCallback(async () => {
-    if (!generatedContent) return;
-    try {
-      const html = markdownToHtml(generatedContent);
-      await navigator.clipboard.writeText(html);
-      showStatus('HTML copiado!', 'success');
-    } catch {
-      showStatus('Falha ao copiar HTML', 'error');
-    }
-  }, [generatedContent, showStatus]);
-
-  const handleCopyMarkdown = useCallback(async () => {
-    if (!generatedContent) return;
-    try {
-      await navigator.clipboard.writeText(generatedContent);
-      showStatus('Markdown copiado!', 'success');
-    } catch {
-      showStatus('Falha ao copiar Markdown', 'error');
-    }
-  }, [generatedContent, showStatus]);
-
-  // Simple markdown to HTML for email
-  function markdownToHtml(md: string): string {
-    return md
-      .replace(/^# (.+)$/gm, '<h1 style="color:#1a1a2e;margin:24px 0 12px;font-size:24px;">$1</h1>')
-      .replace(
-        /^## (.+)$/gm,
-        '<h2 style="color:#1a1a2e;margin:20px 0 10px;font-size:20px;">$1</h2>'
-      )
-      .replace(
-        /^### (.+)$/gm,
-        '<h3 style="color:#1a1a2e;margin:16px 0 8px;font-size:18px;">$1</h3>'
-      )
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(
-        /`(.+?)`/g,
-        '<code style="background:#f0f0f0;padding:2px 4px;border-radius:3px;">$1</code>'
-      )
-      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#2563eb;">$1</a>')
-      .replace(/^- (.+)$/gm, '<li style="margin:8px 0;">$1</li>')
-      .replace(/(<li.*>.*<\/li>)/s, '<ul style="margin:12px 0;padding-left:20px;">$1</ul>')
-      .replace(/\n\n/g, '</p><p style="margin:12px 0;line-height:1.6;">')
-      .replace(/^(.+)$/gm, '<p style="margin:12px 0;line-height:1.6;">$1</p>')
-      .replace(/<p style="margin:12px 0;line-height:1.6;"><\/p>/g, '')
-      .replace(/<p style="margin:12px 0;line-height:1.6;">(<h[1-3].*<\/h[1-3]>)<\/p>/g, '$1')
-      .replace(/<p style="margin:12px 0;line-height:1.6;">(<ul.*<\/ul>)<\/p>/g, '$1');
-  }
-
-  const handleAddNews = useCallback(
-    async (data: { title: string; link: string; source?: string; description?: string }) => {
-      try {
-        await addNews(data);
-        showStatus('Notícia adicionada!', 'success');
-        setShowAddModal(false);
-      } catch {
-        showStatus('Erro ao adicionar notícia', 'error');
-      }
-    },
-    [addNews, showStatus]
-  );
-
-  const handleRefresh = useCallback(async () => {
-    showStatus('Buscando RSS...', 'success');
-    try {
-      const result = await fetchRss();
-      const total = result.data?.total || 0;
-      const sources = result.data?.results?.filter((r) => r.count > 0).length || 0;
-      showStatus(`Atualizado! ${total} notícias de ${sources} fontes`, 'success');
-    } catch {
-      showStatus('Erro ao buscar RSS', 'error');
-    }
-  }, [fetchRss, showStatus]);
-
-  const handleOpenStats = useCallback(() => {
-    setShowStatsModal(true);
-  }, []);
-
-  const handleCloseStats = useCallback(() => {
-    setShowStatsModal(false);
-  }, []);
-
-  const handleOpenFeedManager = useCallback(() => {
-    setShowFeedManager(true);
-  }, []);
-
-  const handleCloseFeedManager = useCallback(() => {
-    setShowFeedManager(false);
-  }, []);
-
-  const handleOpenNewsletterConfig = useCallback(() => {
-    setShowNewsletterConfig(true);
-  }, []);
-
-  const handleOpenTemplates = useCallback(() => {
-    setShowTemplatesModal(true);
-  }, []);
-
-  const handleCloseNewsletterConfig = useCallback(() => {
-    setShowNewsletterConfig(false);
-  }, []);
-
-  // Load bookmarks on mount
-  useEffect(() => {
-    fetchBookmarks()
-      .then((b) => setBookmarkedIds(new Set(b.map((item) => item.newsId))))
-      .catch(console.error);
-  }, []);
-
-  // Persist digest grouping
-  useEffect(() => {
-    localStorage.setItem('digestGrouping', digestGrouping);
-  }, [digestGrouping]);
-
-  // Load interest profile on mount
-  useEffect(() => {
-    fetchProfile().then(setInterestProfile).catch(console.error);
-  }, []);
-
-  // Load templates on mount
-  useEffect(() => {
-    api
-      .getTemplates()
-      .then((data) => setTemplates(data.templates))
-      .catch(console.error);
-  }, []);
-
-  const handleOpenBookmarks = useCallback(() => {
-    setShowBookmarks(true);
-  }, []);
-
-  const handleCloseBookmarks = useCallback(() => {
-    setShowBookmarks(false);
-  }, []);
-
   const handleBookmarkToggle = useCallback(
-    async (newsId: string, isBookmarked: boolean) => {
+    async (newsId: string, nextBookmarked?: boolean) => {
+      const wantBookmarked =
+        typeof nextBookmarked === 'boolean'
+          ? nextBookmarked
+          : !(bookmarkedIds ?? new Set()).has(newsId);
       try {
-        if (isBookmarked) {
+        if (wantBookmarked) {
           await addBookmark(newsId);
-          setBookmarkedIds((prev) => new Set(prev).add(newsId));
-          showStatus('Saved for later', 'success');
+          setBookmarkedIds((prev) => new Set(prev ?? []).add(newsId));
         } else {
           await removeBookmark(newsId);
           setBookmarkedIds((prev) => {
-            const next = new Set(prev);
+            const next = new Set(prev ?? []);
             next.delete(newsId);
             return next;
           });
-          showStatus('Removed from bookmarks', 'success');
         }
       } catch (err) {
-        showStatus(err instanceof Error ? err.message : 'Failed to update bookmark', 'error');
-        // Revert on error
-        setBookmarkedIds((prev) => {
-          const next = new Set(prev);
-          isBookmarked ? next.delete(newsId) : next.add(newsId);
-          return next;
-        });
+        console.error(err);
+        setStatus({ message: 'Erro ao salvar favorito', type: 'error' });
+        setTimeout(() => setStatus(null), 3000);
       }
     },
-    [showStatus]
+    [bookmarkedIds]
   );
 
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchQuery(value);
-  }, []);
-
-  const handleSourceFilterChange = useCallback((value: string) => {
-    setSourceFilter(value);
-  }, []);
-
-  const handleSortChange = useCallback((value: 'newest' | 'oldest' | 'relevance') => {
-    setSortOrder(value);
-  }, []);
-
-  const handleOpenProfile = useCallback(() => {
-    setShowProfileModal(true);
-  }, []);
-
-  const handleCloseProfile = useCallback(() => {
-    setShowProfileModal(false);
-  }, []);
-
-  const handleToggleDigest = useCallback(() => {
-    setDigestView((prev) => !prev);
-  }, []);
-
-  const handleCycleDigestGrouping = useCallback(() => {
-    setDigestGrouping((prev) => {
-      if (prev === 'none') return 'daily';
-      if (prev === 'daily') return 'weekly';
-      return 'none';
-    });
-    setDigestView(true);
-  }, []);
-
-  // Navigation handlers
-  // Reset selection when filtered news changes
-  useEffect(() => {
-    setSelectedIndex(-1);
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(filteredNews.map((n) => n.id)));
   }, [filteredNews]);
 
-  const handleNext = useCallback(() => {
-    if (filteredNews.length === 0) return;
-    setSelectedIndex((prev) => (prev + 1) % filteredNews.length);
-  }, [filteredNews.length]);
-
-  const handlePrev = useCallback(() => {
-    if (filteredNews.length === 0) return;
-    setSelectedIndex((prev) => (prev - 1 + filteredNews.length) % filteredNews.length);
-  }, [filteredNews.length]);
-
-  const handleOpen = useCallback(() => {
-    if (selectedIndex >= 0 && selectedIndex < filteredNews.length) {
-      handleOpenShare(filteredNews[selectedIndex]);
-    }
-  }, [selectedIndex, filteredNews, handleOpenShare]);
-
-  // Keyboard shortcuts
-  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-
-  const anyModalOpen =
-    showShareModal ||
-    showAddModal ||
-    showStatsModal ||
-    showFeedManager ||
-    showNewsletterConfig ||
-    showBookmarks ||
-    showProfileModal ||
-    showShortcutsHelp;
-
-  const shortcuts = useMemo(
-    () => [
-      {
-        key: '/',
-        description: 'Focus search',
-        handler: () => {
-          document.querySelector<HTMLInputElement>('.search-box input')?.focus();
-        },
-      },
-      {
-        key: 'j',
-        description: 'Next news card',
-        handler: handleNext,
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'k',
-        description: 'Previous news card',
-        handler: handlePrev,
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'Enter',
-        description: 'Open selected card',
-        handler: handleOpen,
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'a',
-        description: 'Select all / Clear selection',
-        handler: handleSelectAll,
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'b',
-        description: 'Toggle bookmark on selected',
-        handler: () => {
-          if (selectedIndex >= 0 && selectedIndex < filteredNews.length)
-            handleBookmarkToggle(
-              filteredNews[selectedIndex].id,
-              !bookmarkedIds.has(filteredNews[selectedIndex].id)
-            );
-        },
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      { key: 'B', description: 'Open bookmarks', handler: handleOpenBookmarks },
-      {
-        key: 'd',
-        description: 'Toggle digest view',
-        handler: handleToggleDigest,
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'D',
-        description: 'Cycle digest grouping',
-        handler: handleCycleDigestGrouping,
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'r',
-        description: 'Sort by relevance',
-        handler: () => setSortOrder('relevance'),
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'R',
-        description: 'Open interest profile',
-        handler: handleOpenProfile,
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'o',
-        description: 'Export OPML',
-        handler: () => {
-          if (showFeedManager) document.querySelector('button[title*="Export OPML"]')?.click();
-        },
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'O',
-        description: 'Import OPML',
-        handler: () => {
-          if (showFeedManager) document.querySelector('button[title*="Import OPML"]')?.click();
-        },
-        disabledInInputs: true,
-        preventDefault: true,
-      },
-      {
-        key: 'g',
-        description: 'Generate AI content',
-        handler: () => {
-          if (showShareModal) handleGenerate();
-        },
-      },
-      {
-        key: 't',
-        description: 'Send to Telegram',
-        handler: () => {
-          if (showShareModal && generatedContent) handleSendTelegram();
-        },
-      },
-      {
-        key: 'c',
-        description: 'Copy generated content',
-        handler: () => {
-          if (generatedContent) handleCopy();
-        },
-      },
-      { key: 's', description: 'Open stats', handler: handleOpenStats },
-      { key: 'f', description: 'Open feed manager', handler: handleOpenFeedManager },
-      { key: 'F', description: 'Refresh (fetch RSS)', handler: handleRefresh },
-      {
-        key: 'Escape',
-        description: 'Close modals / Clear selection',
-        handler: () => {
-          handleCloseShare();
-          setShowAddModal(false);
-          handleCloseStats();
-          handleCloseFeedManager();
-          handleCloseNewsletterConfig();
-          handleCloseBookmarks();
-          handleCloseProfile();
-          setShowShortcutsHelp(false);
-          handleClearSelection();
-        },
-      },
-      { key: '?', description: 'Show shortcuts help', handler: () => setShowShortcutsHelp(true) },
-    ],
-    [
-      showShareModal,
-      generatedContent,
-      handleGenerate,
-      handleSendTelegram,
-      handleCopy,
-      handleOpenStats,
-      handleRefresh,
-      handleCloseShare,
-      handleCloseStats,
-      handleCloseFeedManager,
-      handleOpenFeedManager,
-      handleNext,
-      handlePrev,
-      handleOpen,
-      anyModalOpen,
-      handleSelectAll,
-      handleClearSelection,
-      handleOpenBookmarks,
-      handleCloseBookmarks,
-      handleBookmarkToggle,
-      filteredNews,
-      selectedIndex,
-      bookmarkedIds,
-      showFeedManager,
-      handleToggleDigest,
-      handleCycleDigestGrouping,
-      handleOpenProfile,
-      handleCloseProfile,
-    ]
-  );
-
-  useKeyboardShortcuts({ shortcuts });
-
-  const sources = useMemo(
-    () => Array.from(new Set(news.map((n) => n.source).filter(Boolean))),
-    [news]
-  );
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
 
   return (
     <div className="app">
       <Header
         onRefresh={handleRefresh}
         onAddClick={() => setShowAddModal(true)}
-        onStatsClick={handleOpenStats}
-        onFeedsClick={handleOpenFeedManager}
+        onStatsClick={() => setShowStatsModal(true)}
+        onFeedsClick={() => setShowFeedManager(true)}
       />
-
-      {status && <Status message={status.message} type={status.type} />}
-
-      <Toolbar
-        onSearchChange={handleSearchChange}
-        onSourceFilterChange={handleSourceFilterChange}
-        onSortChange={handleSortChange}
-        sources={sources}
-        currentSourceFilter={sourceFilter}
-        currentSortOrder={sortOrder}
-        selectedCount={selectedCount}
-        onSelectAll={handleSelectAll}
-        onClearSelection={handleClearSelection}
-        onNewsletterClick={handleOpenNewsletterConfig}
-        onTemplatesClick={handleOpenTemplates}
-        bookmarkCount={bookmarkedIds.size}
-        onBookmarksClick={handleOpenBookmarks}
-        digestView={digestView}
-        onToggleDigest={handleToggleDigest}
-        digestGrouping={digestGrouping}
-        onChangeDigestGrouping={setDigestGrouping}
-        onProfileClick={handleOpenProfile}
-      />
-
       <main className="main">
+        <div className="toolbar-container">
+          <Toolbar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            currentSourceFilter={sourceFilter}
+            onSourceFilterChange={setSourceFilter}
+            currentSortOrder={sortOrder}
+            onSortChange={setSortOrder}
+            sources={sources}
+            onChangeDigestGrouping={setDigestGrouping}
+            digestGrouping={digestGrouping}
+            onProfileClick={() => setShowProfileModal(true)}
+            onTemplatesClick={() => setShowTemplatesModal(true)}
+            onNewsletterClick={() => setShowNewsletterConfig(true)}
+            onBookmarksClick={() => setShowBookmarks(true)}
+            bookmarkCount={bookmarkedIds.size}
+            onToggleDigest={() => setDigestView(!digestView)}
+            digestView={digestView}
+            selectedCount={selectedIds.size}
+            onSelectAll={handleSelectAll}
+            onClearSelection={handleClearSelection}
+          />
+        </div>
+
+        {status && <Status message={status.message} type={status.type} onClose={() => setStatus(null)} />}
+
         {digestView ? (
           <DigestView
             news={filteredNews}
             loading={loading}
             error={error}
             grouping={digestGrouping}
-            onShare={handleOpenShare}
-            onBookmarkToggle={handleBookmarkToggle}
-            bookmarkedIds={bookmarkedIds}
+            onShare={handleShare}
             selectedIds={selectedIds}
-            onSelect={handleSelect}
+            onSelect={handleToggleSelect}
             selectedIndex={selectedIndex}
+            bookmarkedIds={bookmarkedIds}
+            onBookmarkToggle={handleBookmarkToggle}
+            generatedIds={generatedIds}
+            sentIds={sentIds}
           />
         ) : (
           <NewsGrid
             news={filteredNews}
             loading={loading}
             error={error}
-            onShare={handleOpenShare}
-            onSelect={handleSelect}
+            onShare={handleShare}
+            onSelect={handleToggleSelect}
             selectedIds={selectedIds}
             selectedIndex={selectedIndex}
             bookmarkedIds={bookmarkedIds}
             onBookmarkToggle={handleBookmarkToggle}
+            generatedIds={generatedIds}
+            sentIds={sentIds}
           />
         )}
       </main>
@@ -709,15 +489,17 @@ export function App() {
       {showShareModal && (
         <ShareModal
           news={selectedNews}
-          selectedNews={selectedNewsItems}
+          selectedNews={filteredNews.filter((n) => selectedIds.has(n.id))}
           contentType={contentType}
           language={language}
           provider={provider}
           templateId={templateId}
+          templateVariables={templateVariables}
           templates={templates}
           generatedContent={generatedContent}
           generating={generating}
           aiError={aiError}
+          hasGenerated={selectedHasGenerated}
           sending={sending}
           tgError={tgError}
           tgSuccess={tgSuccess}
@@ -729,42 +511,47 @@ export function App() {
           onGenerate={handleGenerate}
           onSendTelegram={handleSendTelegram}
           onCopy={handleCopy}
-          onCopyHtml={handleCopyHtml}
-          onCopyMarkdown={handleCopyMarkdown}
-          onClose={handleCloseShare}
+          onCopyHtml={handleCopy}
+          onCopyMarkdown={handleCopy}
+          onClose={() => setShowShareModal(false)}
         />
       )}
 
-      {showAddModal && <AddModal onSubmit={handleAddNews} onClose={() => setShowAddModal(false)} />}
-
-      {showStatsModal && <StatsModal onClose={handleCloseStats} />}
-
-      {showFeedManager && (
-        <FeedManagerModal isOpen={showFeedManager} onClose={handleCloseFeedManager} />
+      {showAddModal && (
+        <AddModal onClose={() => setShowAddModal(false)} onSubmit={handleAddNews} />
       )}
 
-      {showNewsletterConfig && (
-        <NewsletterConfigModal
-          isOpen={showNewsletterConfig}
-          onClose={handleCloseNewsletterConfig}
-        />
-      )}
+      {showStatsModal && <StatsModal onClose={() => setShowStatsModal(false)} />}
 
-      {showTemplatesModal && (
-        <TemplatesModal isOpen={showTemplatesModal} onClose={() => setShowTemplatesModal(false)} />
-      )}
+      <FeedManagerModal isOpen={showFeedManager} onClose={() => setShowFeedManager(false)} />
 
-      {showBookmarks && <BookmarksModal isOpen={showBookmarks} onClose={handleCloseBookmarks} />}
-
-      {showProfileModal && (
-        <InterestProfileModal isOpen={showProfileModal} onClose={handleCloseProfile} />
-      )}
-
-      <ShortcutsHelp
-        isOpen={showShortcutsHelp}
-        onClose={() => setShowShortcutsHelp(false)}
-        shortcuts={shortcuts.map((s) => ({ key: s.key, description: s.description }))}
+      <NewsletterConfigModal
+        isOpen={showNewsletterConfig}
+        onClose={() => setShowNewsletterConfig(false)}
       />
+
+      <BookmarksModal isOpen={showBookmarks} onClose={() => setShowBookmarks(false)} />
+
+      <InterestProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+      />
+
+      <TemplatesModal
+        isOpen={showTemplatesModal}
+        onClose={() => setShowTemplatesModal(false)}
+      />
+
+      <ShortcutsHelp />
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/*" element={<ProtectedRoute><AppContent /></ProtectedRoute>} />
+    </Routes>
   );
 }

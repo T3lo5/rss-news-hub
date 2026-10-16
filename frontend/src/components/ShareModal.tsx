@@ -1,3 +1,4 @@
+import { formatGeneratedContent } from '../utils/content';
 import type { ContentType, Language, NewsItem, Provider, Template } from '../types';
 
 interface ShareModalProps {
@@ -7,10 +8,12 @@ interface ShareModalProps {
   language: Language;
   provider: Provider;
   templateId: string;
+  templateVariables: Record<string, string>;
   templates: Template[];
   generatedContent: string;
   generating: boolean;
   aiError: string | null;
+  hasGenerated?: boolean;
   sending: boolean;
   tgError: string | null;
   tgSuccess: boolean;
@@ -34,10 +37,12 @@ export function ShareModal({
   language,
   provider,
   templateId,
-  templates,
+  templateVariables = {},
+  templates = [],
   generatedContent,
   generating,
   aiError,
+  hasGenerated,
   sending,
   tgError,
   tgSuccess,
@@ -237,6 +242,8 @@ export function ShareModal({
               </>
             ) : isNewsletter ? (
               `✨ Gerar Newsletter (${selectedNews.length} itens)`
+            ) : hasGenerated ? (
+              '🔄 Gerar novamente'
             ) : (
               '✨ Gerar conteúdo'
             )}
@@ -250,7 +257,9 @@ export function ShareModal({
               ? 'Gerando conteúdo...'
               : aiError
                 ? `Erro: ${aiError}`
-                : generatedContent || 'Clique em "Gerar" para criar o conteúdo'}
+                : generatedContent
+                  ? formatGeneratedContent(generatedContent, contentType)
+                  : 'Clique em "Gerar" para criar o conteúdo'}
           </div>
 
           {generatedContent && !generating && !aiError && (

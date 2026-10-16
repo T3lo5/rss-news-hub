@@ -6,6 +6,7 @@ export interface NewsItem {
   pubDate: string;
   description: string;
   content: string;
+  relevanceScore?: number;
 }
 
 export interface NewsResponse {

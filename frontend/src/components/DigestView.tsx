@@ -14,6 +14,8 @@ interface DigestViewProps {
   selectedIds: Set<string>;
   onSelect: (id: string, shiftKey?: boolean) => void;
   selectedIndex: number;
+  generatedIds?: Set<string>;
+  sentIds?: Set<string>;
 }
 
 function formatDate(iso: string): string {
@@ -103,6 +105,8 @@ export function DigestView({
   selectedIds,
   onSelect,
   selectedIndex,
+  generatedIds,
+  sentIds,
 }: DigestViewProps) {
   const groups = useMemo(() => {
     if (grouping === 'none' || !news.length) return [{ key: 'all', items: news, label: 'All' }];
@@ -161,7 +165,7 @@ export function DigestView({
           <div className="digest-group-items" role="list">
             {items.map((item, itemIndex) => {
               const globalIndex = news.findIndex((n) => n.id === item.id);
-              const isSelected = selectedIds.has(item.id);
+              const isSelected = selectedIds?.has(item.id) ?? false;
               const isKeyboardSelected = globalIndex === selectedIndex;
 
               return (
@@ -189,6 +193,21 @@ export function DigestView({
                     <div className="digest-item-header">
                       <span className="news-source">{item.source || 'Desconhecida'}</span>
                       <RelevanceBadge score={item.relevanceScore} size="sm" />
+                      {sentIds?.has(item.id) ? (
+                        <span
+                          className="generated-badge sent"
+                          title="Conteúdo enviado para o Telegram"
+                        >
+                          ✅ Enviado
+                        </span>
+                      ) : generatedIds?.has(item.id) ? (
+                        <span
+                          className="generated-badge"
+                          title="Conteúdo já gerado — clique em Compartilhar para reenviar"
+                        >
+                          ✨ Gerado
+                        </span>
+                      ) : null}
                       <time className="news-date" dateTime={item.pubDate}>
                         {formatDate(item.pubDate)}
                       </time>
@@ -203,7 +222,7 @@ export function DigestView({
                   <div className="digest-item-actions">
                     <BookmarkButton
                       newsId={item.id}
-                      isBookmarked={bookmarkedIds.has(item.id)}
+                      isBookmarked={bookmarkedIds?.has(item.id) ?? false}
                       onToggle={onBookmarkToggle}
                     />
                     <a

@@ -30,6 +30,80 @@ function getStatusBadge(status: 'ok' | 'error' | 'unknown' | undefined) {
   }
 }
 
+function FeedRow({
+  feed,
+  onToggle,
+  onEdit,
+  onTest,
+  onDelete,
+}: {
+  feed: FeedConfig;
+  onToggle: (feed: FeedConfig) => void;
+  onEdit: (feed: FeedConfig) => void;
+  onTest: (feed: FeedConfig) => void;
+  onDelete: (feed: FeedConfig) => void;
+}) {
+  return (
+    <tr key={feed.id} className={!feed.enabled ? 'disabled' : ''}>
+      <td style={{ textAlign: 'center' }}>
+        <label className="toggle-switch">
+          <input type="checkbox" checked={feed.enabled} onChange={() => onToggle(feed)} />
+          <span className="toggle-slider"></span>
+        </label>
+      </td>
+      <td>
+        <strong>{feed.name}</strong>
+        <br />
+        <small style={{ opacity: 0.6 }}>{feed.id}</small>
+      </td>
+      <td>
+        <a
+          href={feed.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ wordBreak: 'break-all' }}
+        >
+          {feed.url}
+        </a>
+      </td>
+      <td>
+        <span className="category-badge">{feed.category}</span>
+      </td>
+      <td>{formatDate(feed.lastFetch)}</td>
+      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
+        {feed.itemCount || 0}
+      </td>
+      <td>{getStatusBadge(feed.status)}</td>
+      <td>
+        <div className="action-buttons">
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => onTest(feed)}
+            title="Test feed"
+            disabled={!feed.enabled}
+          >
+            🔍
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => onEdit(feed)}
+            title="Edit"
+          >
+            ✏️
+          </button>
+          <button
+            className="btn btn-ghost btn-sm danger"
+            onClick={() => onDelete(feed)}
+            title="Delete"
+          >
+            🗑️
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export function FeedTable({
   feeds,
   searchQuery,
@@ -42,24 +116,24 @@ export function FeedTable({
   sortOrder,
   onSort,
 }: FeedTableProps) {
-  // Defensive: ensure feeds is an array
-  const feedsArray = Array.isArray(feeds) ? feeds : [];
+  // Defensive: ensure feeds is an array and filter out undefined/null entries
+  const feedsArray = Array.isArray(feeds) ? feeds.filter(Boolean) : [];
   let filtered = [...feedsArray];
 
   if (searchQuery.trim()) {
     const query = searchQuery.toLowerCase().trim();
     filtered = filtered.filter(
       (f) =>
-        f.name.toLowerCase().includes(query) ||
-        f.url.toLowerCase().includes(query) ||
-        f.category.toLowerCase().includes(query)
+        f?.name?.toLowerCase().includes(query) ||
+        f?.url?.toLowerCase().includes(query) ||
+        f?.category?.toLowerCase().includes(query)
     );
   }
 
   if (filter === 'active') {
-    filtered = filtered.filter((f) => f.enabled);
+    filtered = filtered.filter((f) => f?.enabled);
   } else if (filter === 'inactive') {
-    filtered = filtered.filter((f) => !f.enabled);
+    filtered = filtered.filter((f) => !f?.enabled);
   }
 
   filtered.sort((a, b) => {
@@ -89,11 +163,7 @@ export function FeedTable({
   ];
 
   const handleSort = (key: string) => {
-    if (sortBy === key) {
-      onSort(key);
-    } else {
-      onSort(key);
-    }
+    onSort(key);
   };
 
   return (
@@ -127,63 +197,14 @@ export function FeedTable({
             </tr>
           ) : (
             filtered.map((feed) => (
-              <tr key={feed.id} className={!feed.enabled ? 'disabled' : ''}>
-                <td style={{ textAlign: 'center' }}>
-                  <label className="toggle-switch">
-                    <input type="checkbox" checked={feed.enabled} onChange={() => onToggle(feed)} />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </td>
-                <td>
-                  <strong>{feed.name}</strong>
-                  <br />
-                  <small style={{ opacity: 0.6 }}>{feed.id}</small>
-                </td>
-                <td>
-                  <a
-                    href={feed.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ wordBreak: 'break-all' }}
-                  >
-                    {feed.url}
-                  </a>
-                </td>
-                <td>
-                  <span className="category-badge">{feed.category}</span>
-                </td>
-                <td>{formatDate(feed.lastFetch)}</td>
-                <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-                  {feed.itemCount || 0}
-                </td>
-                <td>{getStatusBadge(feed.status)}</td>
-                <td>
-                  <div className="action-buttons">
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => onTest(feed)}
-                      title="Test feed"
-                      disabled={!feed.enabled}
-                    >
-                      🔍
-                    </button>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => onEdit(feed)}
-                      title="Edit"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      className="btn btn-ghost btn-sm danger"
-                      onClick={() => onDelete(feed)}
-                      title="Delete"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </td>
-              </tr>
+              <FeedRow
+                key={feed.id}
+                feed={feed}
+                onToggle={onToggle}
+                onEdit={onEdit}
+                onTest={onTest}
+                onDelete={onDelete}
+              />
             ))
           )}
         </tbody>

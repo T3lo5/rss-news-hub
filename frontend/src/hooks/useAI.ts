@@ -13,7 +13,7 @@ export function useAI() {
 
   const generate = useCallback(
     async (
-      news: NewsItem,
+      news: NewsItem | NewsItem[],
       type: ContentType,
       language: Language,
       provider: Provider = 'auto',
@@ -50,5 +50,12 @@ export function useAI() {
     setError(null);
   }, []);
 
-  return { generatedContent, generating, error, generate, clear };
+  // Restore previously generated content (e.g. reopening a news item that
+  // already has a saved post) without calling the API again.
+  const setContent = useCallback((content: string) => {
+    setGeneratedContent(content || '');
+    setError(null);
+  }, []);
+
+  return { generatedContent, generating, error, generate, clear, setContent };
 }

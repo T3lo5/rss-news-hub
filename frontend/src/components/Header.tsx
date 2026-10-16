@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { ThemeToggle } from './ThemeToggle';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SchedulerStatus {
   running: boolean;
@@ -8,6 +9,13 @@ interface SchedulerStatus {
   lastRun: number | null;
   nextRun: number | null;
   lastResult: unknown;
+}
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'user' | 'viewer';
 }
 
 interface HeaderProps {
@@ -28,6 +36,7 @@ function formatCountdown(nextRun: number | null): string {
 
 export function Header({ onRefresh, onAddClick, onStatsClick, onFeedsClick }: HeaderProps) {
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -94,6 +103,20 @@ export function Header({ onRefresh, onAddClick, onStatsClick, onFeedsClick }: He
           </span>{' '}
           Estatísticas
         </button>
+        {user ? (
+          <div className="user-menu" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '16px' }}>
+            <span className="user-name" style={{ fontSize: '14px', color: '#666' }}>
+              {user.name} ({user.role})
+            </span>
+            <button className="btn btn-secondary" onClick={logout} style={{ padding: '8px 12px' }}>
+              Sair
+            </button>
+          </div>
+        ) : (
+          <button className="btn btn-primary" onClick={() => window.location.href = '/login'} style={{ marginLeft: '16px' }}>
+            Entrar
+          </button>
+        )}
       </div>
     </header>
   );

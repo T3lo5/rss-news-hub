@@ -1,4 +1,5 @@
 interface ToolbarProps {
+  searchQuery?: string;
   onSearchChange: (value: string) => void;
   onSourceFilterChange: (source: string) => void;
   onSortChange: (order: 'newest' | 'oldest' | 'relevance') => void;
@@ -20,6 +21,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({
+  searchQuery = '',
   onSearchChange,
   onSourceFilterChange,
   onSortChange,
@@ -45,6 +47,7 @@ export function Toolbar({
         <input
           type="text"
           placeholder="Buscar por título ou fonte..."
+          value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           aria-label="Buscar notícias"
         />
@@ -130,6 +133,7 @@ export function Toolbar({
               aria-label="Digest grouping"
               style={{ minWidth: '120px', fontSize: '12px', padding: '4px 8px' }}
             >
+              <option value="none">All</option>
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
             </select>

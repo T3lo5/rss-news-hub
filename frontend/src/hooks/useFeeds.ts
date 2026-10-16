@@ -7,12 +7,12 @@ export async function fetchFeeds() {
 
 export async function addFeed(feed) {
   const res = await api.addFeed(feed);
-  return res.data;
+  return res;
 }
 
 export async function updateFeed(id, updates) {
   const res = await api.updateFeed(id, updates);
-  return res.data;
+  return res;
 }
 
 export async function deleteFeed(id) {
@@ -22,12 +22,12 @@ export async function deleteFeed(id) {
 
 export async function testFeed(id) {
   const res = await api.testFeed(id);
-  return res.data;
+  return res;
 }
 
 export async function reloadFeeds() {
   const res = await api.reloadFeeds();
-  return res.data;
+  return res;
 }
 
 export async function toggleFeed(id: string, enabled: boolean) {

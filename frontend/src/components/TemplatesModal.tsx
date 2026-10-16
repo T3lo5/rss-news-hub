@@ -24,8 +24,9 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
   const loadTemplates = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await api.getTemplates();
-      setTemplates(data.templates);
+      setTemplates(Array.isArray(data?.templates) ? data.templates : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar templates');
     } finally {
@@ -193,7 +194,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                   placeholder="ex: language, title, customVar"
                 />
                 <small style={{ color: 'var(--text-muted)' }}>
-                  Use {{ variable }} no systemPrompt
+                  {'Use {{variable}} no systemPrompt'}
                 </small>
               </div>
 
@@ -238,7 +239,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                 marginBottom: '16px',
               }}
             >
-              <h3>Templates ({templates.length})</h3>
+              <h3>Templates ({(templates ?? []).length})</h3>
               <button className="btn btn-primary" onClick={() => handleOpenForm()}>
                 <span role="img" aria-label="add">
                   ＋
@@ -249,7 +250,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
 
             {loading ? (
               <div className="loading">Carregando templates...</div>
-            ) : templates.length === 0 ? (
+            ) : (templates ?? []).length === 0 ? (
               <p className="empty">Nenhum template encontrado.</p>
             ) : (
               <div className="table-container">
@@ -264,7 +265,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {templates.map((template) => (
+                    {(templates ?? []).map((template) => (
                       <tr key={template.id}>
                         <td
                           className="feed-name"
