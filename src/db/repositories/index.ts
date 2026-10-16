@@ -41,3 +41,4 @@ export { settingsRepository } from './settings.repository.js';
 export { telegramQueueRepository } from './telegram-queue.repository.js';
 export { templateRepository } from './template.repository.js';
 export { userProfileRepository } from './user-profile.repository.js';
+export { userSettingsRepository } from './user-settings.repository.js';

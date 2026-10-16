@@ -618,6 +618,26 @@ export const api = {
     return data.data;
   },
 
+  // Per-user self-service settings (no admin required)
+  async getUserSettings(): Promise<any> {
+    const res = await fetchWithAuth('/api/me/settings');
+    const data = await handleResponse<{ ok: boolean; data: any }>(res);
+    return data.data;
+  },
+
+  async saveUserSetting(area: string, payload: Record<string, unknown>): Promise<void> {
+    const res = await fetchWithAuth(`/api/me/settings/${area}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    await handleResponse(res);
+  },
+
+  async deleteUserSetting(area: string): Promise<void> {
+    const res = await fetchWithAuth(`/api/me/settings/${area}`, { method: 'DELETE' });
+    await handleResponse(res);
+  },
+
   async getAiProviders(): Promise<AiProviderList> {
     const res = await fetchWithAuth('/api/ai/providers');
     const data = await handleResponse<{ ok: boolean; data: AiProviderList }>(res);

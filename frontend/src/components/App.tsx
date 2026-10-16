@@ -62,6 +62,7 @@ import { Status } from './Status';
 import { TelegramQueueModal } from './TelegramQueueModal';
 import { TemplatesModal } from './TemplatesModal';
 import { Toolbar } from './Toolbar';
+import { UserSettingsModal } from './UserSettingsModal';
 import { UsersModal } from './UsersModal';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -114,6 +115,7 @@ function AppContent() {
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [showUserSettings, setShowUserSettings] = useState(false);
   const [_interestProfile, setInterestProfile] = useState<InterestProfile | null>(null);
   const [digestGrouping, setDigestGrouping] = useState<DigestGrouping>(() => {
     if (typeof window !== 'undefined') {
@@ -454,6 +456,7 @@ function AppContent() {
         onDigestClick={() => setShowDigestConfig(true)}
         onUsersClick={() => setShowUsers(true)}
         onTelegramQueueClick={() => setShowTelegramQueue(true)}
+        onUserSettingsClick={() => setShowUserSettings(true)}
       />
       <main className="main">
         <div className="toolbar-container">
@@ -568,6 +571,8 @@ function AppContent() {
       />
 
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+
+      <UserSettingsModal isOpen={showUserSettings} onClose={() => setShowUserSettings(false)} />
 
       <DigestConfigModal isOpen={showDigestConfig} onClose={() => setShowDigestConfig(false)} />
       <UsersModal isOpen={showUsers} onClose={() => setShowUsers(false)} />

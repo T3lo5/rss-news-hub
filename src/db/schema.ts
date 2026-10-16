@@ -11,6 +11,7 @@ export const feeds = sqliteTable(
     category: text('category').notNull().default('General'),
     etag: text('etag'),
     lastModified: text('last_modified'),
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()
       .default(sql`(strftime('%s', 'now') * 1000)`),
@@ -21,6 +22,7 @@ export const feeds = sqliteTable(
   (table) => ({
     urlIdx: uniqueIndex('feeds_url_idx').on(table.url),
     enabledIdx: index('feeds_enabled_idx').on(table.enabled),
+    userIdx: index('feeds_user_idx').on(table.userId),
   })
 );
 
@@ -171,6 +173,7 @@ export const telegramQueue = sqliteTable(
     retryCount: integer('retry_count').notNull().default(0),
     lastError: text('last_error'),
     options: text('options'),
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()
       .default(sql`(strftime('%s', 'now') * 1000)`),
@@ -179,6 +182,7 @@ export const telegramQueue = sqliteTable(
   (table) => ({
     statusIdx: index('telegram_queue_status_idx').on(table.status),
     scheduledIdx: index('telegram_queue_scheduled_idx').on(table.scheduledAt),
+    userIdx: index('telegram_queue_user_idx').on(table.userId),
   })
 );
 
@@ -282,6 +286,26 @@ export const appSettings = sqliteTable('app_settings', {
     .default(sql`(strftime('%s', 'now') * 1000)`),
 });
 
+// Per-user self-service settings (AI providers, Telegram, email, newsletter,
+// digest). Each row is a JSON blob keyed by area. Secret fields inside are
+// encrypted at rest (see services/secrets.js). Composite PK (user_id, area).
+export const userSettings = sqliteTable(
+  'user_settings',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    area: text('area').notNull(),
+    value: text('value').notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(strftime('%s', 'now') * 1000)`),
+  },
+  (table) => ({
+    userIdx: index('user_settings_user_idx').on(table.userId),
+  })
+);
+
 export type Feed = typeof feeds.$inferSelect;
 export type NewFeed = typeof feeds.$inferInsert;
 export type NewsItem = typeof newsItems.$inferSelect;
@@ -314,3 +338,5 @@ export type GlobalStat = typeof globalStats.$inferSelect;
 export type NewGlobalStat = typeof globalStats.$inferInsert;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type NewAppSetting = typeof appSettings.$inferInsert;
+export type UserSetting = typeof userSettings.$inferSelect;
+export type NewUserSetting = typeof userSettings.$inferInsert;

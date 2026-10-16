@@ -1,4 +1,5 @@
 import { telegramQueueRepository } from '../src/db/repositories/index.js';
+import { resolveTelegramConfig } from './user-config.service.js';
 import { withRetry } from './net.js';
 
 // Telegram's hard limit is 4096 chars per message. Keep a safety margin so the
@@ -184,7 +185,12 @@ export async function processTelegramQueue(config) {
   for (const msg of dueMessages) {
     try {
       const options = msg.options ? JSON.parse(msg.options) : {};
-      await telegramSend(msg.text, msg.parseMode, config, options);
+      // Resolve per-user config; falls back to the provided global config when
+      // the message has no userId (legacy global queue entries).
+      const effectiveConfig = msg.userId
+        ? await resolveTelegramConfig(msg.userId)
+        : config;
+      await telegramSend(msg.text, msg.parseMode, effectiveConfig, options);
       await telegramQueueRepository.updateStatus(msg.id, 'sent');
     } catch (err) {
       await telegramQueueRepository.incrementRetry(msg.id, err.message);

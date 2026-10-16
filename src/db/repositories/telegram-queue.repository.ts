@@ -30,6 +30,14 @@ export class TelegramQueueRepository {
     return result[0];
   }
 
+  async findByUserId(userId: string): Promise<schema.TelegramQueue[]> {
+    return this.db
+      .select()
+      .from(schema.telegramQueue)
+      .where(eq(schema.telegramQueue.userId, userId))
+      .orderBy(schema.telegramQueue.scheduledAt);
+  }
+
   async add(message: schema.NewTelegramQueue): Promise<schema.TelegramQueue> {
     const result = await this.db.insert(schema.telegramQueue).values(message).returning();
     return result[0];

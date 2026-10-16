@@ -1,17 +1,35 @@
 import OpenAI from 'openai';
 import { ai } from '../server.config.js';
 import { withRetry } from './net.js';
+import { resolveAiConfig } from './user-config.service.js';
 
 let aiConfig = ai;
 let openaiClients = {};
+let aiConfigCache = {}; // cache per-user: { userId: { config, timestamp } }
+const AI_CONFIG_TTL_MS = 30_000; // re-resolve a cada 30s para pegar mudanças
 
 export function __setAiConfig(config) {
   aiConfig = config;
   openaiClients = {};
+  aiConfigCache = {};
 }
 
 export function __getAiConfig() {
   return aiConfig;
+}
+
+// Resolve a config de IA efetiva para um usuário:
+//   1. Se userId fornecido → resolve per-user (com cache curto)
+//   2. Senão → usa a config global (compatibilidade com chamadas existentes)
+async function resolveConfig(userId) {
+  if (!userId) return aiConfig;
+  const cached = aiConfigCache[userId];
+  if (cached && Date.now() - cached.timestamp < AI_CONFIG_TTL_MS) {
+    return cached.config;
+  }
+  const config = await resolveAiConfig(userId);
+  aiConfigCache[userId] = { config, timestamp: Date.now() };
+  return config;
 }
 
 function getClient(cfg) {
@@ -89,32 +107,41 @@ async function chatWithConfig(cfg, systemPrompt, userContent) {
   return data.choices?.[0]?.message?.content || '';
 }
 
-export async function chat(systemPrompt, userContent, provider = 'auto') {
-  // An explicit provider is respected; only "auto" cascades through every
-  // configured provider so a single unreachable endpoint doesn't break
-  // generation.
-  const candidates =
-    provider && provider !== 'auto'
-      ? [{ name: provider, cfg: pickProvider(provider) }]
-      : listConfiguredProviders();
+export async function chat(systemPrompt, userContent, provider = 'auto', userId = null) {
+  // Resolve a config efetiva (per-user se userId fornecido, senão global)
+  const resolvedConfig = await resolveConfig(userId);
+  const prevConfig = aiConfig;
+  aiConfig = resolvedConfig; // temporariamente substitui para pickProvider/listConfiguredProviders
 
-  if (candidates.length === 0 || !candidates[0]?.cfg) {
-    throw new Error('No AI provider configured. Set at least one API key in .env');
-  }
+  try {
+    // An explicit provider is respected; only "auto" cascades through every
+    // configured provider so a single unreachable endpoint doesn't break
+    // generation.
+    const candidates =
+      provider && provider !== 'auto'
+        ? [{ name: provider, cfg: pickProvider(provider) }]
+        : listConfiguredProviders();
 
-  let lastErr;
-  for (const { name, cfg } of candidates) {
-    if (!cfg) continue;
-    try {
-      return await chatWithConfig(cfg, systemPrompt, userContent);
-    } catch (err) {
-      lastErr = err;
-      if (candidates.length > 1) {
-        console.warn(`AI provider ${name} failed, trying next: ${err.message}`);
+    if (candidates.length === 0 || !candidates[0]?.cfg) {
+      throw new Error('No AI provider configured. Set at least one API key in .env or in your profile settings');
+    }
+
+    let lastErr;
+    for (const { name, cfg } of candidates) {
+      if (!cfg) continue;
+      try {
+        return await chatWithConfig(cfg, systemPrompt, userContent);
+      } catch (err) {
+        lastErr = err;
+        if (candidates.length > 1) {
+          console.warn(`AI provider ${name} failed, trying next: ${err.message}`);
+        }
       }
     }
+    throw lastErr || new Error('No AI provider configured. Set at least one API key in .env or in your profile settings');
+  } finally {
+    aiConfig = prevConfig; // restaura
   }
-  throw lastErr || new Error('No AI provider configured. Set at least one API key in .env');
 }
 
 export async function chatStream(
@@ -122,32 +149,25 @@ export async function chatStream(
   userContent,
   provider = 'auto',
   onToken,
-  options = {}
+  options = {},
+  userId = null
 ) {
-  const cfg = pickProvider(provider);
-  if (!cfg) {
-    throw new Error('No AI provider configured. Set at least one API key in .env');
-  }
+  const resolvedConfig = await resolveConfig(userId);
+  const prevConfig = aiConfig;
+  aiConfig = resolvedConfig;
 
-  const abortSignal = options.signal;
-  if (abortSignal?.aborted) {
-    throw new DOMException('Aborted', 'AbortError');
-  }
+  try {
+    const cfg = pickProvider(provider);
+    if (!cfg) {
+      throw new Error('No AI provider configured. Set at least one API key in .env or in your profile settings');
+    }
 
-  const body = JSON.stringify({
-    model: cfg.model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userContent },
-    ],
-    temperature: 0.7,
-    stream: true,
-  });
+    const abortSignal = options.signal;
+    if (abortSignal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
 
-  let res;
-  if (cfg.sdk === 'openai') {
-    const client = getClient(cfg);
-    const stream = await client.chat.completions.create({
+    const body = JSON.stringify({
       model: cfg.model,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -157,63 +177,79 @@ export async function chatStream(
       stream: true,
     });
 
-    for await (const chunk of stream) {
-      if (abortSignal?.aborted) break;
-      const content = chunk.choices?.[0]?.delta?.content;
-      if (content) onToken(content);
+    let res;
+    if (cfg.sdk === 'openai') {
+      const client = getClient(cfg);
+      const stream = await client.chat.completions.create({
+        model: cfg.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        temperature: 0.7,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        if (abortSignal?.aborted) break;
+        const content = chunk.choices?.[0]?.delta?.content;
+        if (content) onToken(content);
+      }
+      return;
     }
-    return;
-  }
 
-  res = await fetch(`${cfg.baseUrl}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${cfg.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body,
-    signal: abortSignal,
-  });
+    res = await fetch(`${cfg.baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${cfg.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body,
+      signal: abortSignal,
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`AI API error ${res.status}: ${text.slice(0, 200)}`);
-  }
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`AI API error ${res.status}: ${text.slice(0, 200)}`);
+    }
 
-  if (!res.body) {
-    throw new Error('No response body for streaming');
-  }
+    if (!res.body) {
+      throw new Error('No response body for streaming');
+    }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-  try {
-    while (true) {
-      if (abortSignal?.aborted) break;
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        if (abortSignal?.aborted) break;
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') return;
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) onToken(content);
-          } catch {
-            // Ignore parse errors for malformed chunks
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') return;
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) onToken(content);
+            } catch {
+              // Ignore parse errors for malformed chunks
+            }
           }
         }
       }
+    } finally {
+      reader.releaseLock();
     }
   } finally {
-    reader.releaseLock();
+    aiConfig = prevConfig; // restaura
   }
 }
 

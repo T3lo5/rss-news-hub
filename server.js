@@ -54,6 +54,14 @@ import {
   trigger as triggerScheduler,
 } from './services/scheduler.service.js';
 import {
+  deleteUserSetting,
+  getUserSettingsOverview,
+  resolveAiConfig,
+  resolveEmailConfig,
+  resolveTelegramConfig,
+  saveUserSetting,
+} from './services/user-config.service.js';
+import {
   getProviderList,
   getPublicSettings,
   initSettings,
@@ -878,6 +886,61 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    // ── Per-user self-service settings ───────────────────────────────────
+    // Qualquer usuário autenticado pode configurar seus próprios provedores,
+    // Telegram, email e newsletters sem precisar de admin. As credenciais do
+    // env são usadas apenas como fallback quando o usuário não definiu nada.
+
+    // GET /api/me/settings - visão geral das configs do usuário
+    if (path === '/api/me/settings' && req.method === 'GET') {
+      requireUser()(req, res, async () => {
+        try {
+          const overview = await getUserSettingsOverview(req.user.id);
+          return sendJSON(res, 200, { ok: true, data: overview });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
+    }
+
+    // PUT /api/me/settings/:area - salva override do usuário
+    const meSettingsMatch = path.match(/^\/api\/me\/settings\/([\w-]+)$/);
+    if (meSettingsMatch && req.method === 'PUT') {
+      requireUser()(req, res, async () => {
+        const area = meSettingsMatch[1];
+        const allowedAreas = ['ai', 'telegram', 'email', 'newsletter', 'digest'];
+        if (!allowedAreas.includes(area)) {
+          return sendJSON(res, 400, { ok: false, error: `Invalid area: ${area}` });
+        }
+        try {
+          const result = await saveUserSetting(req.user.id, area, req.body || {});
+          return sendJSON(res, 200, { ok: true, data: result });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
+    }
+
+    // DELETE /api/me/settings/:area - remove override (volta ao fallback)
+    if (meSettingsMatch && req.method === 'DELETE') {
+      requireUser()(req, res, async () => {
+        const area = meSettingsMatch[1];
+        const allowedAreas = ['ai', 'telegram', 'email', 'newsletter', 'digest'];
+        if (!allowedAreas.includes(area)) {
+          return sendJSON(res, 400, { ok: false, error: `Invalid area: ${area}` });
+        }
+        try {
+          const result = await deleteUserSetting(req.user.id, area);
+          return sendJSON(res, 200, { ok: true, data: result });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
+    }
+
     // GET /api/settings - admin settings (secrets masked)
     if (path === '/api/settings' && req.method === 'GET') {
       requireAdmin()(req, res, async () => {
@@ -1150,7 +1213,7 @@ export async function handleRequest(req, res) {
               const systemPrompt = templatePrompt;
               const userContent = buildNewsUserContent(news);
 
-              const result = await chat(systemPrompt, userContent, provider);
+              const result = await chat(systemPrompt, userContent, provider, req.user.id);
               // Never let the editorial analysis sections leak into the post.
               const content = type === 'linkedin' ? stripEditorialMeta(result) : result;
               return sendJSON(res, 200, { ok: true, data: { content, type, language } });
@@ -1205,7 +1268,8 @@ export async function handleRequest(req, res) {
                 (token) => {
                   res.write(`data: ${JSON.stringify({ token, done: false })}\n\n`);
                 },
-                { signal: abortController.signal }
+                { signal: abortController.signal },
+                req.user.id
               );
 
               res.write(`data: ${JSON.stringify({ token: '', done: true })}\n\n`);
@@ -1239,6 +1303,9 @@ export async function handleRequest(req, res) {
                 scheduleAt,
               } = req.body;
 
+              // Resolve Telegram config per-user (fallback para global/env)
+              const tgConfig = await resolveTelegramConfig(req.user.id);
+
               if (scheduleAt) {
                 // Queue for scheduled send
                 const { queueTelegramMessage } = await import('./services/telegram.service.js');
@@ -1246,6 +1313,7 @@ export async function handleRequest(req, res) {
                   text,
                   parseMode: parseMode || 'Markdown',
                   scheduledAt: scheduleAt,
+                  userId: req.user.id,
                   options: {
                     messageThreadId,
                     replyToMessageId,
@@ -1260,7 +1328,7 @@ export async function handleRequest(req, res) {
                 });
               }
 
-              const result = await telegramSend(text, parseMode || 'Markdown', telegram, {
+              const result = await telegramSend(text, parseMode || 'Markdown', tgConfig, {
                 messageThreadId,
                 replyToMessageId,
                 inlineKeyboard,

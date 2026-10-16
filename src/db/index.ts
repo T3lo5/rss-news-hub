@@ -139,9 +139,11 @@ export type {
   NewTemplate,
   NewUser,
   NewUserProfile,
+  NewUserSetting,
   TelegramQueue,
   Template,
   User,
   UserProfile,
+  UserSetting,
 } from './schema.js';
 export { schema };
