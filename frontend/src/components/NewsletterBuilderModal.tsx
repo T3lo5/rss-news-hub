@@ -26,6 +26,11 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const [emailRecipients, setEmailRecipients] = useState('');
+  const [emailing, setEmailing] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+
   const { sending, error: tgError, success: tgSuccess, send, reset: resetTg } = useTelegram();
 
   useEffect(() => {
@@ -41,6 +46,8 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
       setContent('');
       setError(null);
       setCopied(false);
+      setEmailError(null);
+      setEmailSuccess(false);
       resetTg();
     }
   }, [isOpen, resetTg]);
@@ -132,6 +139,29 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // clipboard unavailable
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!content) return;
+    setEmailing(true);
+    setEmailError(null);
+    setEmailSuccess(false);
+    try {
+      const to = emailRecipients
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      await api.sendEmail({
+        to: to.length ? to : undefined,
+        subject: `Newsletter — ${new Date().toLocaleDateString('pt-BR')}`,
+        text: content,
+      });
+      setEmailSuccess(true);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Erro ao enviar e-mail');
+    } finally {
+      setEmailing(false);
     }
   };
 
@@ -431,6 +461,46 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
           {tgError && (
             <div style={{ color: 'var(--danger)', fontSize: '13px', marginTop: '12px' }}>
               Erro no Telegram: {tgError}
+            </div>
+          )}
+
+          {content && !generating && (
+            <div
+              style={{
+                marginTop: '16px',
+                paddingTop: '16px',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              <div className="form-group" style={{ margin: 0 }}>
+                <label htmlFor="builderEmailRecipients">
+                  Enviar por e-mail para (vazio = destinatários configurados):
+                </label>
+                <input
+                  id="builderEmailRecipients"
+                  type="text"
+                  value={emailRecipients}
+                  onChange={(e) => setEmailRecipients(e.target.value)}
+                  placeholder="a@exemplo.com, b@exemplo.com"
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSendEmail}
+                  disabled={emailing || emailSuccess}
+                >
+                  {emailing ? '⏳ Enviando...' : emailSuccess ? '✅ Enviado!' : '📧 Enviar por e-mail'}
+                </button>
+              </div>
+              {emailError && (
+                <div style={{ color: 'var(--danger)', fontSize: '13px' }}>
+                  Erro no e-mail: {emailError}
+                </div>
+              )}
             </div>
           )}
         </div>

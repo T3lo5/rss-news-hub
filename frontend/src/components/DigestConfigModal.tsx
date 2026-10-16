@@ -18,6 +18,7 @@ const DEFAULT_CONFIG: DigestConfig = {
   provider: 'auto',
   format: 'thread',
   language: 'en',
+  emailEnabled: false,
 };
 
 export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -189,6 +190,30 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 }}
               >
                 Quando ativo, o digest é gerado e enviado automaticamente no horário do cron.
+              </p>
+            </div>
+
+            <div className="form-group">
+              <label
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={config.emailEnabled}
+                  onChange={(e) => handleChange('emailEnabled', e.target.checked)}
+                  disabled={loading}
+                />
+                Enviar também por e-mail
+              </label>
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  marginTop: '4px',
+                  marginLeft: '24px',
+                }}
+              >
+                Requer SMTP configurado em Configurações → E-mail.
               </p>
             </div>
 

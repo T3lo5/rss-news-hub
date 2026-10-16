@@ -127,6 +127,7 @@ export interface NewsletterConfig {
   language: 'en' | 'pt';
   provider: 'auto' | 'sensenova' | 'deepseek' | 'openai';
   telegramEnabled: boolean;
+  emailEnabled: boolean;
 }
 
 export interface NewsletterHistoryEntry {
@@ -186,6 +187,17 @@ export interface TelegramSettings {
   botTokenSet: boolean;
 }
 
+export interface EmailSettings {
+  enabled: boolean;
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  from: string;
+  passwordSet: boolean;
+  recipients: string[];
+}
+
 export interface DigestConfig {
   enabled: boolean;
   cron: string;
@@ -195,11 +207,13 @@ export interface DigestConfig {
   provider: 'auto' | AiProviderId;
   format: 'thread' | 'summary' | 'linkedin';
   language: 'en' | 'pt';
+  emailEnabled: boolean;
 }
 
 export interface AppSettings {
   ai: AiSettings;
   telegram: TelegramSettings;
+  email: EmailSettings;
   newsletter: NewsletterConfig;
   digest: DigestConfig;
 }
@@ -231,6 +245,32 @@ export interface AiSettingsUpdate {
 export interface TelegramSettingsUpdate {
   botToken?: string | null;
   chatId?: string;
+}
+
+export interface EmailSettingsUpdate {
+  enabled?: boolean;
+  host?: string;
+  port?: number;
+  secure?: boolean;
+  user?: string;
+  pass?: string | null;
+  from?: string;
+  recipients?: string[];
+}
+
+export interface EmailSendRequest {
+  to?: string[];
+  subject: string;
+  text?: string;
+  html?: string;
+}
+
+export interface EmailSendResult {
+  messageId: string;
+  accepted: string[];
+  rejected: string[];
+  response?: string;
+  verified?: boolean;
 }
 
 export interface DigestPreview {

@@ -31,6 +31,7 @@ export function NewsletterConfigModal({
     language: 'pt',
     provider: 'auto',
     telegramEnabled: true,
+    emailEnabled: false,
   });
   const [feeds, setFeeds] = useState<FeedConfig[]>([]);
   const [history, setHistory] = useState<NewsletterHistoryEntry[]>([]);
@@ -291,6 +292,30 @@ export function NewsletterConfigModal({
                 />
                 Send via Telegram
               </label>
+            </div>
+
+            <div className="form-group">
+              <label
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={config.emailEnabled}
+                  onChange={(e) => handleChange('emailEnabled', e.target.checked)}
+                  disabled={loading}
+                />
+                Send via E-mail
+              </label>
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  marginTop: '4px',
+                  marginLeft: '24px',
+                }}
+              >
+                Requires SMTP configured in Settings → E-mail.
+              </p>
             </div>
 
             <div className="form-group">

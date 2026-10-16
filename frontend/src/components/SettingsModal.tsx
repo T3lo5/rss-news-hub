@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
-import type { AiProviderId, AiProviderOverride, AiSettingsUpdate, AppSettings } from '../types';
+import type {
+  AiProviderId,
+  AiProviderOverride,
+  AiSettingsUpdate,
+  AppSettings,
+  EmailSettingsUpdate,
+} from '../types';
 
 type ProviderForm = {
   baseUrl: string;
@@ -31,6 +37,18 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [botToken, setBotToken] = useState('');
   const [clearToken, setClearToken] = useState(false);
 
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [emailHost, setEmailHost] = useState('');
+  const [emailPort, setEmailPort] = useState('587');
+  const [emailSecure, setEmailSecure] = useState(false);
+  const [emailUser, setEmailUser] = useState('');
+  const [emailPass, setEmailPass] = useState('');
+  const [clearEmailPass, setClearEmailPass] = useState(false);
+  const [emailFrom, setEmailFrom] = useState('');
+  const [emailRecipients, setEmailRecipients] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -53,6 +71,16 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setChatId(data.telegram.chatId);
       setBotToken('');
       setClearToken(false);
+
+      setEmailEnabled(data.email.enabled);
+      setEmailHost(data.email.host);
+      setEmailPort(String(data.email.port));
+      setEmailSecure(data.email.secure);
+      setEmailUser(data.email.user);
+      setEmailPass('');
+      setClearEmailPass(false);
+      setEmailFrom(data.email.from);
+      setEmailRecipients(data.email.recipients.join(', '));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar configurações');
     } finally {
@@ -135,6 +163,57 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setError(err instanceof Error ? err.message : 'Falha ao salvar Telegram');
     } finally {
       setSavingTelegram(false);
+    }
+  };
+
+  const parseRecipients = () =>
+    emailRecipients
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+  const handleSaveEmail = async () => {
+    setSavingEmail(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const payload: EmailSettingsUpdate = {
+        enabled: emailEnabled,
+        host: emailHost,
+        port: Number(emailPort) || 587,
+        secure: emailSecure,
+        user: emailUser,
+        from: emailFrom,
+        recipients: parseRecipients(),
+      };
+      if (emailPass) payload.pass = emailPass;
+      else if (clearEmailPass) payload.pass = null;
+
+      const emailSettings = await api.updateEmailSettings(payload);
+      setSettings((prev) => (prev ? { ...prev, email: emailSettings } : prev));
+      setEmailPass('');
+      setClearEmailPass(false);
+      setEmailRecipients(emailSettings.recipients.join(', '));
+      flashSuccess('Configurações de e-mail salvas!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao salvar e-mail');
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    setTestingEmail(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const recipients = parseRecipients();
+      const result = await api.testEmail(recipients.length ? recipients : undefined);
+      flashSuccess(`E-mail de teste enviado para ${result.accepted.join(', ')}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao testar e-mail');
+    } finally {
+      setTestingEmail(false);
     }
   };
 
@@ -385,6 +464,188 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       disabled={savingTelegram}
                     >
                       {savingTelegram ? '⏳ Salvando...' : '💾 Salvar Telegram'}
+                    </button>
+                  </div>
+                </section>
+
+                {/* Email */}
+                <section style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                  <h4 style={{ marginBottom: '12px' }}>📧 E-mail (SMTP)</h4>
+
+                  <p
+                    style={{
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                      marginTop: 0,
+                      marginBottom: '12px',
+                    }}
+                  >
+                    Usado para enviar a newsletter e o digest por e-mail. A senha fica cifrada no
+                    banco.
+                  </p>
+
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={emailEnabled}
+                      onChange={(e) => setEmailEnabled(e.target.checked)}
+                    />
+                    Habilitar envio por e-mail
+                  </label>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: '12px',
+                    }}
+                  >
+                    <div className="form-group">
+                      <label htmlFor="smtpHost">Host SMTP:</label>
+                      <input
+                        id="smtpHost"
+                        type="text"
+                        value={emailHost}
+                        onChange={(e) => setEmailHost(e.target.value)}
+                        placeholder="smtp.gmail.com"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="smtpPort">Porta:</label>
+                      <input
+                        id="smtpPort"
+                        type="number"
+                        value={emailPort}
+                        onChange={(e) => setEmailPort(e.target.value)}
+                        placeholder="587"
+                      />
+                    </div>
+                  </div>
+
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={emailSecure}
+                      onChange={(e) => setEmailSecure(e.target.checked)}
+                    />
+                    Conexão segura (TLS implícito, porta 465)
+                  </label>
+
+                  <div className="form-group">
+                    <label htmlFor="smtpUser">Usuário:</label>
+                    <input
+                      id="smtpUser"
+                      type="text"
+                      value={emailUser}
+                      onChange={(e) => setEmailUser(e.target.value)}
+                      placeholder="voce@exemplo.com"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="smtpPass">Senha / App Password:</label>
+                    <input
+                      id="smtpPass"
+                      type="password"
+                      autoComplete="off"
+                      value={emailPass}
+                      placeholder={
+                        settings.email.passwordSet
+                          ? '•••••••• (deixe vazio p/ manter)'
+                          : 'app password'
+                      }
+                      onChange={(e) => {
+                        setEmailPass(e.target.value);
+                        setClearEmailPass(false);
+                      }}
+                    />
+                    {settings.email.passwordSet && (
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          marginTop: '6px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={clearEmailPass}
+                          onChange={(e) => {
+                            setClearEmailPass(e.target.checked);
+                            setEmailPass('');
+                          }}
+                        />
+                        Remover senha (volta ao .env)
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="smtpFrom">Remetente (From):</label>
+                    <input
+                      id="smtpFrom"
+                      type="text"
+                      value={emailFrom}
+                      onChange={(e) => setEmailFrom(e.target.value)}
+                      placeholder="RSS News Hub <voce@exemplo.com>"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="smtpRecipients">Destinatários (separados por vírgula):</label>
+                    <input
+                      id="smtpRecipients"
+                      type="text"
+                      value={emailRecipients}
+                      onChange={(e) => setEmailRecipients(e.target.value)}
+                      placeholder="a@exemplo.com, b@exemplo.com"
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      gap: '10px',
+                      marginTop: '16px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <button
+                      className="btn btn-ghost"
+                      onClick={handleTestEmail}
+                      disabled={testingEmail || !emailHost || !emailFrom}
+                      title="Verifica a conexão e envia um e-mail de teste"
+                    >
+                      {testingEmail ? '⏳ Testando...' : '🔌 Testar conexão'}
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveEmail}
+                      disabled={savingEmail}
+                    >
+                      {savingEmail ? '⏳ Salvando...' : '💾 Salvar E-mail'}
                     </button>
                   </div>
                 </section>

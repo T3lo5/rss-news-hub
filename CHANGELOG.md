@@ -25,6 +25,11 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - Tela **Montar Newsletter** (Toolbar) para criar uma newsletter própria:
   selecionar notícias manualmente e/ou filtrar por fontes, com busca, idioma,
   provedor, template e variáveis; inclui prévia, copiar e enviar pelo Telegram
+- **Envio por e-mail (SMTP)** via nodemailer: seção E-mail nas Configurações
+  (host, porta, TLS, usuário, senha cifrada, remetente e destinatários padrão),
+  endpoints `PUT /api/settings/email`, `POST /api/email/send` e
+  `POST /api/email/test`, botão "Enviar por e-mail" no Montar Newsletter e
+  opção "enviar também por e-mail" na newsletter agendada e no digest
 
 ### Fixed
 - Corrida em `userProfileRepository.get()` que podia falhar com

@@ -9,6 +9,10 @@ import type {
   DigestConfig,
   DigestPreview,
   DigestTriggerResult,
+  EmailSendRequest,
+  EmailSendResult,
+  EmailSettings,
+  EmailSettingsUpdate,
   FeedConfig,
   FeedTestResponse,
   FetchRssResponse,
@@ -457,6 +461,33 @@ export const api = {
       body: JSON.stringify(payload),
     });
     const data = await handleResponse<{ ok: boolean; data: TelegramSettings }>(res);
+    return data.data;
+  },
+
+  async updateEmailSettings(payload: EmailSettingsUpdate): Promise<EmailSettings> {
+    const res = await fetchWithAuth('/api/settings/email', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    const data = await handleResponse<{ ok: boolean; data: EmailSettings }>(res);
+    return data.data;
+  },
+
+  async sendEmail(payload: EmailSendRequest): Promise<EmailSendResult> {
+    const res = await fetchWithAuth('/api/email/send', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const data = await handleResponse<{ ok: boolean; data: EmailSendResult }>(res);
+    return data.data;
+  },
+
+  async testEmail(to?: string[]): Promise<EmailSendResult> {
+    const res = await fetchWithAuth('/api/email/test', {
+      method: 'POST',
+      body: JSON.stringify(to?.length ? { to } : {}),
+    });
+    const data = await handleResponse<{ ok: boolean; data: EmailSendResult }>(res);
     return data.data;
   },
 
