@@ -127,10 +127,10 @@ function buildDigestUserContent(items) {
     .join('\n\n');
 }
 
-export async function generateAndSendDigest(telegram) {
+export async function generateAndSendDigest(telegram, options = {}) {
   try {
     const config = getDigestConfig();
-    if (!config.enabled) {
+    if (!(config.enabled || options.force)) {
       return { success: false, itemsCount: 0, error: 'Digest not enabled' };
     }
 

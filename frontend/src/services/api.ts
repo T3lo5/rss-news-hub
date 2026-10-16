@@ -6,6 +6,9 @@ import type {
   AiSettingsUpdate,
   AppSettings,
   Bookmark,
+  DigestConfig,
+  DigestPreview,
+  DigestTriggerResult,
   FeedConfig,
   FeedTestResponse,
   FetchRssResponse,
@@ -460,6 +463,43 @@ export const api = {
   async getAiProviders(): Promise<AiProviderList> {
     const res = await fetchWithAuth('/api/ai/providers');
     const data = await handleResponse<{ ok: boolean; data: AiProviderList }>(res);
+    return data.data;
+  },
+
+  // Digest (Best News)
+  async getDigestConfig(): Promise<DigestConfig> {
+    const res = await fetchWithAuth('/api/digest/config');
+    const data = await handleResponse<{ ok: boolean; data: DigestConfig }>(res);
+    return data.data;
+  },
+
+  async updateDigestConfig(config: Partial<DigestConfig>): Promise<DigestConfig> {
+    const res = await fetchWithAuth('/api/digest/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+    const data = await handleResponse<{ ok: boolean; data: DigestConfig }>(res);
+    return data.data;
+  },
+
+  async triggerDigest(): Promise<DigestTriggerResult> {
+    const res = await fetchWithAuth('/api/digest/trigger', { method: 'POST' });
+    const data = await handleResponse<{ ok: boolean; data: DigestTriggerResult }>(res);
+    return data.data;
+  },
+
+  async previewDigest(
+    params: Pick<
+      DigestConfig,
+      'lookbackDays' | 'minRelevanceScore' | 'maxItems' | 'format' | 'language' | 'provider'
+    >
+  ): Promise<DigestPreview> {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+    }
+    const res = await fetchWithAuth(`/api/digest/preview?${query.toString()}`);
+    const data = await handleResponse<{ ok: boolean; data: DigestPreview }>(res);
     return data.data;
   },
 };

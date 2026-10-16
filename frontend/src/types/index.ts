@@ -233,3 +233,15 @@ export interface TelegramSettingsUpdate {
   chatId?: string;
 }
 
+export interface DigestPreview {
+  items: NewsItem[];
+  content?: string;
+}
+
+export interface DigestTriggerResult {
+  success: boolean;
+  itemsCount: number;
+  content?: string;
+  error?: string;
+}
+

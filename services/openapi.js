@@ -276,6 +276,60 @@ registerPath(
 );
 registerPath(
   'get',
+  '/api/digest/config',
+  'Get digest config',
+  'Get the automatic "Best News" digest configuration',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'put',
+  '/api/digest/config',
+  'Update digest config',
+  'Update the digest configuration (admin)',
+  schemas.updateDigestConfigSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'post',
+  '/api/digest/trigger',
+  'Trigger digest',
+  'Generate and send the digest now (admin). Works even when the schedule is disabled.',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'get',
+  '/api/digest/preview',
+  'Preview digest',
+  'Preview the digest content without sending (admin)',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'post',
+  '/api/digest/start',
+  'Start digest job',
+  'Enable and start the scheduled digest job (admin)',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'post',
+  '/api/digest/stop',
+  'Stop digest job',
+  'Disable and stop the scheduled digest job (admin)',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'get',
   '/api/settings',
   'Get settings',
   'Get admin settings (AI providers, Telegram, newsletter, digest). Secrets are masked.',

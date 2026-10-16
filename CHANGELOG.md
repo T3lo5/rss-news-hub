@@ -17,6 +17,16 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   `JWT_SECRET`); segredos nunca são devolvidos em texto puro pela API
 - Configuração de newsletter e digest agora **persiste** (antes vivia apenas em
   memória e resetava a cada reinício)
+- Tela **Digest** (admin) para agendar o "Best News", ajustar filtros
+  (janela, relevância mínima, máximo de itens, provedor, formato, idioma),
+  **pré-visualizar** o conteúdo e **enviar agora** — o envio manual funciona
+  mesmo com o agendamento desligado
+- Endpoints do digest documentados no OpenAPI
+
+### Fixed
+- Corrida em `userProfileRepository.get()` que podia falhar com
+  "UNIQUE constraint failed: user_profiles.id" quando duas execuções (ex.:
+  digest agendado + scoring de relevância) criavam o perfil padrão ao mesmo tempo
 
 ## [1.1.0] - 2026-10-16
 

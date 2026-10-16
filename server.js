@@ -774,11 +774,12 @@ export async function handleRequest(req, res) {
       return;
     }
 
-    // POST /api/digest/trigger - manual digest generation
+    // POST /api/digest/trigger - manual digest generation (works even when the
+    // scheduled digest is disabled)
     if (path === '/api/digest/trigger' && req.method === 'POST') {
       requireAdmin()(req, res, async () => {
         try {
-          const result = await generateAndSendDigest({ telegram });
+          const result = await generateAndSendDigest({ telegram }, { force: true });
           return sendJSON(res, 200, { ok: true, data: result });
         } catch (err) {
           return sendJSON(res, 500, { ok: false, error: err.message });
