@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import type { FeedStat, StatsResponse } from '../types';
+import type { FeedStat, HealthStatus, StatsResponse } from '../types';
 
 function formatDate(timestamp: number | null): string {
   if (!timestamp) return 'Nunca';
@@ -22,12 +22,24 @@ function formatInterval(ms: number): string {
   return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}min`;
 }
 
+function formatUptime(seconds?: number): string {
+  if (!seconds && seconds !== 0) return '—';
+  const total = Math.floor(seconds);
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const mins = Math.floor((total % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}min`;
+  return `${mins}min`;
+}
+
 interface StatsModalProps {
   onClose: () => void;
 }
 
 export function StatsModal({ onClose }: StatsModalProps) {
   const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [health, setHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +56,16 @@ export function StatsModal({ onClose }: StatsModalProps) {
       }
     };
 
+    const fetchHealth = async () => {
+      try {
+        setHealth(await api.getHealth());
+      } catch {
+        // Health is best-effort: ignore when the endpoint is unavailable.
+      }
+    };
+
     fetchStats();
+    fetchHealth();
   }, []);
 
   if (loading) {
@@ -98,6 +119,69 @@ export function StatsModal({ onClose }: StatsModalProps) {
         </div>
 
         <div className="modal-body">
+          {/* System health */}
+          {health && (
+            <div className="stats-section">
+              <h3>🩺 Sistema</h3>
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <span className="stat-label">Estado</span>
+                  <span className={`stat-value ${health.ok ? 'success' : 'danger'}`}>
+                    {health.ok ? '🟢 Saudável' : '🔴 Indisponível'}
+                  </span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-label">Versão</span>
+                  <span className="stat-value">{health.version || '—'}</span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-label">Uptime</span>
+                  <span className="stat-value">{formatUptime(health.uptime)}</span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-label">Banco de dados</span>
+                  <span className={`stat-value ${health.db.ok ? 'success' : 'danger'}`}>
+                    {health.db.ok ? '🟢 OK' : '🔴 Erro'}
+                  </span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-label">Provedores IA ativos</span>
+                  <span className="stat-value">
+                    {health.providers.configured.length
+                      ? health.providers.configured.join(', ')
+                      : 'nenhum'}
+                  </span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-label">Retenção</span>
+                  <span className="stat-value">
+                    {health.schedulers.retention?.retentionDays
+                      ? `${health.schedulers.retention.retentionDays} dias`
+                      : 'desligada'}
+                  </span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-label">Worker Telegram</span>
+                  <span
+                    className={`stat-value ${
+                      health.schedulers.telegram?.running ? 'success' : 'danger'
+                    }`}
+                  >
+                    {health.schedulers.telegram?.running ? '🟢 ON' : '🔴 OFF'}
+                  </span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-label">Digest</span>
+                  <span className="stat-value">
+                    {health.schedulers.digest?.enabled
+                      ? `próx. ${formatDate(health.schedulers.digest.nextRun ?? null)}`
+                      : 'desligado'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Scheduler Summary */}
           <div className="stats-section">
             <h3>⚙️ Agendador</h3>

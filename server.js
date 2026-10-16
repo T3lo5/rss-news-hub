@@ -33,6 +33,7 @@ import {
 import { sendEmail, verifyEmailConfig } from './services/email.service.js';
 import { createError, ErrorCode } from './services/errors.js';
 import { fetchAllFeeds, fetchFeedByUrl, parseRSS } from './services/fetch.service.js';
+import { getHealth } from './services/health.service.js';
 import { createRequestLogger } from './services/logger.js';
 import { renderEmailHtml } from './services/markdown.js';
 import { addNews, readNews } from './services/news.service.js';
@@ -267,6 +268,12 @@ export async function handleRequest(req, res) {
   }
 
   try {
+    // GET /api/health - liveness/readiness probe (public, no secrets)
+    if (path === '/api/health' && req.method === 'GET') {
+      const health = await getHealth();
+      return sendJSON(res, health.ok ? 200 : 503, health);
+    }
+
     // GET / - serve index.html
     if (path === '/' && req.method === 'GET') {
       return sendFile(res, './public/index.html');

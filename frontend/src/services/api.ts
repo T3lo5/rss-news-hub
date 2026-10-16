@@ -20,6 +20,7 @@ import type {
   FeedTestResponse,
   FetchRssResponse,
   GenerateContentRequest,
+  HealthStatus,
   InterestProfile,
   NewsItem,
   NewsletterConfig,
@@ -262,6 +263,12 @@ export const api = {
     const res = await fetchWithAuth('/api/stats');
     const data = await handleResponse<{ ok: boolean; data: StatsResponse }>(res);
     return data.data;
+  },
+
+  async getHealth(): Promise<HealthStatus> {
+    const res = await fetch('/api/health');
+    const data = await handleResponse<{ ok: boolean } & HealthStatus>(res);
+    return data;
   },
 
   async generateContent(request: GenerateContentRequest): Promise<string> {
@@ -555,8 +562,7 @@ export const api = {
     return data.data;
   },
 
-  async getRetentionSettings(): Promise<RetentionSettings> {
-    const res = await fetchWithAuth('/api/settings/retention');
+  async getRetentionSettings(): Promise<RetentionSettings> {    const res = await fetchWithAuth('/api/settings/retention');
     const data = await handleResponse<{ ok: boolean; data: RetentionSettings }>(res);
     return data.data;
   },

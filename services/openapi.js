@@ -312,6 +312,15 @@ registerPath(
 );
 registerPath(
   'get',
+  '/api/health',
+  'Health check',
+  'Liveness/readiness probe: uptime, version, DB connectivity, scheduler states and configured providers',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  []
+);
+registerPath(
+  'get',
   '/api/digest/preview',
   'Preview digest',
   'Preview the digest content without sending (admin)',

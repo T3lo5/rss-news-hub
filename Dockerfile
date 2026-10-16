@@ -75,4 +75,4 @@ CMD ["node", "--import", "tsx", "server.js"]
 
 # busybox wget ships with Alpine. Shell form so ${PORT} is expanded.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/" || exit 1
+  CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/api/health" || exit 1

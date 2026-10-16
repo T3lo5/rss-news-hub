@@ -8,6 +8,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- Endpoint público **`GET /api/health`** (uptime, versão, banco, estados dos
+  schedulers, provedores configurados) e uma seção **Sistema** nas Estatísticas;
+  o healthcheck do Docker passa a usá-lo em vez da página HTML
 - **Retenção de notícias**: as Configurações ganham a seção *Manutenção* para
   manter apenas os últimos N dias (0 desliga) e limpar na hora; o job roda no
   boot e a cada 24h, com `GET/PUT /api/settings/retention` e `POST /api/news/prune`

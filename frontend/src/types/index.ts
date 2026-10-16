@@ -359,8 +359,14 @@ export interface HealthStatus {
   ok: boolean;
   uptime: number;
   version?: string;
-  db: { ok: boolean };
-  schedulers: Record<string, unknown>;
+  timestamp?: number;
+  db: { ok: boolean; newsCount?: number; error?: string };
+  schedulers: {
+    fetch?: { running?: boolean; nextRun?: number | null };
+    digest?: { enabled?: boolean; cron?: string; nextRun?: number | null };
+    retention?: { retentionDays?: number; running?: boolean };
+    telegram?: { running?: boolean; queueLength?: number };
+  };
   providers: { configured: string[] };
 }
 
