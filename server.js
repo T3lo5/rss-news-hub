@@ -10,7 +10,13 @@ import {
 } from './middleware/auth.js';
 import { handleAuthRoutes } from './routes/auth.routes.js';
 import { newsletterConfig, PORT, telegram } from './server.config.js';
-import { buildSystemPrompt, chat, chatStream, stripEditorialMeta } from './services/ai.service.js';
+import {
+  buildNewsUserContent,
+  buildSystemPrompt,
+  chat,
+  chatStream,
+  stripEditorialMeta,
+} from './services/ai.service.js';
 import {
   generateFeedId,
   readFeedsConfig,
@@ -1030,7 +1036,7 @@ export async function handleRequest(req, res) {
                 : buildSystemPrompt(type, language || 'en');
 
               const systemPrompt = templatePrompt;
-              const userContent = `Title: ${news.title}\nSource: ${news.source}\nLink: ${news.link}\n\n${news.content || news.description || ''}`;
+              const userContent = buildNewsUserContent(news);
 
               const result = await chat(systemPrompt, userContent, provider);
               // Never let the editorial analysis sections leak into the post.
@@ -1066,7 +1072,7 @@ export async function handleRequest(req, res) {
               : buildSystemPrompt(type, language || 'en');
 
             const systemPrompt = templatePrompt;
-            const userContent = `Title: ${news.title}\nSource: ${news.source}\nLink: ${news.link}\n\n${news.content || news.description || ''}`;
+            const userContent = buildNewsUserContent(news);
 
             // SSE headers
             res.writeHead(200, {

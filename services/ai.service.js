@@ -548,3 +548,17 @@ Tone: professional, concise, developer-focused. Max 2000 chars. Return ONLY the 
 
   return `Answer the following in ${lang}.`;
 }
+
+// Builds the user prompt for content generation. Accepts a single news item or
+// an array (multi-item newsletter selection) and flattens both into one block,
+// so an array is never silently rendered as "Title: undefined".
+export function buildNewsUserContent(news) {
+  const items = Array.isArray(news) ? news : [news];
+  return items
+    .filter(Boolean)
+    .map(
+      (item) =>
+        `Title: ${item.title}\nSource: ${item.source || ''}\nLink: ${item.link}\n\n${item.content || item.description || ''}`
+    )
+    .join('\n\n---\n\n');
+}

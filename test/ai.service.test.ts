@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, mock, test } from 'node:test';
 import {
   __getAiConfig,
   __setAiConfig,
+  buildNewsUserContent,
   buildSystemPrompt,
   chat,
   pickProvider,
@@ -343,5 +344,44 @@ describe('ai.service', () => {
       });
       assert.strictEqual(global.fetch.mock.callCount(), 1);
     });
+  });
+});
+
+describe('buildNewsUserContent', () => {
+  const item = (overrides = {}) => ({
+    title: 'Title A',
+    link: 'https://example.com/a',
+    source: 'Src',
+    description: 'Desc',
+    content: '',
+    ...overrides,
+  });
+
+  test('formats a single item', () => {
+    const text = buildNewsUserContent(item());
+    assert.match(text, /^Title: Title A\nSource: Src\nLink: https:\/\/example\.com\/a\n\nDesc$/);
+  });
+
+  test('joins multiple items with a separator (regression: no "undefined")', () => {
+    const text = buildNewsUserContent([
+      item({ title: 'First', link: 'https://example.com/1' }),
+      item({ title: 'Second', link: 'https://example.com/2' }),
+    ]);
+
+    assert.ok(text.includes('Title: First'));
+    assert.ok(text.includes('Title: Second'));
+    assert.ok(text.includes('\n\n---\n\n'));
+    assert.ok(!text.includes('undefined'));
+  });
+
+  test('prefers content over description and tolerates missing fields', () => {
+    const text = buildNewsUserContent([
+      item({ title: 'Has content', description: 'desc', content: 'full body' }),
+      { title: 'Only title', link: 'https://example.com/x' },
+    ]);
+
+    assert.ok(text.includes('full body'));
+    assert.ok(!text.includes('desc'));
+    assert.ok(text.includes('Title: Only title'));
   });
 });
