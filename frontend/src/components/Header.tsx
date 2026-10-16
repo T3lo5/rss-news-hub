@@ -23,6 +23,7 @@ interface HeaderProps {
   onAddClick: () => void;
   onStatsClick: () => void;
   onFeedsClick: () => void;
+  onSettingsClick: () => void;
 }
 
 function formatCountdown(nextRun: number | null): string {
@@ -34,7 +35,13 @@ function formatCountdown(nextRun: number | null): string {
   return `${mins}m ${secs}s`;
 }
 
-export function Header({ onRefresh, onAddClick, onStatsClick, onFeedsClick }: HeaderProps) {
+export function Header({
+  onRefresh,
+  onAddClick,
+  onStatsClick,
+  onFeedsClick,
+  onSettingsClick,
+}: HeaderProps) {
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const { user, logout } = useAuth();
 
@@ -103,6 +110,14 @@ export function Header({ onRefresh, onAddClick, onStatsClick, onFeedsClick }: He
           </span>{' '}
           Estatísticas
         </button>
+        {user?.role === 'admin' && (
+          <button className="btn btn-secondary" onClick={onSettingsClick}>
+            <span role="img" aria-label="settings">
+              ⚙️
+            </span>{' '}
+            Configurações
+          </button>
+        )}
         {user ? (
           <div className="user-menu" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '16px' }}>
             <span className="user-name" style={{ fontSize: '14px', color: '#666' }}>

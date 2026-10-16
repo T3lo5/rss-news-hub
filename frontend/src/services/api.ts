@@ -1,6 +1,10 @@
 import type {
   AddNewsRequest,
   AIResponse,
+  AiProviderList,
+  AiSettings,
+  AiSettingsUpdate,
+  AppSettings,
   Bookmark,
   FeedConfig,
   FeedTestResponse,
@@ -16,6 +20,8 @@ import type {
   ScoredNewsItem,
   StatsResponse,
   TelegramResponse,
+  TelegramSettings,
+  TelegramSettingsUpdate,
   Template,
   TemplatesResponse,
 } from '../types';
@@ -423,6 +429,37 @@ export const api = {
       ok: boolean;
       data: { templateId: string; systemPrompt: string; variables: Record<string, string> };
     }>(res);
+    return data.data;
+  },
+
+  // Settings (admin)
+  async getSettings(): Promise<AppSettings> {
+    const res = await fetchWithAuth('/api/settings');
+    const data = await handleResponse<{ ok: boolean; data: AppSettings }>(res);
+    return data.data;
+  },
+
+  async updateAiSettings(payload: AiSettingsUpdate): Promise<AiSettings> {
+    const res = await fetchWithAuth('/api/settings/ai', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    const data = await handleResponse<{ ok: boolean; data: AiSettings }>(res);
+    return data.data;
+  },
+
+  async updateTelegramSettings(payload: TelegramSettingsUpdate): Promise<TelegramSettings> {
+    const res = await fetchWithAuth('/api/settings/telegram', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    const data = await handleResponse<{ ok: boolean; data: TelegramSettings }>(res);
+    return data.data;
+  },
+
+  async getAiProviders(): Promise<AiProviderList> {
+    const res = await fetchWithAuth('/api/ai/providers');
+    const data = await handleResponse<{ ok: boolean; data: AiProviderList }>(res);
     return data.data;
   },
 };

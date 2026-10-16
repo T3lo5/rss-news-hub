@@ -48,6 +48,7 @@ import { Header } from './Header';
 import { InterestProfileModal } from './InterestProfileModal';
 import { NewsGrid } from './NewsGrid';
 import { NewsletterConfigModal } from './NewsletterConfigModal';
+import { SettingsModal } from './SettingsModal';
 import { ShareModal } from './ShareModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { StatsModal } from './StatsModal';
@@ -87,6 +88,7 @@ function AppContent() {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showFeedManager, setShowFeedManager] = useState(false);
   const [showNewsletterConfig, setShowNewsletterConfig] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
@@ -426,6 +428,7 @@ function AppContent() {
         onAddClick={() => setShowAddModal(true)}
         onStatsClick={() => setShowStatsModal(true)}
         onFeedsClick={() => setShowFeedManager(true)}
+        onSettingsClick={() => setShowSettings(true)}
       />
       <main className="main">
         <div className="toolbar-container">
@@ -529,6 +532,8 @@ function AppContent() {
         isOpen={showNewsletterConfig}
         onClose={() => setShowNewsletterConfig(false)}
       />
+
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       <BookmarksModal isOpen={showBookmarks} onClose={() => setShowBookmarks(false)} />
 

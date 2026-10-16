@@ -165,3 +165,71 @@ export interface ScoredNewsItem extends NewsItem {
   relevanceScore?: number;
   scoredAt?: number;
 }
+
+export type AiProviderId = 'sensenova' | 'deepseek' | 'openai';
+
+export interface AiProviderInfo {
+  id: AiProviderId;
+  label: string;
+  baseUrl: string;
+  model: string;
+  apiKeySet: boolean;
+}
+
+export interface AiSettings {
+  defaultProvider: 'auto' | AiProviderId;
+  providers: AiProviderInfo[];
+}
+
+export interface TelegramSettings {
+  chatId: string;
+  botTokenSet: boolean;
+}
+
+export interface DigestConfig {
+  enabled: boolean;
+  cron: string;
+  lookbackDays: number;
+  minRelevanceScore: number;
+  maxItems: number;
+  provider: 'auto' | AiProviderId;
+  format: 'thread' | 'summary' | 'linkedin';
+  language: 'en' | 'pt';
+}
+
+export interface AppSettings {
+  ai: AiSettings;
+  telegram: TelegramSettings;
+  newsletter: NewsletterConfig;
+  digest: DigestConfig;
+}
+
+export interface AiProviderListItem {
+  id: AiProviderId;
+  label: string;
+  configured: boolean;
+}
+
+export interface AiProviderList {
+  defaultProvider: 'auto' | AiProviderId;
+  providers: AiProviderListItem[];
+}
+
+export interface AiProviderOverride {
+  apiKey?: string | null;
+  baseUrl?: string;
+  model?: string;
+}
+
+export interface AiSettingsUpdate {
+  defaultProvider?: 'auto' | AiProviderId;
+  sensenova?: AiProviderOverride;
+  deepseek?: AiProviderOverride;
+  openai?: AiProviderOverride;
+}
+
+export interface TelegramSettingsUpdate {
+  botToken?: string | null;
+  chatId?: string;
+}
+
