@@ -123,9 +123,16 @@ describe('Validation Schemas', () => {
       assert.ok(result.error.issues.some((i) => i.path.includes('text')));
     });
 
-    test('limits text length', () => {
+    test('accepts long text (split server-side before hitting Telegram)', () => {
       const result = schemas.telegramSendSchema.safeParse({
         text: 'a'.repeat(4097),
+      });
+      assert.ok(result.success);
+    });
+
+    test('rejects absurdly long text', () => {
+      const result = schemas.telegramSendSchema.safeParse({
+        text: 'a'.repeat(100001),
       });
       assert.ok(!result.success);
     });

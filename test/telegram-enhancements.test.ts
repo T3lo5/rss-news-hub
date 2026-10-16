@@ -5,6 +5,7 @@ import {
   getTelegramQueue,
   processTelegramQueue,
   queueTelegramMessage,
+  splitMessage,
   telegramSend,
 } from '../services/telegram.service.js';
 import { getTestDb, insertTestFeed, resetTestDb, testFixtures } from './setup.js';
@@ -15,6 +16,77 @@ describe('Telegram Enhancements (DB-backed)', () => {
     // Insert test feed for FK constraints
     const db = getTestDb();
     await insertTestFeed(db, testFixtures.feed({ id: 'test-feed', url: 'https://test.com/feed' }));
+  });
+
+  describe('splitMessage', () => {
+    test('returns a single part for short text', () => {
+      assert.deepStrictEqual(splitMessage('short text'), ['short text']);
+    });
+
+    test('splits long text into parts within the safe limit', () => {
+      const text = Array.from({ length: 500 }, (_, i) => `linha ${i} com algum conteudo`).join(
+        '\n\n'
+      );
+      const parts = splitMessage(text);
+      assert.ok(parts.length > 1);
+      for (const part of parts) {
+        assert.ok(part.length <= 4000, `part too long: ${part.length}`);
+      }
+    });
+
+    test('handles text without any break characters', () => {
+      const text = 'x'.repeat(9000);
+      const parts = splitMessage(text);
+      assert.ok(parts.length >= 3);
+      for (const part of parts) {
+        assert.ok(part.length <= 4000);
+      }
+    });
+  });
+
+  describe('Long Message Splitting', () => {
+    test('telegramSend sends multiple messages for long text', async () => {
+      const mockFetch = mock.fn(async () => ({
+        ok: true,
+        json: async () => ({ ok: true, result: { message_id: 1 } }),
+      }));
+      global.fetch = mockFetch;
+
+      const config = { botToken: 'test-token', chatId: '123' };
+      const text = Array.from({ length: 400 }, (_, i) => `paragrafo numero ${i}`).join('\n\n');
+      await telegramSend(text, 'Markdown', config);
+
+      assert.ok(mockFetch.mock.callCount() > 1);
+      const firstBody = JSON.parse(mockFetch.mock.calls[0].arguments[1].body);
+      assert.match(firstBody.text, /^\(1\//);
+    });
+  });
+
+  describe('Markdown entity fallback', () => {
+    test('retries without parse_mode when Telegram rejects entities', async () => {
+      let callCount = 0;
+      const mockFetch = mock.fn(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ok: false,
+            json: async () => ({
+              ok: false,
+              description: "Bad Request: can't parse entities",
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ ok: true, result: { message_id: 2 } }) };
+      });
+      global.fetch = mockFetch;
+
+      const config = { botToken: 'test-token', chatId: '123' };
+      await telegramSend('**bold** message', 'Markdown', config);
+
+      assert.strictEqual(callCount, 2);
+      const retryBody = JSON.parse(mockFetch.mock.calls[1].arguments[1].body);
+      assert.strictEqual(retryBody.parse_mode, undefined);
+    });
   });
 
   describe('Inline Keyboard', () => {

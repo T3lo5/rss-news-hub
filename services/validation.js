@@ -31,7 +31,7 @@ export const generateContentSchema = z.object({
 });
 
 export const telegramSendSchema = z.object({
-  text: z.string().min(1).max(4096),
+  text: z.string().min(1).max(100000),
   parseMode: z.enum(['Markdown', 'HTML', 'MarkdownV2']).optional(),
   messageThreadId: z.number().int().positive().optional(),
   replyToMessageId: z.number().int().positive().optional(),
@@ -52,7 +52,7 @@ export const telegramSendSchema = z.object({
 });
 
 export const telegramScheduleSchema = z.object({
-  text: z.string().min(1).max(4096),
+  text: z.string().min(1).max(100000),
   parseMode: z.enum(['Markdown', 'HTML', 'MarkdownV2']).optional(),
   scheduledAt: z.number().int().positive(),
   messageThreadId: z.number().int().positive().optional(),
