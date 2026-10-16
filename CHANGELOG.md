@@ -8,6 +8,8 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- **Idioma por usuário**: cada conta guarda sua preferência (`pt`/`en`) no banco
+  (migração `0010_user_language`), exposta em `GET/PUT /api/auth/me`
 - Endpoint público **`GET /api/health`** (uptime, versão, banco, estados dos
   schedulers, provedores configurados) e uma seção **Sistema** nas Estatísticas;
   o healthcheck do Docker passa a usá-lo em vez da página HTML
@@ -49,6 +51,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   opção "enviar também por e-mail" na newsletter agendada e no digest
 
 ### Fixed
+- `PUT /api/auth/me` validava o corpo com o schema do **perfil de interesse**
+  (`keywords`/`topics`), então alterar nome, e-mail ou idioma nunca funcionava
+  (respondia 404); agora usa o schema correto do perfil do usuário
 - Fila do Telegram: as rotas não davam `await` no repositório (a fila vinha
   sempre `{}` e cancelar sempre "dava certo"), e o status do worker reportava
   `queueLength: undefined`; agora os valores são corretos e a fila

@@ -258,6 +258,7 @@ export const createApiKeySchema = z.object({
 export const updateUserProfileSchema = z.object({
   name: z.string().max(100).optional(),
   email: z.string().email().optional(),
+  language: z.enum(['pt', 'en']).optional(),
 });
 
 export const adminCreateUserSchema = z.object({

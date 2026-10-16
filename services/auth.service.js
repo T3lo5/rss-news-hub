@@ -135,7 +135,7 @@ export async function changePassword(userId, currentPassword, newPassword) {
 
 export async function updateUser(userId, updates) {
   const db = getDb();
-  const allowedFields = ['name', 'role'];
+  const allowedFields = ['name', 'role', 'language'];
   const filtered = {};
 
   for (const key of allowedFields) {

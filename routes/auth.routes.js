@@ -181,7 +181,13 @@ export async function handleAuthRoutes(req, res, path) {
 
     sendJSON(res, 200, {
       ok: true,
-      data: { id: user.id, email: user.email, name: user.name, role: user.role },
+      data: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        language: user.language,
+      },
     });
     return true;
   }
@@ -189,7 +195,7 @@ export async function handleAuthRoutes(req, res, path) {
   // PUT /api/auth/me
   if (path === '/api/auth/me' && req.method === 'PUT') {
     if (!requireAuthedUser(req, res)) return true;
-    validateBody(schemas.updateProfileSchema)(req, res, async () => {
+    validateBody(schemas.updateUserProfileSchema)(req, res, async () => {
       const updated = await updateUser(req.user.id, req.body);
       if (!updated) {
         sendJSON(res, 404, { ok: false, error: 'User not found' });
@@ -198,7 +204,13 @@ export async function handleAuthRoutes(req, res, path) {
 
       sendJSON(res, 200, {
         ok: true,
-        data: { id: updated.id, email: updated.email, name: updated.name, role: updated.role },
+        data: {
+          id: updated.id,
+          email: updated.email,
+          name: updated.name,
+          role: updated.role,
+          language: updated.language,
+        },
       });
     });
     return true;

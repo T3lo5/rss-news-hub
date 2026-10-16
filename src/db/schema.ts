@@ -207,6 +207,9 @@ export const users = sqliteTable(
     role: text('role', { enum: ['admin', 'user', 'viewer'] })
       .notNull()
       .default('user'),
+    language: text('language', { enum: ['pt', 'en'] })
+      .notNull()
+      .default('pt'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()
       .default(sql`(strftime('%s', 'now') * 1000)`),
