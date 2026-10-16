@@ -1,17 +1,18 @@
-import { RSS_FEEDS } from '../server.config.js';
+import { readFeedsConfig } from './config.service.js';
 import {
   feedCacheRepository,
   newsHashRepository,
   newsRepository,
 } from '../src/db/repositories/index.js';
 import { linkHash } from './deduplication.js';
+import { isTransientNetworkError, withRetry } from './net.js';
 import { recordFeedResult, recordFetchResult, recordFetchStart } from './stats.service.js';
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 async function fetchFeed(feed, options = {}) {
-  const { bypassCache = false } = options;
+  const { bypassCache = false, timeoutMs = 15000 } = options;
   const feedName = feed.name || feed;
   const url = feed.url || feed;
 
@@ -25,27 +26,48 @@ async function fetchFeed(feed, options = {}) {
     if (cached.lastModified) headers['If-Modified-Since'] = cached.lastModified;
   }
 
-  const res = await fetch(url, { headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (res.status === 304) {
-    return '';
+  let res;
+  try {
+    // Retry transient DNS/connect failures (EAI_AGAIN, connect timeout, ...)
+    // before giving up on the feed.
+    res = await withRetry(() => fetch(url, { headers, signal: controller.signal }), {
+      retries: 2,
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.status === 304) {
+      return '';
+    }
+
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${feedName}`);
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      throw new Error(`Fetch timeout (${timeoutMs}ms) for ${feedName}`);
+    }
+    throw err;
   }
-
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${feedName}`);
 
   const etag = res.headers.get('etag');
   const lastModified = res.headers.get('last-modified');
 
   if (etag || lastModified) {
-    await feedCacheRepository.set(feed.id, etag, lastModified);
+    if (!bypassCache) {
+      await feedCacheRepository.set(feed.id, etag, lastModified);
+    }
   }
 
   return await res.text();
 }
 
 async function fetchFeedByUrl(url, options = {}) {
+  const { bypassCache = true } = options;
   const feedName = `test-${new URL(url).hostname}`;
-  return fetchFeed({ name: feedName, url, id: feedName }, options);
+  return fetchFeed({ name: feedName, url, id: feedName }, { ...options, bypassCache });
 }
 
 function extractTag(xml, tag) {
@@ -186,7 +208,11 @@ async function fetchAllFeeds() {
   const existingNews = await newsRepository.findAll();
   const existingIds = new Set(existingNews.map((n) => n.id));
 
-  for (const feed of RSS_FEEDS) {
+  // Read feeds from database (falls back to RSS_FEEDS if DB is empty)
+  const configuredFeeds = await readFeedsConfig();
+  const feeds = configuredFeeds.filter((f) => f.enabled !== false);
+
+  for (const feed of feeds) {
     const feedStartTime = Date.now();
     try {
       const xml = await fetchFeed(feed);
@@ -228,8 +254,14 @@ async function fetchAllFeeds() {
       });
     } catch (err) {
       const latencyMs = Date.now() - feedStartTime;
-      console.error(`Fetch error for ${feed.name}:`, err);
-      console.error('Stack:', err.stack);
+      if (isTransientNetworkError(err)) {
+        console.warn(
+          `Fetch error for ${feed.name}: ${err.message} (transient, will retry next cycle)`
+        );
+      } else {
+        console.error(`Fetch error for ${feed.name}:`, err);
+        console.error('Stack:', err.stack);
+      }
       results.push({ source: feed.name, count: 0, error: err.message });
       totalErrors++;
       recordFeedResult(feed.name, {
@@ -242,6 +274,8 @@ async function fetchAllFeeds() {
 
   // Save all new items to database
   if (allNews.length > 0) {
+    // Map feed name to feed ID from database/config
+    const feedNameToId = new Map(feeds.map((f) => [f.name, f.id]));
     const newsItems = allNews.map((item) => ({
       id: item.id,
       title: item.title,
@@ -250,8 +284,7 @@ async function fetchAllFeeds() {
       pubDate: new Date(item.pubDate),
       description: item.description,
       content: item.content,
-      relevanceScore: 0,
-      feedId: item.source, // Map source to feed ID
+      feedId: feedNameToId.get(item.source) || item.source,
     }));
 
     await newsRepository.upsertMany(newsItems);

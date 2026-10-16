@@ -20,7 +20,13 @@ export function startTelegramQueueWorker(config, intervalMs = 60000) {
     try {
       await processTelegramQueue(config);
     } catch (err) {
-      console.error('Telegram queue worker error:', err);
+      // Log but don't crash - network errors are expected
+      const msg = err?.message || String(err);
+      if (msg.includes('ETIMEDOUT') || msg.includes('ENETUNREACH') || msg.includes('ECONNREFUSED')) {
+        console.warn('Telegram worker: network error (will retry next interval):', msg);
+      } else {
+        console.error('Telegram queue worker error:', err);
+      }
     } finally {
       isProcessing = false;
     }
