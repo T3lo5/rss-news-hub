@@ -1,4 +1,4 @@
-import { desc, eq, and, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { getDb, schema } from '../index.js';
 
 export class BookmarkRepository {
@@ -31,7 +31,10 @@ export class BookmarkRepository {
       .where(and(eq(schema.bookmarks.userId, userId), inArray(schema.bookmarks.newsId, newsIds)));
   }
 
-  async add(userId: string, bookmark: Omit<schema.NewBookmark, 'userId'>): Promise<schema.Bookmark> {
+  async add(
+    userId: string,
+    bookmark: Omit<schema.NewBookmark, 'userId'>
+  ): Promise<schema.Bookmark> {
     const existing = await this.findByNewsId(userId, bookmark.newsId);
     if (existing) return existing;
 

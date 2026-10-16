@@ -153,9 +153,7 @@ export async function handleAuthRoutes(req, res, path) {
 
       // Rotate: issue a fresh refresh token and extend the cookie.
       setRefreshCookie(res, req, tokens.refreshToken);
-      const data = INCLUDE_REFRESH_IN_BODY
-        ? tokens
-        : { accessToken: tokens.accessToken };
+      const data = INCLUDE_REFRESH_IN_BODY ? tokens : { accessToken: tokens.accessToken };
       sendJSON(res, 200, { ok: true, data });
     });
     return true;

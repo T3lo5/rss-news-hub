@@ -46,7 +46,17 @@ describe('stripEditorialMeta', () => {
   });
 
   test('handles "## Post final" heading marking', () => {
-    const raw = ['### Ângulo escolhido', 'Algo.', '', '## Post final', '', 'O post.', '', '## Por que pode funcionar', 'Motivo.'].join('\n');
+    const raw = [
+      '### Ângulo escolhido',
+      'Algo.',
+      '',
+      '## Post final',
+      '',
+      'O post.',
+      '',
+      '## Por que pode funcionar',
+      'Motivo.',
+    ].join('\n');
     const cleaned = stripEditorialMeta(raw);
     assert.strictEqual(cleaned, 'O post.');
   });

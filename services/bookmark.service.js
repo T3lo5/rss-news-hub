@@ -1,5 +1,5 @@
-import { bookmarkRepository } from '../src/db/repositories/index.js';
 import { randomBytes } from 'node:crypto';
+import { bookmarkRepository } from '../src/db/repositories/index.js';
 
 function generateBookmarkId() {
   return randomBytes(16).toString('hex');

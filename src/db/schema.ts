@@ -123,8 +123,7 @@ export const bookmarks = sqliteTable(
   'bookmarks',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id')
-      .references(() => users.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
     newsId: text('news_id')
       .notNull()
       .references(() => newsItems.id),

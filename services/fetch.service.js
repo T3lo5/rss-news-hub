@@ -1,9 +1,9 @@
-import { readFeedsConfig } from './config.service.js';
 import {
   feedCacheRepository,
   newsHashRepository,
   newsRepository,
 } from '../src/db/repositories/index.js';
+import { readFeedsConfig } from './config.service.js';
 import { linkHash } from './deduplication.js';
 import { isTransientNetworkError, withRetry } from './net.js';
 import { recordFeedResult, recordFetchResult, recordFetchStart } from './stats.service.js';

@@ -24,12 +24,12 @@ export async function readFeedsConfig() {
 }
 
 export async function writeFeedsConfig(feeds) {
-  const db = await import('../src/db/repositories/index.js').then(m => m.feedRepository);
+  const db = await import('../src/db/repositories/index.js').then((m) => m.feedRepository);
 
   // Get existing feed IDs from database
   const existingFeeds = await db.findAll();
-  const existingIds = new Set(existingFeeds.map(f => f.id));
-  const providedIds = new Set(feeds.map(f => f.id));
+  const existingIds = new Set(existingFeeds.map((f) => f.id));
+  const providedIds = new Set(feeds.map((f) => f.id));
 
   // Delete feeds that are no longer in the provided list
   for (const existingId of existingIds) {

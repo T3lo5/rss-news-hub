@@ -38,7 +38,7 @@ import {
   stop as stopScheduler,
   trigger as triggerScheduler,
 } from './services/scheduler.service.js';
-import { getFeedHealth, getStats, getStatsAsync } from './services/stats.service.js';
+import { getFeedHealth, getStatsAsync } from './services/stats.service.js';
 import { telegramSend } from './services/telegram.service.js';
 import {
   getTelegramQueueWorkerStatus,
@@ -410,7 +410,6 @@ export async function handleRequest(req, res) {
     // GET /api/stats - get aggregated stats
     if (path === '/api/stats' && req.method === 'GET') {
       try {
-        const { getStatsAsync } = await import('./services/stats.service.js');
         const { getStatus: getSchedulerStatus } = await import('./services/scheduler.service.js');
         const stats = await getStatsAsync();
         const schedulerStatus = getSchedulerStatus();
@@ -516,7 +515,11 @@ export async function handleRequest(req, res) {
             const index = feeds.findIndex((f) => f.id === id);
             if (index === -1) {
               const err = createError(ErrorCode.FEED_NOT_FOUND, 'Feed not found');
-              return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
+              return sendJSON(res, err.statusCode, {
+                ok: false,
+                error: err.message,
+                code: err.code,
+              });
             }
 
             if (updates.url && !validateFeedUrl(updates.url)) {
@@ -1055,7 +1058,13 @@ export async function handleRequest(req, res) {
                   text,
                   parseMode: parseMode || 'Markdown',
                   scheduledAt: scheduleAt,
-                  options: { messageThreadId, replyToMessageId, inlineKeyboard, linkButton, linkUrl },
+                  options: {
+                    messageThreadId,
+                    replyToMessageId,
+                    inlineKeyboard,
+                    linkButton,
+                    linkUrl,
+                  },
                 });
                 return sendJSON(res, 200, {
                   ok: true,
@@ -1299,7 +1308,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   process.on('unhandledRejection', (reason, promise) => {
     const msg = reason?.message || String(reason);
     // Suppress noisy network errors but log others
-    if (msg.includes('ETIMEDOUT') || msg.includes('ENETUNREACH') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
+    if (
+      msg.includes('ETIMEDOUT') ||
+      msg.includes('ENETUNREACH') ||
+      msg.includes('ECONNREFUSED') ||
+      msg.includes('fetch failed')
+    ) {
       console.warn('Unhandled rejection (network):', msg);
     } else {
       console.error('Unhandled rejection:', reason);

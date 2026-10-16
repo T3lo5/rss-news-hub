@@ -1,10 +1,9 @@
 import { telegramQueueRepository } from '../src/db/repositories/index.js';
 import { withRetry } from './net.js';
 
-// Telegram hard limit is 4096 chars per message. Keep a safety margin so the
+// Telegram's hard limit is 4096 chars per message. Keep a safety margin so the
 // "(n/m)" prefix we add to multi-part messages never pushes a part over the
 // limit.
-const MAX_TG_LENGTH = 4096;
 const SAFE_TG_LENGTH = 4000;
 
 // Split long text into <= maxLength chunks, preferring paragraph boundaries,
