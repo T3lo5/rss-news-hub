@@ -32,6 +32,12 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   opção "enviar também por e-mail" na newsletter agendada e no digest
 
 ### Fixed
+- Agendamento por **cron de verdade** para newsletter e digest: o digest usava um
+  intervalo aproximado e ignorava horário/dia da semana (ex.: "Seg-Sex 9:00"
+  rodava na hora e a cada 7 dias). Agora há um parser de cron completo
+  (`services/cron.js`: ranges, steps, listas, nomes de mês/dia e a regra "ou"
+  entre dia-do-mês e dia-da-semana) usado pelos dois jobs; cron inválido é
+  rejeitado com 400 e a próxima execução aparece na UI (`GET /api/digest/status`)
 - Corrida em `userProfileRepository.get()` que podia falhar com
   "UNIQUE constraint failed: user_profiles.id" quando duas execuções (ex.:
   digest agendado + scoring de relevância) criavam o perfil padrão ao mesmo tempo

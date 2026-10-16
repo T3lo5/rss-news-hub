@@ -278,6 +278,12 @@ export interface DigestPreview {
   content?: string;
 }
 
+export interface DigestStatus {
+  enabled: boolean;
+  cron: string;
+  nextRun: number | null;
+}
+
 export interface DigestTriggerResult {
   success: boolean;
   itemsCount: number;

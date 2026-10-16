@@ -1,6 +1,7 @@
 import { email as emailConfig } from '../server.config.js';
 import { newsRepository } from '../src/db/repositories/index.js';
 import { chat, pickProvider } from './ai.service.js';
+import { getNextCronRun, isValidCron } from './cron.js';
 import { isEmailConfigured, sendEmail } from './email.service.js';
 import { renderEmailHtml } from './markdown.js';
 import { readProfile, scoreNewItems } from './relevance.service.js';
@@ -19,10 +20,20 @@ const DEFAULT_DIGEST_CONFIG = {
 };
 
 let digestConfig = { ...DEFAULT_DIGEST_CONFIG };
-let digestJob = null;
+let digestTimer = null;
+let digestNextRun = null;
 
 export function getDigestConfig() {
   return { ...digestConfig };
+}
+
+// Computed runtime state for the UI (not persisted).
+export function getDigestStatus() {
+  return {
+    enabled: digestConfig.enabled,
+    cron: digestConfig.cron,
+    nextRun: digestNextRun,
+  };
 }
 
 export function updateDigestConfig(updates) {
@@ -35,71 +46,63 @@ export function updateDigestConfig(updates) {
   return digestConfig;
 }
 
-export function startDigestJob() {
-  if (digestJob) return;
-
-  const runDigest = async () => {
-    try {
-      console.log('[digest] Starting scheduled digest generation...');
-      await generateAndSendDigest();
-      console.log('[digest] Digest generation completed');
-    } catch (err) {
-      console.error('[digest] Failed to generate digest:', err);
-    }
-  };
-
-  // Run immediately on start
-  runDigest();
-
-  // Parse cron and schedule (simplified: just use interval for now)
-  // In production, use a proper cron parser like node-cron
-  const intervalMs = parseCronToInterval(digestConfig.cron);
-  if (intervalMs > 0) {
-    digestJob = setInterval(runDigest, intervalMs);
-    console.log(`[digest] Scheduled with interval ${intervalMs}ms (cron: ${digestConfig.cron})`);
+function scheduleNextDigest() {
+  if (digestTimer) {
+    clearTimeout(digestTimer);
+    digestTimer = null;
   }
+  if (!isValidCron(digestConfig.cron)) {
+    digestNextRun = null;
+    console.warn(`[digest] invalid cron "${digestConfig.cron}" - job not scheduled`);
+    return;
+  }
+  // Recompute from the current config each time so edits take effect.
+  digestNextRun = getNextCronRun(digestConfig.cron);
+  const delay = Math.max(0, digestNextRun - Date.now());
+  digestTimer = setTimeout(() => {
+    runDigest().finally(() => {
+      if (digestConfig.enabled) scheduleNextDigest();
+    });
+  }, delay);
+  digestTimer.unref?.();
+}
+
+async function runDigest() {
+  try {
+    console.log('[digest] Starting scheduled digest generation...');
+    await generateAndSendDigest();
+    console.log('[digest] Digest generation completed');
+  } catch (err) {
+    console.error('[digest] Failed to generate digest:', err);
+  }
+}
+
+export function startDigestJob() {
+  if (digestTimer) {
+    // Already running: just re-apply a possibly-changed cron.
+    scheduleNextDigest();
+    return;
+  }
+
+  if (!isValidCron(digestConfig.cron)) {
+    digestNextRun = null;
+    console.warn(`[digest] invalid cron "${digestConfig.cron}" - job not scheduled`);
+    return;
+  }
+
+  // Run once on enable, then on the cron schedule.
+  runDigest();
+  scheduleNextDigest();
+  console.log(`[digest] Scheduled (cron: ${digestConfig.cron})`);
 }
 
 export function stopDigestJob() {
-  if (digestJob) {
-    clearInterval(digestJob);
-    digestJob = null;
+  if (digestTimer) {
+    clearTimeout(digestTimer);
+    digestTimer = null;
     console.log('[digest] Stopped');
   }
-}
-
-function parseCronToInterval(cron) {
-  // Simple cron parser for common patterns
-  // "0 8 * * 1" = every Monday at 8:00
-  // "0 * * * *" = every hour
-  // "0 0 * * *" = daily at midnight
-
-  const parts = cron.split(' ');
-  if (parts.length !== 5) return 0;
-
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
-
-  // Daily at specific time
-  if (minute !== '*' && hour !== '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
-    return 24 * 60 * 60 * 1000; // 24 hours
-  }
-
-  // Weekly on specific day
-  if (minute !== '*' && hour !== '*' && dayOfMonth === '*' && month === '*' && dayOfWeek !== '*') {
-    return 7 * 24 * 60 * 60 * 1000; // 7 days
-  }
-
-  // Hourly
-  if (minute !== '*' && hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
-    return 60 * 60 * 1000; // 1 hour
-  }
-
-  // Every minute (for testing)
-  if (minute === '*' && hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
-    return 60 * 1000; // 1 minute
-  }
-
-  return 0;
+  digestNextRun = null;
 }
 
 function buildDigestPrompt(config, items) {

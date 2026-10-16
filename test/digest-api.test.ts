@@ -47,6 +47,22 @@ describe('Digest API', () => {
     assert.strictEqual(res.json.data.enabled, false);
   });
 
+  test('GET /api/digest/status returns the computed next run when enabled', async () => {
+    updateDigestConfig({ enabled: true, cron: '0 9 * * 1-5' });
+    const res = await request('GET', '/api/digest/status');
+    assert.strictEqual(res.status, 200, res.raw);
+    assert.strictEqual(res.json.data.enabled, true);
+    assert.strictEqual(res.json.data.cron, '0 9 * * 1-5');
+    assert.strictEqual(typeof res.json.data.nextRun, 'number');
+    updateDigestConfig({ enabled: false });
+  });
+
+  test('PUT /api/digest/config rejects an invalid cron expression', async () => {
+    const token = await createAdminToken();
+    const res = await request('PUT', '/api/digest/config', { cron: 'nope' }, bearer(token));
+    assert.strictEqual(res.status, 400, res.raw);
+  });
+
   test('POST /api/digest/trigger requires admin', async () => {
     const anon = await request('POST', '/api/digest/trigger');
     assert.strictEqual(anon.status, 401, anon.raw);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
-import type { DigestConfig, DigestPreview } from '../types';
+import type { DigestConfig, DigestPreview, DigestStatus } from '../types';
 
 const CRON_PRESETS = [
   { label: 'Diário 9:00', value: '0 9 * * *' },
@@ -23,6 +23,7 @@ const DEFAULT_CONFIG: DigestConfig = {
 
 export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [config, setConfig] = useState<DigestConfig>(DEFAULT_CONFIG);
+  const [status, setStatus] = useState<DigestStatus | null>(null);
   const [selectedPreset, setSelectedPreset] = useState('');
 
   const [loading, setLoading] = useState(false);
@@ -38,8 +39,9 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
     setLoading(true);
     setError(null);
     try {
-      const cfg = await api.getDigestConfig();
+      const [cfg, status] = await Promise.all([api.getDigestConfig(), api.getDigestStatus()]);
       setConfig(cfg);
+      setStatus(status);
       const preset = CRON_PRESETS.find((p) => p.value === cfg.cron);
       setSelectedPreset(preset ? preset.label : 'Custom');
       setPreview(null);
@@ -237,6 +239,11 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   {config.cron}
                 </code>
               </p>
+              {status?.enabled && status.nextRun ? (
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Próxima execução: <strong>{new Date(status.nextRun).toLocaleString()}</strong>
+                </p>
+              ) : null}
               {selectedPreset === 'Custom' && (
                 <input
                   type="text"

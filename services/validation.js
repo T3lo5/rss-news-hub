@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidCron } from './cron.js';
 import { createError, ErrorCode } from './errors.js';
 
 const NewsItemSchema = z.object({
@@ -88,7 +89,7 @@ export const addFeedSchema = z.object({
 
 export const updateNewsletterConfigSchema = z.object({
   enabled: z.boolean().optional(),
-  cron: z.string().optional(),
+  cron: z.string().refine(isValidCron, { message: 'Invalid cron expression' }).optional(),
   lookbackDays: z.number().int().min(1).max(30).optional(),
   sources: z.array(z.string()).optional(),
   categories: z.array(z.string()).optional(),
@@ -100,7 +101,7 @@ export const updateNewsletterConfigSchema = z.object({
 
 export const updateDigestConfigSchema = z.object({
   enabled: z.boolean().optional(),
-  cron: z.string().optional(),
+  cron: z.string().refine(isValidCron, { message: 'Invalid cron expression' }).optional(),
   lookbackDays: z.number().int().min(1).max(30).optional(),
   minRelevanceScore: z.number().int().min(0).max(100).optional(),
   maxItems: z.number().int().min(1).max(50).optional(),

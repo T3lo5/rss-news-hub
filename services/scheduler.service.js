@@ -1,3 +1,4 @@
+import { getNextCronRun, isValidCron } from './cron.js';
 import { generateAndSendNewsletter } from './newsletter.service.js';
 
 let intervalId = null;
@@ -13,43 +14,6 @@ let newsletterJob = null;
 let newsletterNextRun = null;
 let newsletterLastRun = null;
 let newsletterLastResult = null;
-
-function parseCron(cron) {
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = cron.split(' ');
-  return { minute, hour, dayOfMonth, month, dayOfWeek };
-}
-
-function getNextCronRun(cron) {
-  const now = new Date();
-  const { minute, hour, dayOfMonth, month, dayOfWeek } = parseCron(cron);
-
-  const _candidates = [];
-  for (let i = 0; i < 365; i++) {
-    const candidate = new Date(now);
-    candidate.setDate(candidate.getDate() + i);
-    candidate.setHours(0, 0, 0, 0);
-
-    const matchDayOfWeek =
-      dayOfWeek === '*' || dayOfWeek.split(',').includes(String(candidate.getDay()));
-    const matchDayOfMonth =
-      dayOfMonth === '*' || dayOfMonth.split(',').includes(String(candidate.getDate()));
-    const matchMonth = month === '*' || month.split(',').includes(String(candidate.getMonth() + 1));
-    const _matchHour = hour === '*' || hour.split(',').includes(String(candidate.getHours()));
-    const _matchMinute =
-      minute === '*' || minute.split(',').includes(String(candidate.getMinutes()));
-
-    if (matchDayOfWeek && matchDayOfMonth && matchMonth) {
-      const runTime = new Date(candidate);
-      runTime.setHours(hour === '*' ? now.getHours() : parseInt(hour));
-      runTime.setMinutes(minute === '*' ? now.getMinutes() : parseInt(minute));
-
-      if (runTime > now) {
-        return runTime.getTime();
-      }
-    }
-  }
-  return Date.now() + 24 * 60 * 60 * 1000;
-}
 
 export function start(ms, fn) {
   if (running) return;
@@ -104,6 +68,10 @@ export function startNewsletterJob(config, newsletterConfig) {
   stopNewsletterJob();
 
   if (!config.enabled) return;
+  if (!isValidCron(config.cron)) {
+    console.warn(`[newsletter] invalid cron "${config.cron}" - job not scheduled`);
+    return;
+  }
 
   const runNewsletter = async () => {
     newsletterLastRun = Date.now();
@@ -141,6 +109,7 @@ function scheduleNewsletterNext(cron) {
       },
       Math.max(0, delay)
     );
+    newsletterJob.timeoutId.unref?.();
   }
 }
 

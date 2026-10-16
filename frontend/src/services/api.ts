@@ -8,6 +8,7 @@ import type {
   Bookmark,
   DigestConfig,
   DigestPreview,
+  DigestStatus,
   DigestTriggerResult,
   EmailSendRequest,
   EmailSendResult,
@@ -510,6 +511,12 @@ export const api = {
       body: JSON.stringify(config),
     });
     const data = await handleResponse<{ ok: boolean; data: DigestConfig }>(res);
+    return data.data;
+  },
+
+  async getDigestStatus(): Promise<DigestStatus> {
+    const res = await fetchWithAuth('/api/digest/status');
+    const data = await handleResponse<{ ok: boolean; data: DigestStatus }>(res);
     return data.data;
   },
 

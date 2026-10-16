@@ -27,6 +27,7 @@ import {
   generateAndSendDigest,
   generateDigestPreview,
   getDigestConfig,
+  getDigestStatus,
   updateDigestConfig,
 } from './services/digest.service.js';
 import { sendEmail, verifyEmailConfig } from './services/email.service.js';
@@ -769,6 +770,11 @@ export async function handleRequest(req, res) {
     // GET /api/digest/config - get digest config
     if (path === '/api/digest/config' && req.method === 'GET') {
       return sendJSON(res, 200, { ok: true, data: getDigestConfig() });
+    }
+
+    // GET /api/digest/status - computed schedule status (next run)
+    if (path === '/api/digest/status' && req.method === 'GET') {
+      return sendJSON(res, 200, { ok: true, data: getDigestStatus() });
     }
 
     // PUT /api/digest/config - update digest config

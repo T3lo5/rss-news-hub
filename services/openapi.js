@@ -303,6 +303,15 @@ registerPath(
 );
 registerPath(
   'get',
+  '/api/digest/status',
+  'Get digest status',
+  'Get the computed digest schedule status (enabled, cron, nextRun)',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'get',
   '/api/digest/preview',
   'Preview digest',
   'Preview the digest content without sending (admin)',
