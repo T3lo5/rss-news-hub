@@ -18,6 +18,7 @@ interface ToolbarProps {
   digestGrouping: 'none' | 'daily' | 'weekly';
   onChangeDigestGrouping: (value: 'none' | 'daily' | 'weekly') => void;
   onProfileClick: () => void;
+  onNewsletterBuilderClick?: () => void;
 }
 
 export function Toolbar({
@@ -40,6 +41,7 @@ export function Toolbar({
   digestGrouping,
   onChangeDigestGrouping,
   onProfileClick,
+  onNewsletterBuilderClick,
 }: ToolbarProps) {
   return (
     <div className="toolbar">
@@ -157,6 +159,17 @@ export function Toolbar({
             📋
           </span>
         </button>
+        {onNewsletterBuilderClick && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={onNewsletterBuilderClick}
+            title="Montar newsletter manual"
+          >
+            <span role="img" aria-label="build newsletter">
+              ✍️
+            </span>
+          </button>
+        )}
         <button className="btn btn-secondary" onClick={onNewsletterClick}>
           <span role="img" aria-label="newsletter">
             📰

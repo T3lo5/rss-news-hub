@@ -48,6 +48,7 @@ import { Header } from './Header';
 import { InterestProfileModal } from './InterestProfileModal';
 import { NewsGrid } from './NewsGrid';
 import { NewsletterConfigModal } from './NewsletterConfigModal';
+import { NewsletterBuilderModal } from './NewsletterBuilderModal';
 import { SettingsModal } from './SettingsModal';
 import { DigestConfigModal } from './DigestConfigModal';
 import { ShareModal } from './ShareModal';
@@ -89,6 +90,7 @@ function AppContent() {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showFeedManager, setShowFeedManager] = useState(false);
   const [showNewsletterConfig, setShowNewsletterConfig] = useState(false);
+  const [showNewsletterBuilder, setShowNewsletterBuilder] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showDigestConfig, setShowDigestConfig] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
@@ -448,6 +450,9 @@ function AppContent() {
             onProfileClick={() => setShowProfileModal(true)}
             onTemplatesClick={() => setShowTemplatesModal(true)}
             onNewsletterClick={() => setShowNewsletterConfig(true)}
+            onNewsletterBuilderClick={
+              user && user.role !== 'viewer' ? () => setShowNewsletterBuilder(true) : undefined
+            }
             onBookmarksClick={() => setShowBookmarks(true)}
             bookmarkCount={bookmarkedIds.size}
             onToggleDigest={() => setDigestView(!digestView)}
@@ -534,6 +539,12 @@ function AppContent() {
       <NewsletterConfigModal
         isOpen={showNewsletterConfig}
         onClose={() => setShowNewsletterConfig(false)}
+      />
+
+      <NewsletterBuilderModal
+        isOpen={showNewsletterBuilder}
+        news={news}
+        onClose={() => setShowNewsletterBuilder(false)}
       />
 
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />

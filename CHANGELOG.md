@@ -22,11 +22,17 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   **pré-visualizar** o conteúdo e **enviar agora** — o envio manual funciona
   mesmo com o agendamento desligado
 - Endpoints do digest documentados no OpenAPI
+- Tela **Montar Newsletter** (Toolbar) para criar uma newsletter própria:
+  selecionar notícias manualmente e/ou filtrar por fontes, com busca, idioma,
+  provedor, template e variáveis; inclui prévia, copiar e enviar pelo Telegram
 
 ### Fixed
 - Corrida em `userProfileRepository.get()` que podia falhar com
   "UNIQUE constraint failed: user_profiles.id" quando duas execuções (ex.:
   digest agendado + scoring de relevância) criavam o perfil padrão ao mesmo tempo
+- `POST /api/ai/generate` (e `/api/ai/generate/stream`) agora aceitam **lista**
+  de notícias: antes um array era renderizado como "Title: undefined",
+  quebrando a geração de newsletter com múltiplos itens
 
 ## [1.1.0] - 2026-10-16
 
