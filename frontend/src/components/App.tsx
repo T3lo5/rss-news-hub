@@ -52,6 +52,7 @@ import { NewsletterBuilderModal } from './NewsletterBuilderModal';
 import { SettingsModal } from './SettingsModal';
 import { DigestConfigModal } from './DigestConfigModal';
 import { UsersModal } from './UsersModal';
+import { TelegramQueueModal } from './TelegramQueueModal';
 import { ShareModal } from './ShareModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { StatsModal } from './StatsModal';
@@ -95,6 +96,7 @@ function AppContent() {
   const [showSettings, setShowSettings] = useState(false);
   const [showDigestConfig, setShowDigestConfig] = useState(false);
   const [showUsers, setShowUsers] = useState(false);
+  const [showTelegramQueue, setShowTelegramQueue] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
@@ -437,6 +439,7 @@ function AppContent() {
         onSettingsClick={() => setShowSettings(true)}
         onDigestClick={() => setShowDigestConfig(true)}
         onUsersClick={() => setShowUsers(true)}
+        onTelegramQueueClick={() => setShowTelegramQueue(true)}
       />
       <main className="main">
         <div className="toolbar-container">
@@ -554,6 +557,10 @@ function AppContent() {
 
       <DigestConfigModal isOpen={showDigestConfig} onClose={() => setShowDigestConfig(false)} />
       <UsersModal isOpen={showUsers} onClose={() => setShowUsers(false)} />
+      <TelegramQueueModal
+        isOpen={showTelegramQueue}
+        onClose={() => setShowTelegramQueue(false)}
+      />
 
       <BookmarksModal isOpen={showBookmarks} onClose={() => setShowBookmarks(false)} />
 

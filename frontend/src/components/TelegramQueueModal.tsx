@@ -1,0 +1,234 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
+import type { TelegramQueueItem, TelegramWorkerStatus } from '../types';
+
+interface TelegramQueueModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function formatWhen(value?: number | string): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString();
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  pending: 'Pendente',
+  sent: 'Enviada',
+  failed: 'Falhou',
+};
+
+export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
+  const [queue, setQueue] = useState<TelegramQueueItem[]>([]);
+  const [status, setStatus] = useState<TelegramWorkerStatus | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const flash = (message: string) => {
+    setSuccess(message);
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const [items, worker] = await Promise.all([
+        api.getTelegramQueue(),
+        api.getTelegramWorkerStatus(),
+      ]);
+      setQueue(items);
+      setStatus(worker);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao carregar a fila');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoading(true);
+    load().finally(() => setLoading(false));
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, [isOpen, load]);
+
+  const handleCancel = async (item: TelegramQueueItem) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.cancelTelegramQueued(item.id);
+      flash('Mensagem cancelada.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao cancelar');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleProcess = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.processTelegramQueue();
+      flash('Fila processada.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao processar a fila');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleToggleWorker = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const worker = status?.running
+        ? await api.stopTelegramWorker()
+        : await api.startTelegramWorker();
+      setStatus(worker);
+      flash(worker.running ? 'Worker iniciado.' : 'Worker parado.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao alterar o worker');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="telegram-queue-title"
+    >
+      <div
+        className="modal"
+        style={{ maxWidth: '780px', width: '95vw', maxHeight: '90vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h3 id="telegram-queue-title">📨 Fila do Telegram</h3>
+          <button className="close-btn" onClick={onClose} aria-label="Fechar">
+            ×
+          </button>
+        </div>
+        <div
+          className="modal-body"
+          style={{ padding: '20px', overflow: 'auto', maxHeight: '75vh' }}
+        >
+          {error && (
+            <div className="status error" style={{ marginBottom: '16px' }}>
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="status success" style={{ marginBottom: '16px' }}>
+              {success}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              flexWrap: 'wrap',
+              marginBottom: '20px',
+            }}
+          >
+            <span className={`scheduler-badge ${status?.running ? 'running' : 'stopped'}`}>
+              Worker: {status?.running ? 'ON' : 'OFF'}
+            </span>
+            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+              {queue.length} mensagem(ns) na fila
+              {status?.isProcessing ? ' · processando…' : ''}
+            </span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+              <button className="btn btn-secondary btn-sm" onClick={handleProcess} disabled={busy}>
+                ▶️ Processar agora
+              </button>
+              {isAdmin && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleToggleWorker}
+                  disabled={busy}
+                >
+                  {status?.running ? '⏹️ Parar worker' : '▶️ Iniciar worker'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {loading && queue.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>Carregando…</p>
+          ) : queue.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>Nenhuma mensagem agendada.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '8px 6px' }}>Mensagem</th>
+                  <th style={{ padding: '8px 6px' }}>Agendada para</th>
+                  <th style={{ padding: '8px 6px' }}>Status</th>
+                  <th style={{ padding: '8px 6px' }} />
+                </tr>
+              </thead>
+              <tbody>
+                {queue.map((item) => (
+                  <tr key={item.id} style={{ borderTop: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '8px 6px', maxWidth: '320px' }}>
+                      <span
+                        title={item.text}
+                        style={{
+                          display: 'inline-block',
+                          maxWidth: '320px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          verticalAlign: 'bottom',
+                        }}
+                      >
+                        {item.text}
+                      </span>
+                      {item.lastError && (
+                        <div style={{ fontSize: '11px', color: 'var(--danger)' }}>
+                          {item.lastError}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ padding: '8px 6px' }}>{formatWhen(item.scheduledAt)}</td>
+                    <td style={{ padding: '8px 6px' }}>
+                      {STATUS_LABEL[item.status ?? ''] ?? item.status ?? '—'}
+                      {item.retryCount ? ` (${item.retryCount})` : ''}
+                    </td>
+                    <td style={{ padding: '8px 6px' }}>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleCancel(item)}
+                        disabled={busy}
+                      >
+                        Cancelar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -30,8 +30,10 @@ import type {
   ScoredNewsItem,
   StatsResponse,
   TelegramResponse,
+  TelegramQueueItem,
   TelegramSettings,
   TelegramSettingsUpdate,
+  TelegramWorkerStatus,
   Template,
   TemplatesResponse,
   UpdateUserRequest,
@@ -498,6 +500,47 @@ export const api = {
       body: JSON.stringify(payload),
     });
     const data = await handleResponse<{ ok: boolean; data: TelegramSettings }>(res);
+    return data.data;
+  },
+
+  async getTelegramQueue(): Promise<TelegramQueueItem[]> {
+    const res = await fetchWithAuth('/api/telegram/queue');
+    const data = await handleResponse<{ ok: boolean; data: TelegramQueueItem[] }>(res);
+    return data.data;
+  },
+
+  async cancelTelegramQueued(id: string): Promise<{ cancelled: boolean }> {
+    const res = await fetchWithAuth(`/api/telegram/queue/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    const data = await handleResponse<{ ok: boolean; data: { cancelled: boolean } }>(res);
+    return data.data;
+  },
+
+  async processTelegramQueue(): Promise<{ processed: boolean; queue: TelegramQueueItem[] }> {
+    const res = await fetchWithAuth('/api/telegram/queue/process', { method: 'POST' });
+    const data = await handleResponse<{
+      ok: boolean;
+      data: { processed: boolean; queue: TelegramQueueItem[] };
+    }>(res);
+    return data.data;
+  },
+
+  async getTelegramWorkerStatus(): Promise<TelegramWorkerStatus> {
+    const res = await fetchWithAuth('/api/telegram/worker/status');
+    const data = await handleResponse<{ ok: boolean; data: TelegramWorkerStatus }>(res);
+    return data.data;
+  },
+
+  async startTelegramWorker(): Promise<TelegramWorkerStatus> {
+    const res = await fetchWithAuth('/api/telegram/worker/start', { method: 'POST' });
+    const data = await handleResponse<{ ok: boolean; data: TelegramWorkerStatus }>(res);
+    return data.data;
+  },
+
+  async stopTelegramWorker(): Promise<TelegramWorkerStatus> {
+    const res = await fetchWithAuth('/api/telegram/worker/stop', { method: 'POST' });
+    const data = await handleResponse<{ ok: boolean; data: TelegramWorkerStatus }>(res);
     return data.data;
   },
 

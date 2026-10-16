@@ -26,6 +26,7 @@ interface HeaderProps {
   onSettingsClick: () => void;
   onDigestClick: () => void;
   onUsersClick: () => void;
+  onTelegramQueueClick: () => void;
 }
 
 function formatCountdown(nextRun: number | null): string {
@@ -45,6 +46,7 @@ export function Header({
   onSettingsClick,
   onDigestClick,
   onUsersClick,
+  onTelegramQueueClick,
 }: HeaderProps) {
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const { user, logout } = useAuth();
@@ -136,6 +138,14 @@ export function Header({
               👥
             </span>{' '}
             Usuários
+          </button>
+        )}
+        {(user?.role === 'admin' || user?.role === 'user') && (
+          <button className="btn btn-secondary" onClick={onTelegramQueueClick}>
+            <span role="img" aria-label="telegram queue">
+              📨
+            </span>{' '}
+            Fila
           </button>
         )}
         {user ? (

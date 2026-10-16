@@ -48,10 +48,11 @@ export function stopTelegramQueueWorker() {
   }
 }
 
-export function getTelegramQueueWorkerStatus() {
+export async function getTelegramQueueWorkerStatus() {
+  const queue = await getTelegramQueue();
   return {
     running: Boolean(workerInterval),
     isProcessing,
-    queueLength: getTelegramQueue().length,
+    queueLength: queue.length,
   };
 }

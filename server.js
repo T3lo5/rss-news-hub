@@ -1306,7 +1306,7 @@ export async function handleRequest(req, res) {
           } = req.body;
 
           const { queueTelegramMessage } = await import('./services/telegram.service.js');
-          const msg = queueTelegramMessage({
+          const msg = await queueTelegramMessage({
             text,
             parseMode: parseMode || 'Markdown',
             scheduledAt,
@@ -1323,50 +1323,68 @@ export async function handleRequest(req, res) {
 
     // GET /api/telegram/queue - list scheduled messages
     if (path === '/api/telegram/queue' && req.method === 'GET') {
-      const { getTelegramQueue } = await import('./services/telegram.service.js');
-      const queue = getTelegramQueue();
-      return sendJSON(res, 200, { ok: true, data: queue });
+      requireViewer()(req, res, async () => {
+        const { getTelegramQueue } = await import('./services/telegram.service.js');
+        const queue = await getTelegramQueue();
+        return sendJSON(res, 200, { ok: true, data: queue });
+      });
+      return;
     }
 
     // DELETE /api/telegram/queue/:id - cancel scheduled message
     if (path.match(/^\/api\/telegram\/queue\/[^/]+$/) && req.method === 'DELETE') {
-      const messageId = path.split('/').pop();
-      const { cancelTelegramMessage } = await import('./services/telegram.service.js');
-      const cancelled = cancelTelegramMessage(messageId);
-      if (!cancelled) {
-        const err = createError(ErrorCode.TELEGRAM_MESSAGE_NOT_FOUND, 'Message not found');
-        return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
-      }
-      return sendJSON(res, 200, { ok: true, data: { cancelled: true } });
+      requireUser()(req, res, async () => {
+        const messageId = path.split('/').pop();
+        const { cancelTelegramMessage } = await import('./services/telegram.service.js');
+        const cancelled = await cancelTelegramMessage(messageId);
+        if (!cancelled) {
+          const err = createError(ErrorCode.TELEGRAM_MESSAGE_NOT_FOUND, 'Message not found');
+          return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
+        }
+        return sendJSON(res, 200, { ok: true, data: { cancelled: true } });
+      });
+      return;
     }
 
     // POST /api/telegram/queue/process - manually trigger queue processing
     if (path === '/api/telegram/queue/process' && req.method === 'POST') {
-      const { processTelegramQueue } = await import('./services/telegram.service.js');
-      await processTelegramQueue(telegram);
-      const { getTelegramQueue } = await import('./services/telegram.service.js');
-      const queue = getTelegramQueue();
-      return sendJSON(res, 200, { ok: true, data: { processed: true, queue } });
+      requireUser()(req, res, async () => {
+        const { processTelegramQueue } = await import('./services/telegram.service.js');
+        await processTelegramQueue(telegram);
+        const { getTelegramQueue } = await import('./services/telegram.service.js');
+        const queue = await getTelegramQueue();
+        return sendJSON(res, 200, { ok: true, data: { processed: true, queue } });
+      });
+      return;
     }
 
     // GET /api/telegram/worker/status - get worker status
     if (path === '/api/telegram/worker/status' && req.method === 'GET') {
-      const status = getTelegramQueueWorkerStatus();
-      return sendJSON(res, 200, { ok: true, data: status });
+      requireViewer()(req, res, async () => {
+        const status = await getTelegramQueueWorkerStatus();
+        return sendJSON(res, 200, { ok: true, data: status });
+      });
+      return;
     }
 
     // POST /api/telegram/worker/start - start worker
     if (path === '/api/telegram/worker/start' && req.method === 'POST') {
-      startTelegramQueueWorker(telegram, 60000);
-      const status = getTelegramQueueWorkerStatus();
-      return sendJSON(res, 200, { ok: true, data: status });
+      requireAdmin()(req, res, async () => {
+        startTelegramQueueWorker(telegram, 60000);
+        const status = await getTelegramQueueWorkerStatus();
+        return sendJSON(res, 200, { ok: true, data: status });
+      });
+      return;
     }
 
     // POST /api/telegram/worker/stop - stop worker
     if (path === '/api/telegram/worker/stop' && req.method === 'POST') {
-      stopTelegramQueueWorker();
-      const status = getTelegramQueueWorkerStatus();
-      return sendJSON(res, 200, { ok: true, data: status });
+      requireAdmin()(req, res, async () => {
+        stopTelegramQueueWorker();
+        const status = await getTelegramQueueWorkerStatus();
+        return sendJSON(res, 200, { ok: true, data: status });
+      });
+      return;
     }
 
     // GET /api/templates - list all templates

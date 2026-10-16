@@ -327,17 +327,19 @@ export interface UpdateUserRequest {
 
 export interface TelegramQueueItem {
   id: string;
-  chatId?: string;
   text: string;
-  scheduledAt?: number;
+  parseMode?: string;
+  scheduledAt?: number | string;
   status?: string;
-  createdAt?: number;
+  retryCount?: number;
+  lastError?: string | null;
+  createdAt?: number | string;
 }
 
 export interface TelegramWorkerStatus {
   running: boolean;
-  intervalMs: number;
-  pending?: number;
+  isProcessing?: boolean;
+  queueLength: number;
 }
 
 export interface HealthStatus {

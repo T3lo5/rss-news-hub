@@ -8,6 +8,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- Tela **Fila do Telegram** (admin/usuário) para ver as mensagens agendadas,
+  cancelar, processar a fila manualmente e ligar/desligar o worker; os
+  endpoints de fila/worker agora exigem autenticação (worker: admin)
 - Tela **Usuários** (admin) para criar contas, definir o papel
   (admin/usuário/leitor), redefinir senha e excluir — com salvaguardas contra
   alterar o próprio papel ou excluir a si mesmo; endpoint `POST /api/users`
@@ -39,6 +42,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   opção "enviar também por e-mail" na newsletter agendada e no digest
 
 ### Fixed
+- Fila do Telegram: as rotas não davam `await` no repositório (a fila vinha
+  sempre `{}` e cancelar sempre "dava certo"), e o status do worker reportava
+  `queueLength: undefined`; agora os valores são corretos e a fila
 - **`/api/users` inacessível**: o roteador só entregava caminhos `/api/auth/*`
   ao router de autenticação, então a gestão de usuários (que vive nele)
   respondia 404. Agora `/api/users` e `/api/users/:id` também são roteados
