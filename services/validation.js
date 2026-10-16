@@ -108,6 +108,26 @@ export const updateDigestConfigSchema = z.object({
   language: z.enum(['en', 'pt']).optional(),
 });
 
+// Per-provider overrides for the AI settings (admin). apiKey: omitted = keep,
+// null/'' = clear (fall back to .env), string = replace.
+export const aiProviderSettingsSchema = z.object({
+  apiKey: z.string().max(1000).nullable().optional(),
+  baseUrl: z.string().url().optional(),
+  model: z.string().max(200).optional(),
+});
+
+export const aiSettingsSchema = z.object({
+  defaultProvider: z.enum(['auto', 'sensenova', 'deepseek', 'openai']).optional(),
+  sensenova: aiProviderSettingsSchema.optional(),
+  deepseek: aiProviderSettingsSchema.optional(),
+  openai: aiProviderSettingsSchema.optional(),
+});
+
+export const telegramSettingsSchema = z.object({
+  botToken: z.string().max(1000).nullable().optional(),
+  chatId: z.string().max(200).optional(),
+});
+
 export const updateProfileSchema = z.object({
   keywords: z.array(z.string()).optional(),
   topics: z.array(z.string()).optional(),
@@ -221,6 +241,8 @@ export const schemas = {
   changePasswordSchema,
   createApiKeySchema,
   updateUserProfileSchema,
+  aiSettingsSchema,
+  telegramSettingsSchema,
 };
 
 export function validateBody(schema) {

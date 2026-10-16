@@ -1,9 +1,11 @@
 export type {
+  AppSetting,
   Bookmark,
   Feed,
   FeedCache,
   FeedStat,
   GlobalStat,
+  NewAppSetting,
   NewBookmark,
   NewFeed,
   NewFeedCache,
@@ -35,6 +37,7 @@ export { newsRepository } from './news.repository.js';
 export { newsHashRepository } from './news-hash.repository.js';
 export { newsletterHistoryRepository } from './newsletter-history.repository.js';
 export { searchRepository } from './search.repository.js';
+export { settingsRepository } from './settings.repository.js';
 export { telegramQueueRepository } from './telegram-queue.repository.js';
 export { templateRepository } from './template.repository.js';
 export { userProfileRepository } from './user-profile.repository.js';

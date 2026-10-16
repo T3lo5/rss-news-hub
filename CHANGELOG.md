@@ -7,6 +7,17 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Added
+- Tela **Configurações** (admin) no frontend para gerenciar chaves de IA e
+  credenciais do Telegram sem editar `.env`
+- Endpoints administrativos `GET /api/settings`, `PUT /api/settings/ai`,
+  `PUT /api/settings/telegram` e `GET /api/ai/providers`
+- Armazenamento de settings no banco (`app_settings`, migração `0009`) com
+  **cifragem AES-256-GCM** dos segredos (`SETTINGS_ENCRYPTION_KEY`, fallback
+  `JWT_SECRET`); segredos nunca são devolvidos em texto puro pela API
+- Configuração de newsletter e digest agora **persiste** (antes vivia apenas em
+  memória e resetava a cada reinício)
+
 ## [1.1.0] - 2026-10-16
 
 ### Added

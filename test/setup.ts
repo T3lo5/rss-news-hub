@@ -32,6 +32,7 @@ export function resetTestDb() {
   if (testSqlite) {
     // Clear all tables in reverse order (respecting foreign keys)
     const tables = [
+      'app_settings',
       'news_hashes',
       'news_items',
       'feed_cache',

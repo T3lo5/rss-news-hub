@@ -38,6 +38,15 @@ import {
   stop as stopScheduler,
   trigger as triggerScheduler,
 } from './services/scheduler.service.js';
+import {
+  getProviderList,
+  getPublicSettings,
+  initSettings,
+  persistDigestSettings,
+  persistNewsletterSettings,
+  updateAiSettings,
+  updateTelegramSettings,
+} from './services/settings.service.js';
 import { getFeedHealth, getStatsAsync } from './services/stats.service.js';
 import { telegramSend } from './services/telegram.service.js';
 import {
@@ -711,6 +720,7 @@ export async function handleRequest(req, res) {
 
         try {
           Object.assign(newsletterConfig, updates);
+          await persistNewsletterSettings();
           startNewsletterJob(newsletterConfig, { telegram });
           return sendJSON(res, 200, { ok: true, data: newsletterConfig });
         } catch (err) {
@@ -754,6 +764,7 @@ export async function handleRequest(req, res) {
           const updates = req.body;
           try {
             const config = updateDigestConfig(updates);
+            await persistDigestSettings();
             return sendJSON(res, 200, { ok: true, data: config });
           } catch (err) {
             return sendJSON(res, 500, { ok: false, error: err.message });
@@ -809,6 +820,7 @@ export async function handleRequest(req, res) {
       requireAdmin()(req, res, async () => {
         try {
           const config = updateDigestConfig({ enabled: true });
+          await persistDigestSettings();
           return sendJSON(res, 200, { ok: true, data: config });
         } catch (err) {
           return sendJSON(res, 500, { ok: false, error: err.message });
@@ -822,7 +834,64 @@ export async function handleRequest(req, res) {
       requireAdmin()(req, res, async () => {
         try {
           const config = updateDigestConfig({ enabled: false });
+          await persistDigestSettings();
           return sendJSON(res, 200, { ok: true, data: config });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
+    }
+
+    // GET /api/settings - admin settings (secrets masked)
+    if (path === '/api/settings' && req.method === 'GET') {
+      requireAdmin()(req, res, async () => {
+        try {
+          const settings = await getPublicSettings();
+          return sendJSON(res, 200, { ok: true, data: settings });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
+    }
+
+    // PUT /api/settings/ai - update AI provider settings (admin)
+    if (path === '/api/settings/ai' && req.method === 'PUT') {
+      requireAdmin()(req, res, () => {
+        validateBody(schemas.aiSettingsSchema)(req, res, async () => {
+          try {
+            const aiSettings = await updateAiSettings(req.body);
+            return sendJSON(res, 200, { ok: true, data: aiSettings });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        });
+      });
+      return;
+    }
+
+    // PUT /api/settings/telegram - update Telegram settings (admin)
+    if (path === '/api/settings/telegram' && req.method === 'PUT') {
+      requireAdmin()(req, res, () => {
+        validateBody(schemas.telegramSettingsSchema)(req, res, async () => {
+          try {
+            const telegramSettings = await updateTelegramSettings(req.body);
+            return sendJSON(res, 200, { ok: true, data: telegramSettings });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        });
+      });
+      return;
+    }
+
+    // GET /api/ai/providers - available AI providers (configured flags)
+    if (path === '/api/ai/providers' && req.method === 'GET') {
+      requireViewer()(req, res, async () => {
+        try {
+          const providers = await getProviderList();
+          return sendJSON(res, 200, { ok: true, data: providers });
         } catch (err) {
           return sendJSON(res, 500, { ok: false, error: err.message });
         }
@@ -1296,6 +1365,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // Create default admin user
   const { createDefaultAdmin } = await import('./services/auth.service.js');
   await createDefaultAdmin();
+
+  // Load persisted admin settings (AI keys, Telegram, newsletter/digest config)
+  // and apply them on top of the .env defaults before jobs start.
+  await initSettings();
 
   // Start scheduler: fetch every 30 minutes
   startScheduler(30 * 60 * 1000, fetchAllFeeds);

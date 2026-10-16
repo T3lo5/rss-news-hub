@@ -276,6 +276,33 @@ registerPath(
 );
 registerPath(
   'get',
+  '/api/settings',
+  'Get settings',
+  'Get admin settings (AI providers, Telegram, newsletter, digest). Secrets are masked.',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'put',
+  '/api/settings/ai',
+  'Update AI settings',
+  'Update AI provider settings (admin). apiKey omitted = keep, null = clear.',
+  schemas.aiSettingsSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'put',
+  '/api/settings/telegram',
+  'Update Telegram settings',
+  'Update Telegram bot token and chat id (admin). botToken omitted = keep, null = clear.',
+  schemas.telegramSettingsSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'get',
   '/api/bookmarks',
   'List bookmarks',
   'List all bookmarked news items',
@@ -316,6 +343,15 @@ registerPath(
   'Update interest profile',
   'Update the user interest profile',
   schemas.updateProfileSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'get',
+  '/api/ai/providers',
+  'List AI providers',
+  'List available AI providers and whether each is configured',
+  null,
   { success: OkResponse, error: ErrorResponse },
   [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
 );

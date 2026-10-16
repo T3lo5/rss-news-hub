@@ -115,11 +115,13 @@ export function resetDb() {
 }
 
 export type {
+  AppSetting,
   Bookmark,
   Feed,
   FeedCache,
   FeedStat,
   GlobalStat,
+  NewAppSetting,
   NewBookmark,
   NewFeed,
   NewFeedCache,

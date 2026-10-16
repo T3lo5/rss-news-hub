@@ -267,6 +267,18 @@ export const globalStats = sqliteTable('global_stats', {
     .default(sql`(strftime('%s', 'now') * 1000)`),
 });
 
+// Key/value store for admin-editable settings (AI providers, Telegram, ...).
+// Each row is a JSON blob; secret fields inside are encrypted (see
+// services/secrets.js). Keys are area names: 'ai', 'telegram', 'newsletter',
+// 'digest'.
+export const appSettings = sqliteTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(sql`(strftime('%s', 'now') * 1000)`),
+});
+
 export type Feed = typeof feeds.$inferSelect;
 export type NewFeed = typeof feeds.$inferInsert;
 export type NewsItem = typeof newsItems.$inferSelect;
@@ -297,3 +309,5 @@ export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type GlobalStat = typeof globalStats.$inferSelect;
 export type NewGlobalStat = typeof globalStats.$inferInsert;
+export type AppSetting = typeof appSettings.$inferSelect;
+export type NewAppSetting = typeof appSettings.$inferInsert;
