@@ -6,7 +6,56 @@ import {
   buildSystemPrompt,
   chat,
   pickProvider,
+  stripEditorialMeta,
 } from '../services/ai.service.js';
+
+describe('stripEditorialMeta', () => {
+  test('returns clean post unchanged', () => {
+    const post = 'Abertura forte.\n\nDesenvolvimento.\n\nLink: https://example.com';
+    assert.strictEqual(stripEditorialMeta(post), post);
+  });
+
+  test('removes leak of 4-section delivery format', () => {
+    const raw = [
+      '**Ângulo escolhido:** Um ângulo específico sobre o tema.',
+      '',
+      '---',
+      '',
+      'Mais código, menos entrega.',
+      '',
+      'Corpo do post com detalhes e exemplos.',
+      '',
+      'Link: https://arstechnica.com/x',
+      '',
+      '---',
+      '',
+      '**Por que pode funcionar:**',
+      '- Ponto A',
+      '- Ponto B',
+      '',
+      '**Pontos a confirmar:**',
+      '- Nada.',
+    ].join('\n');
+
+    const cleaned = stripEditorialMeta(raw);
+    assert.ok(cleaned.startsWith('Mais código, menos entrega.'));
+    assert.ok(cleaned.includes('Link: https://arstechnica.com/x'));
+    assert.ok(!cleaned.includes('Ângulo escolhido'));
+    assert.ok(!cleaned.includes('Por que pode funcionar'));
+    assert.ok(!cleaned.includes('Pontos a confirmar'));
+  });
+
+  test('handles "## Post final" heading marking', () => {
+    const raw = ['### Ângulo escolhido', 'Algo.', '', '## Post final', '', 'O post.', '', '## Por que pode funcionar', 'Motivo.'].join('\n');
+    const cleaned = stripEditorialMeta(raw);
+    assert.strictEqual(cleaned, 'O post.');
+  });
+
+  test('returns original text when stripping would empty it', () => {
+    const raw = 'Por que pode funcionar';
+    assert.strictEqual(stripEditorialMeta(raw), raw);
+  });
+});
 
 describe('ai.service', () => {
   let originalFetch;
@@ -45,12 +94,11 @@ describe('ai.service', () => {
 
     test('returns linkedin prompt', () => {
       const prompt = buildSystemPrompt('linkedin', 'en');
-      assert.ok(prompt.includes('LinkedIn post'));
-      assert.ok(prompt.includes('Title:'));
-      assert.ok(prompt.includes('TLDR:'));
-      assert.ok(prompt.includes('Body:'));
-      assert.ok(prompt.includes('Link:'));
-      assert.ok(prompt.includes('CTA:'));
+      assert.ok(prompt.includes('LinkedIn'));
+      assert.ok(prompt.includes('DIRETRIZ EDITORIAL'));
+      assert.ok(prompt.includes('ESTRATEGISTA DE CONTEÚDO'));
+      assert.ok(prompt.includes('FORMATO OBRIGATÓRIO DA RESPOSTA'));
+      assert.ok(!prompt.includes('**Ângulo escolhido:**'));
     });
 
     test('returns default prompt for unknown type', () => {
@@ -244,6 +292,46 @@ describe('ai.service', () => {
       assert.ok(url.includes('deepseek'));
       const body = JSON.parse(options.body);
       assert.strictEqual(body.model, 'deepseek-model');
+    });
+
+    test('auto cascades to the next provider when one fails', async () => {
+      __setAiConfig({
+        sensenova: {
+          apiKey: '',
+          baseUrl: 'https://api.sensenova.ai',
+          model: 'model1',
+          sdk: 'openai',
+        },
+        deepseek: { apiKey: 'key2', baseUrl: 'https://api.deepseek.com', model: 'deepseek-model' },
+        openai: { apiKey: 'key3', baseUrl: 'https://api.openai.com', model: 'gpt-4o-mini' },
+      });
+
+      global.fetch = mock.fn(async (url: string) => {
+        if (String(url).includes('deepseek')) {
+          return { ok: false, status: 500, text: async () => 'deepseek down' };
+        }
+        return {
+          ok: true,
+          json: async () => ({ choices: [{ message: { content: 'from openai' } }] }),
+        };
+      });
+
+      const result = await chat('System prompt', 'User content', 'auto');
+      assert.strictEqual(result, 'from openai');
+      assert.strictEqual(global.fetch.mock.callCount(), 2);
+    });
+
+    test('explicit provider does not cascade to others', async () => {
+      global.fetch = mock.fn(async () => ({
+        ok: false,
+        status: 500,
+        text: async () => 'boom',
+      }));
+
+      await assert.rejects(() => chat('System prompt', 'User content', 'openai'), {
+        message: /AI API error 500/,
+      });
+      assert.strictEqual(global.fetch.mock.callCount(), 1);
     });
   });
 });

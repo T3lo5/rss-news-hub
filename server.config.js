@@ -23,6 +23,14 @@ function loadEnv() {
 
 loadEnv();
 
+// SenseNova is consumed through the OpenAI SDK (see services/ai.service.js),
+// which appends /chat/completions to the base URL. Guarantee the /v1 prefix
+// so a bare host in .env doesn't produce nginx 404s.
+function ensureV1(value, fallback) {
+  const normalized = (value || fallback).replace(/\/+$/, '');
+  return normalized.endsWith('/v1') ? normalized : `${normalized}/v1`;
+}
+
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 const telegram = {
@@ -33,7 +41,9 @@ const telegram = {
 const ai = {
   sensenova: {
     apiKey: process.env.SENSENOVA_API_KEY || '',
-    baseUrl: process.env.SENSENOVA_BASE_URL || 'https://token.sensenova.ai/v1',
+    // The OpenAI SDK appends /chat/completions itself, so the base URL must
+    // already include /v1. Normalize to tolerate a bare host in .env.
+    baseUrl: ensureV1(process.env.SENSENOVA_BASE_URL, 'https://token.sensenova.ai/v1'),
     model: process.env.SENSENOVA_MODEL || 'sensenova-6.8-flash-lite',
     sdk: 'openai',
   },
