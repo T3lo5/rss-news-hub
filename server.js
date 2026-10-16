@@ -10,7 +10,7 @@ import {
 } from './middleware/auth.js';
 import { handleAuthRoutes } from './routes/auth.routes.js';
 import { newsletterConfig, PORT, telegram } from './server.config.js';
-import { buildSystemPrompt, chat, chatStream } from './services/ai.service.js';
+import { buildSystemPrompt, chat, chatStream, stripEditorialMeta } from './services/ai.service.js';
 import {
   generateFeedId,
   readFeedsConfig,
@@ -38,7 +38,7 @@ import {
   stop as stopScheduler,
   trigger as triggerScheduler,
 } from './services/scheduler.service.js';
-import { getFeedHealth, getStats } from './services/stats.service.js';
+import { getFeedHealth, getStats, getStatsAsync } from './services/stats.service.js';
 import { telegramSend } from './services/telegram.service.js';
 import {
   getTelegramQueueWorkerStatus,
@@ -399,10 +399,7 @@ export async function handleRequest(req, res) {
 
     // POST /api/scheduler/config - update scheduler interval
     if (path === '/api/scheduler/config' && req.method === 'POST') {
-      let body = '';
-      req.on('data', (c) => (body += c));
-      await new Promise((r) => req.on('end', r));
-      const { intervalMs } = JSON.parse(body || '{}');
+      const { intervalMs } = req.body || {};
       if (typeof intervalMs !== 'number' || intervalMs < 1000) {
         return sendJSON(res, 400, { ok: false, error: 'intervalMs must be number >= 1000' });
       }
@@ -412,83 +409,97 @@ export async function handleRequest(req, res) {
 
     // GET /api/stats - get aggregated stats
     if (path === '/api/stats' && req.method === 'GET') {
-      const stats = getStats();
-      const schedulerStatus = getSchedulerStatus();
-      stats.scheduler = schedulerStatus;
-      return sendJSON(res, 200, { ok: true, data: stats });
+      try {
+        const { getStatsAsync } = await import('./services/stats.service.js');
+        const { getStatus: getSchedulerStatus } = await import('./services/scheduler.service.js');
+        const stats = await getStatsAsync();
+        const schedulerStatus = getSchedulerStatus();
+        stats.scheduler = schedulerStatus;
+        return sendJSON(res, 200, { ok: true, data: stats });
+      } catch (err) {
+        return sendJSON(res, 500, { ok: false, error: err.message });
+      }
     }
 
     // GET /api/feeds - list all feeds with stats
     if (path === '/api/feeds' && req.method === 'GET') {
-      try {
-        const feeds = readFeedsConfig();
-        const stats = getStats();
-        const feedsWithStats = feeds.map((feed) => {
-          const feedStat = stats.feeds?.[feed.id] || {};
-          return {
-            ...feed,
-            lastFetch: feedStat.lastFetch || null,
-            lastError: feedStat.lastError || null,
-            itemCount: feedStat.itemsFetched || 0,
-            etagHits: feedStat.etagHits || 0,
-            status: feedStat.lastError ? 'error' : feedStat.lastFetch ? 'ok' : 'unknown',
-          };
-        });
-        return sendJSON(res, 200, { ok: true, data: feedsWithStats });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      requireViewer()(req, res, async () => {
+        try {
+          const feeds = await readFeedsConfig();
+          const stats = await getStatsAsync();
+          const feedsWithStats = feeds.map((feed) => {
+            const feedStat = stats.feeds?.find((f) => f.feedId === feed.id) || {};
+            return {
+              ...feed,
+              lastFetch: feedStat.lastFetch?.getTime() || null,
+              lastError: feedStat.lastError || null,
+              itemCount: feedStat.itemsFetched || 0,
+              etagHits: feedStat.etagHits || 0,
+              status: feedStat.lastError ? 'error' : feedStat.lastFetch ? 'ok' : 'unknown',
+            };
+          });
+          return sendJSON(res, 200, { ok: true, data: feedsWithStats });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
     }
 
     // GET /api/feeds/health - feed health dashboard
     if (path === '/api/feeds/health' && req.method === 'GET') {
-      try {
-        const feeds = readFeedsConfig();
-        const health = getFeedHealth();
-        // Merge with feed config for URL and enabled status
-        const healthWithConfig = health.map((h) => {
-          const feedConfig = feeds.find((f) => f.id === h.feedId);
-          return {
-            ...h,
-            url: feedConfig?.url || '',
-            enabled: feedConfig?.enabled ?? true,
-          };
-        });
-        return sendJSON(res, 200, { ok: true, data: healthWithConfig });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      requireViewer()(req, res, async () => {
+        try {
+          const feeds = await readFeedsConfig();
+          const health = getFeedHealth();
+          // Merge with feed config for URL and enabled status
+          const healthWithConfig = health.map((h) => {
+            const feedConfig = feeds.find((f) => f.id === h.feedId);
+            return {
+              ...h,
+              url: feedConfig?.url || '',
+              enabled: feedConfig?.enabled ?? true,
+            };
+          });
+          return sendJSON(res, 200, { ok: true, data: healthWithConfig });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
     }
 
     // POST /api/feeds - add new feed
     if (path === '/api/feeds' && req.method === 'POST') {
-      validateBody(schemas.addFeedSchema)(req, res, async () => {
-        const { name, url, enabled, category } = req.body;
+      requireUser()(req, res, () => {
+        validateBody(schemas.addFeedSchema)(req, res, async () => {
+          const { name, url, enabled, category } = req.body;
 
-        if (!validateFeedUrl(url)) {
-          return sendJSON(res, 400, { ok: false, error: 'invalid URL' });
-        }
+          if (!validateFeedUrl(url)) {
+            return sendJSON(res, 400, { ok: false, error: 'invalid URL' });
+          }
 
-        try {
-          const feeds = readFeedsConfig();
-          const existingIds = feeds.map((f) => f.id);
-          const id = generateFeedId(name, existingIds);
+          try {
+            const feeds = await readFeedsConfig();
+            const existingIds = feeds.map((f) => f.id);
+            const id = generateFeedId(name, existingIds);
 
-          const newFeed = {
-            id,
-            name,
-            url,
-            enabled: enabled !== false,
-            category: category || 'General',
-          };
+            const newFeed = {
+              id,
+              name,
+              url,
+              enabled: enabled !== false,
+              category: category || 'General',
+            };
 
-          feeds.push(newFeed);
-          writeFeedsConfig(feeds);
+            feeds.push(newFeed);
+            writeFeedsConfig(feeds);
 
-          return sendJSON(res, 200, { ok: true, data: newFeed });
-        } catch (err) {
-          return sendJSON(res, 500, { ok: false, error: err.message });
-        }
+            return sendJSON(res, 200, { ok: true, data: newFeed });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        });
       });
       return;
     }
@@ -496,28 +507,30 @@ export async function handleRequest(req, res) {
     // PUT /api/feeds/:id - update feed
     if (path.match(/^\/api\/feeds\/[^/]+$/) && req.method === 'PUT') {
       const id = path.split('/')[3];
-      validateBody(schemas.updateFeedSchema)(req, res, async () => {
-        const updates = req.body;
+      requireUser()(req, res, () => {
+        validateBody(schemas.updateFeedSchema)(req, res, async () => {
+          const updates = req.body;
 
-        try {
-          const feeds = readFeedsConfig();
-          const index = feeds.findIndex((f) => f.id === id);
-          if (index === -1) {
-            const err = createError(ErrorCode.FEED_NOT_FOUND, 'Feed not found');
-            return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
+          try {
+            const feeds = await readFeedsConfig();
+            const index = feeds.findIndex((f) => f.id === id);
+            if (index === -1) {
+              const err = createError(ErrorCode.FEED_NOT_FOUND, 'Feed not found');
+              return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
+            }
+
+            if (updates.url && !validateFeedUrl(updates.url)) {
+              return sendJSON(res, 400, { ok: false, error: 'invalid URL' });
+            }
+
+            feeds[index] = { ...feeds[index], ...updates, id };
+            writeFeedsConfig(feeds);
+
+            return sendJSON(res, 200, { ok: true, data: feeds[index] });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
           }
-
-          if (updates.url && !validateFeedUrl(updates.url)) {
-            return sendJSON(res, 400, { ok: false, error: 'invalid URL' });
-          }
-
-          feeds[index] = { ...feeds[index], ...updates, id };
-          writeFeedsConfig(feeds);
-
-          return sendJSON(res, 200, { ok: true, data: feeds[index] });
-        } catch (err) {
-          return sendJSON(res, 500, { ok: false, error: err.message });
-        }
+        });
       });
       return;
     }
@@ -525,74 +538,93 @@ export async function handleRequest(req, res) {
     // DELETE /api/feeds/:id - delete feed
     if (path.match(/^\/api\/feeds\/[^/]+$/) && req.method === 'DELETE') {
       const id = path.split('/')[3];
+      requireUser()(req, res, async () => {
+        try {
+          const feeds = await readFeedsConfig();
+          const index = feeds.findIndex((f) => f.id === id);
+          if (index === -1) {
+            const err = createError(ErrorCode.FEED_NOT_FOUND, 'Feed not found');
+            return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
+          }
 
-      try {
-        const feeds = readFeedsConfig();
-        const index = feeds.findIndex((f) => f.id === id);
-        if (index === -1) {
-          const err = createError(ErrorCode.FEED_NOT_FOUND, 'Feed not found');
-          return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
+          // Delete associated data first (foreign key constraints)
+          const { newsRepository } = await import('./src/db/repositories/index.js');
+          const db = (await import('./src/db/index.js')).getDb();
+          const { feedCache, feedStats } = await import('./src/db/schema.js');
+          const { eq } = await import('drizzle-orm');
+
+          await Promise.all([
+            newsRepository.deleteByFeedId(id),
+            db.delete(feedCache).where(eq(feedCache.feedId, id)),
+            db.delete(feedStats).where(eq(feedStats.feedId, id)),
+          ]);
+
+          feeds.splice(index, 1);
+          writeFeedsConfig(feeds);
+
+          return sendJSON(res, 200, { ok: true, data: { id } });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
         }
-
-        feeds.splice(index, 1);
-        writeFeedsConfig(feeds);
-
-        return sendJSON(res, 200, { ok: true, data: { id } });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      });
+      return;
     }
 
     // POST /api/feeds/:id/test - test fetch a single feed
     if (path.match(/^\/api\/feeds\/[^/]+\/test$/) && req.method === 'POST') {
       const id = path.split('/')[3];
+      requireUser()(req, res, async () => {
+        try {
+          const feeds = await readFeedsConfig();
+          const feed = feeds.find((f) => f.id === id);
+          if (!feed) {
+            const err = createError(ErrorCode.FEED_NOT_FOUND, 'Feed not found');
+            return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
+          }
 
-      try {
-        const feeds = readFeedsConfig();
-        const feed = feeds.find((f) => f.id === id);
-        if (!feed) {
-          const err = createError(ErrorCode.FEED_NOT_FOUND, 'Feed not found');
-          return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
+          const xml = await fetchFeedByUrl(feed.url, { bypassCache: true });
+          const items = parseRSS(xml, feed.name)
+            .slice(0, 5)
+            .map((item) => ({
+              title: item.title,
+              link: item.link,
+              pubDate: item.pubDate,
+            }));
+
+          return sendJSON(res, 200, {
+            ok: true,
+            data: {
+              success: true,
+              itemCount: items.length,
+              preview: items,
+            },
+          });
+        } catch (err) {
+          return sendJSON(res, 200, {
+            ok: true,
+            data: {
+              success: false,
+              error: err.message,
+              itemCount: 0,
+              preview: [],
+            },
+          });
         }
-
-        const xml = await fetchFeedByUrl(feed.url, { bypassCache: true });
-        const items = parseRSS(xml, feed.name)
-          .slice(0, 5)
-          .map((item) => ({
-            title: item.title,
-            link: item.link,
-            pubDate: item.pubDate,
-          }));
-
-        return sendJSON(res, 200, {
-          ok: true,
-          data: {
-            success: true,
-            itemCount: items.length,
-            preview: items,
-          },
-        });
-      } catch (err) {
-        return sendJSON(res, 200, {
-          ok: true,
-          data: {
-            success: false,
-            error: err.message,
-            itemCount: 0,
-            preview: [],
-          },
-        });
-      }
+      });
+      return;
     }
 
     // POST /api/feeds/reload - reload config from disk
     if (path === '/api/feeds/reload' && req.method === 'POST') {
-      try {
-        const feeds = readFeedsConfig();
-        return sendJSON(res, 200, { ok: true, data: feeds });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      requireAdmin()(req, res, async () => {
+        try {
+          const feeds = await readFeedsConfig();
+          return sendJSON(res, 200, { ok: true, data: feeds });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
     }
 
     // GET /api/feeds/opml - export feeds as OPML
@@ -797,50 +829,57 @@ export async function handleRequest(req, res) {
 
     // GET /api/bookmarks - list all bookmarks
     if (path === '/api/bookmarks' && req.method === 'GET') {
-      try {
-        const { readBookmarks } = await import('./services/bookmark.service.js');
-        const bookmarks = await readBookmarks();
-        return sendJSON(res, 200, { ok: true, data: bookmarks });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      requireUser()(req, res, async () => {
+        try {
+          const { readBookmarks } = await import('./services/bookmark.service.js');
+          const bookmarks = await readBookmarks(req.user.id);
+          return sendJSON(res, 200, { ok: true, data: bookmarks });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
     }
 
     // POST /api/bookmarks - add bookmark
     if (path === '/api/bookmarks' && req.method === 'POST') {
-      let body = '';
-      req.on('data', (c) => (body += c));
-      await new Promise((r) => req.on('end', r));
-      try {
-        const { readNews } = await import('./services/news.service.js');
-        const { addBookmark } = await import('./services/bookmark.service.js');
-        const { newsId } = JSON.parse(body || '{}');
-        if (!newsId) {
-          return sendJSON(res, 400, { ok: false, error: 'newsId required' });
+      requireUser()(req, res, async () => {
+        try {
+          const { readNews } = await import('./services/news.service.js');
+          const { addBookmark } = await import('./services/bookmark.service.js');
+          const { newsId } = req.body || {};
+          if (!newsId) {
+            return sendJSON(res, 400, { ok: false, error: 'newsId required' });
+          }
+          const news = await readNews();
+          const item = news.find((n) => n.id === newsId);
+          if (!item) {
+            const err = createError(ErrorCode.NEWS_NOT_FOUND, 'News item not found');
+            return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
+          }
+          const bookmark = await addBookmark(req.user.id, item);
+          return sendJSON(res, 200, { ok: true, data: bookmark });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
         }
-        const news = await readNews();
-        const item = news.find((n) => n.id === newsId);
-        if (!item) {
-          const err = createError(ErrorCode.NEWS_NOT_FOUND, 'News item not found');
-          return sendJSON(res, err.statusCode, { ok: false, error: err.message, code: err.code });
-        }
-        const bookmark = await addBookmark(item);
-        return sendJSON(res, 200, { ok: true, data: bookmark });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      });
+      return;
     }
 
     // DELETE /api/bookmarks/:newsId - remove bookmark
     if (path.startsWith('/api/bookmarks/') && req.method === 'DELETE') {
-      try {
-        const newsId = path.split('/api/bookmarks/')[1];
-        const { removeBookmark } = await import('./services/bookmark.service.js');
-        const removed = await removeBookmark(newsId);
-        return sendJSON(res, 200, { ok: true, data: { removed } });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      requireUser()(req, res, async () => {
+        try {
+          const encodedNewsId = path.split('/api/bookmarks/')[1];
+          const newsId = decodeURIComponent(encodedNewsId);
+          const { removeBookmark } = await import('./services/bookmark.service.js');
+          const removed = await removeBookmark(req.user.id, newsId);
+          return sendJSON(res, 200, { ok: true, data: { removed } });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
     }
 
     // GET /api/ai/profile - get interest profile
@@ -905,22 +944,32 @@ export async function handleRequest(req, res) {
       requireUser()(req, res, () => {
         aiGenerateLimiter(req, res, () => {
           validateBody(schemas.generateContentSchema)(req, res, async () => {
-            const { news, type, language, provider, templateId, templateVariables } = req.body;
+            try {
+              const { news, type, language, provider, templateId, templateVariables } = req.body;
 
-            const templatePrompt = templateId
-              ? getTemplateSystemPrompt(templateId, {
-                  ...news,
-                  type,
-                  language: language || 'en',
-                  ...templateVariables,
-                })
-              : buildSystemPrompt(type, language || 'en');
+              const templatePrompt = templateId
+                ? getTemplateSystemPrompt(templateId, {
+                    ...news,
+                    type,
+                    language: language || 'en',
+                    ...templateVariables,
+                  })
+                : buildSystemPrompt(type, language || 'en');
 
-            const systemPrompt = templatePrompt;
-            const userContent = `Title: ${news.title}\nSource: ${news.source}\nLink: ${news.link}\n\n${news.content || news.description || ''}`;
+              const systemPrompt = templatePrompt;
+              const userContent = `Title: ${news.title}\nSource: ${news.source}\nLink: ${news.link}\n\n${news.content || news.description || ''}`;
 
-            const result = await chat(systemPrompt, userContent, provider);
-            return sendJSON(res, 200, { ok: true, data: { content: result, type, language } });
+              const result = await chat(systemPrompt, userContent, provider);
+              // Never let the editorial analysis sections leak into the post.
+              const content = type === 'linkedin' ? stripEditorialMeta(result) : result;
+              return sendJSON(res, 200, { ok: true, data: { content, type, language } });
+            } catch (err) {
+              const msg = err?.message || 'AI generation failed';
+              log.error({ err }, 'AI generation failed');
+              if (!res.headersSent) {
+                return sendJSON(res, 502, { ok: false, error: msg });
+              }
+            }
           });
         });
       });
@@ -987,40 +1036,50 @@ export async function handleRequest(req, res) {
       requireUser()(req, res, () => {
         telegramSendLimiter(req, res, () => {
           validateBody(schemas.telegramSendSchema)(req, res, async () => {
-            const {
-              text,
-              parseMode,
-              messageThreadId,
-              replyToMessageId,
-              inlineKeyboard,
-              linkButton,
-              linkUrl,
-              scheduleAt,
-            } = req.body;
-
-            if (scheduleAt) {
-              // Queue for scheduled send
-              const { queueTelegramMessage } = await import('./services/telegram.service.js');
-              const msg = queueTelegramMessage({
+            try {
+              const {
                 text,
-                parseMode: parseMode || 'Markdown',
-                scheduledAt: scheduleAt,
-                options: { messageThreadId, replyToMessageId, inlineKeyboard, linkButton, linkUrl },
-              });
-              return sendJSON(res, 200, {
-                ok: true,
-                data: { queued: true, messageId: msg.id, scheduledAt: msg.scheduledAt },
-              });
-            }
+                parseMode,
+                messageThreadId,
+                replyToMessageId,
+                inlineKeyboard,
+                linkButton,
+                linkUrl,
+                scheduleAt,
+              } = req.body;
 
-            const result = await telegramSend(text, parseMode || 'Markdown', telegram, {
-              messageThreadId,
-              replyToMessageId,
-              inlineKeyboard,
-              linkButton,
-              linkUrl,
-            });
-            return sendJSON(res, 200, { ok: true, data: result });
+              if (scheduleAt) {
+                // Queue for scheduled send
+                const { queueTelegramMessage } = await import('./services/telegram.service.js');
+                const msg = await queueTelegramMessage({
+                  text,
+                  parseMode: parseMode || 'Markdown',
+                  scheduledAt: scheduleAt,
+                  options: { messageThreadId, replyToMessageId, inlineKeyboard, linkButton, linkUrl },
+                });
+                return sendJSON(res, 200, {
+                  ok: true,
+                  data: { queued: true, messageId: msg.id, scheduledAt: msg.scheduledAt },
+                });
+              }
+
+              const result = await telegramSend(text, parseMode || 'Markdown', telegram, {
+                messageThreadId,
+                replyToMessageId,
+                inlineKeyboard,
+                linkButton,
+                linkUrl,
+              });
+              return sendJSON(res, 200, { ok: true, data: result });
+            } catch (err) {
+              const msg = err?.message || 'Telegram send failed';
+              log.error({ err }, 'Telegram send failed');
+              if (!res.headersSent) {
+                // Network/API failures are upstream errors, not client errors.
+                const status = /network|timeout/i.test(msg) ? 502 : 400;
+                return sendJSON(res, status, { ok: false, error: msg });
+              }
+            }
           });
         });
       });
@@ -1235,6 +1294,27 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   startNewsletterJob(newsletterConfig, { telegram });
   // Start Telegram queue worker (every minute)
   startTelegramQueueWorker(telegram, 60000);
+
+  // Global handlers to prevent crashes from network errors
+  process.on('unhandledRejection', (reason, promise) => {
+    const msg = reason?.message || String(reason);
+    // Suppress noisy network errors but log others
+    if (msg.includes('ETIMEDOUT') || msg.includes('ENETUNREACH') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
+      console.warn('Unhandled rejection (network):', msg);
+    } else {
+      console.error('Unhandled rejection:', reason);
+    }
+  });
+
+  process.on('uncaughtException', (err) => {
+    const msg = err?.message || String(err);
+    if (msg.includes('ETIMEDOUT') || msg.includes('ENETUNREACH') || msg.includes('ECONNREFUSED')) {
+      console.warn('Uncaught exception (network):', msg);
+    } else {
+      console.error('Uncaught exception:', err);
+      process.exit(1);
+    }
+  });
 
   // Start plugin config watcher (hot reload of config/plugins.yaml + plugins/)
   const pluginWatcher = createConfigWatcher({
