@@ -141,6 +141,11 @@ const email = {
     .filter(Boolean),
 };
 
+// News retention. 0 (the default) disables automatic pruning.
+const retention = {
+  retentionDays: parseInt(process.env.NEWS_RETENTION_DAYS || '0', 10),
+};
+
 export {
   ai,
   BOOKMARKS_FILE,
@@ -154,5 +159,6 @@ export {
   PORT,
   PROFILE_FILE,
   RSS_FEEDS,
+  retention,
   telegram,
 };

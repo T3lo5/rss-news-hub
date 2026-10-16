@@ -53,6 +53,10 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [savingEmail, setSavingEmail] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
 
+  const [retentionDays, setRetentionDays] = useState('0');
+  const [savingRetention, setSavingRetention] = useState(false);
+  const [pruning, setPruning] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -85,6 +89,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setClearEmailPass(false);
       setEmailFrom(data.email.from);
       setEmailRecipients(data.email.recipients.join(', '));
+      setRetentionDays(String(data.retention.retentionDays));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar configurações');
     } finally {
@@ -241,6 +246,54 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setError(err instanceof Error ? err.message : 'Falha ao testar e-mail');
     } finally {
       setTestingEmail(false);
+    }
+  };
+
+  const handleRetentionDays = (): number | null => {
+    const parsed = Number.parseInt(retentionDays, 10);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      setError('Informe um número de dias válido (0 desliga a limpeza automática).');
+      return null;
+    }
+    return parsed;
+  };
+
+  const handleSaveRetention = async () => {
+    setError(null);
+    setSuccess(null);
+    const days = handleRetentionDays();
+    if (days === null) return;
+
+    setSavingRetention(true);
+    try {
+      const retention = await api.updateRetentionSettings(days);
+      setSettings((prev) => (prev ? { ...prev, retention } : prev));
+      flashSuccess('Retenção atualizada!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao salvar retenção');
+    } finally {
+      setSavingRetention(false);
+    }
+  };
+
+  const handlePrune = async () => {
+    setError(null);
+    setSuccess(null);
+    const days = handleRetentionDays();
+    if (days === null) return;
+
+    setPruning(true);
+    try {
+      const result = await api.pruneNews(days > 0 ? days : undefined);
+      if (result.skipped) {
+        flashSuccess('Nada a limpar: a retenção está desligada.');
+      } else {
+        flashSuccess(`${result.deleted} notícia(s) removida(s).`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao limpar notícias');
+    } finally {
+      setPruning(false);
     }
   };
 
@@ -698,6 +751,55 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       disabled={savingEmail}
                     >
                       {savingEmail ? '⏳ Salvando...' : '💾 Salvar E-mail'}
+                    </button>
+                  </div>
+                </section>
+
+                {/* Maintenance / retention */}
+                <section style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                  <h4 style={{ marginBottom: '12px' }}>🧹 Manutenção</h4>
+                  <p
+                    style={{
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                      marginTop: 0,
+                      marginBottom: '12px',
+                    }}
+                  >
+                    Remove notícias mais antigas que o número de dias definido para o banco não
+                    crescer sem limite. <strong>0 desliga</strong> a limpeza automática.
+                  </p>
+
+                  <div className="form-group" style={{ maxWidth: '220px' }}>
+                    <label htmlFor="retentionDays">Manter notícias por (dias):</label>
+                    <input
+                      id="retentionDays"
+                      type="number"
+                      min={0}
+                      max={3650}
+                      value={retentionDays}
+                      onChange={(e) => setRetentionDays(e.target.value)}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      gap: '10px',
+                      marginTop: '16px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <button className="btn btn-ghost" onClick={handlePrune} disabled={pruning}>
+                      {pruning ? '⏳ Limpando...' : '🗑️ Limpar agora'}
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveRetention}
+                      disabled={savingRetention}
+                    >
+                      {savingRetention ? '⏳ Salvando...' : '💾 Salvar Retenção'}
                     </button>
                   </div>
                 </section>

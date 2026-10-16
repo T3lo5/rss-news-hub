@@ -26,6 +26,8 @@ import type {
   NewsletterHistoryEntry,
   NewsResponse,
   OPMLImportResult,
+  PruneResult,
+  RetentionSettings,
   SchedulerStatus,
   ScoredNewsItem,
   StatsResponse,
@@ -550,6 +552,30 @@ export const api = {
       body: JSON.stringify(payload),
     });
     const data = await handleResponse<{ ok: boolean; data: EmailSettings }>(res);
+    return data.data;
+  },
+
+  async getRetentionSettings(): Promise<RetentionSettings> {
+    const res = await fetchWithAuth('/api/settings/retention');
+    const data = await handleResponse<{ ok: boolean; data: RetentionSettings }>(res);
+    return data.data;
+  },
+
+  async updateRetentionSettings(retentionDays: number): Promise<RetentionSettings> {
+    const res = await fetchWithAuth('/api/settings/retention', {
+      method: 'PUT',
+      body: JSON.stringify({ retentionDays }),
+    });
+    const data = await handleResponse<{ ok: boolean; data: RetentionSettings }>(res);
+    return data.data;
+  },
+
+  async pruneNews(retentionDays?: number): Promise<PruneResult> {
+    const res = await fetchWithAuth('/api/news/prune', {
+      method: 'POST',
+      body: JSON.stringify(retentionDays !== undefined ? { retentionDays } : {}),
+    });
+    const data = await handleResponse<{ ok: boolean; data: PruneResult }>(res);
     return data.data;
   },
 

@@ -39,6 +39,11 @@ import { addNews, readNews } from './services/news.service.js';
 import { generateOpenApiSpec } from './services/openapi.js';
 import { rateLimitMiddleware } from './services/rate-limiter.js';
 import {
+  getRetentionStatus,
+  runRetentionCleanup,
+  startRetentionJob,
+} from './services/retention.service.js';
+import {
   getStatus as getSchedulerStatus,
   setIntervalMs as setSchedulerInterval,
   startNewsletterJob,
@@ -55,6 +60,7 @@ import {
   persistNewsletterSettings,
   updateAiSettings,
   updateEmailSettings,
+  updateRetentionSettings,
   updateTelegramSettings,
 } from './services/settings.service.js';
 import { getFeedHealth, getStatsAsync } from './services/stats.service.js';
@@ -923,6 +929,44 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    // GET /api/settings/retention - news retention config (admin)
+    if (path === '/api/settings/retention' && req.method === 'GET') {
+      requireAdmin()(req, res, async () => {
+        return sendJSON(res, 200, { ok: true, data: getRetentionStatus() });
+      });
+      return;
+    }
+
+    // PUT /api/settings/retention - update the retention window (admin)
+    if (path === '/api/settings/retention' && req.method === 'PUT') {
+      requireAdmin()(req, res, () => {
+        validateBody(schemas.retentionSettingsSchema)(req, res, async () => {
+          try {
+            const config = await updateRetentionSettings(req.body);
+            startRetentionJob();
+            return sendJSON(res, 200, { ok: true, data: { ...config, ...getRetentionStatus() } });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        });
+      });
+      return;
+    }
+
+    // POST /api/news/prune - run the retention cleanup now (admin)
+    if (path === '/api/news/prune' && req.method === 'POST') {
+      requireAdmin()(req, res, async () => {
+        try {
+          const days = req.body?.retentionDays;
+          const result = await runRetentionCleanup(typeof days === 'number' ? days : undefined);
+          return sendJSON(res, 200, { ok: true, data: result });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
+    }
+
     // GET /api/ai/providers - available AI providers (configured flags)
     if (path === '/api/ai/providers' && req.method === 'GET') {
       requireViewer()(req, res, async () => {
@@ -1520,6 +1564,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   startNewsletterJob(newsletterConfig, { telegram, email });
   // Start Telegram queue worker (every minute)
   startTelegramQueueWorker(telegram, 60000);
+  // Start the news retention job (no-op unless a retention window is set)
+  startRetentionJob();
 
   // Global handlers to prevent crashes from network errors
   process.on('unhandledRejection', (reason, promise) => {

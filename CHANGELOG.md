@@ -8,6 +8,10 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- **Retenção de notícias**: as Configurações ganham a seção *Manutenção* para
+  manter apenas os últimos N dias (0 desliga) e limpar na hora; o job roda no
+  boot e a cada 24h, com `GET/PUT /api/settings/retention` e `POST /api/news/prune`
+  (admin) e fallback de `.env` via `NEWS_RETENTION_DAYS`
 - Tela **Fila do Telegram** (admin/usuário) para ver as mensagens agendadas,
   cancelar, processar a fila manualmente e ligar/desligar o worker; os
   endpoints de fila/worker agora exigem autenticação (worker: admin)

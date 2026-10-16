@@ -393,6 +393,33 @@ registerPath(
 );
 registerPath(
   'get',
+  '/api/settings/retention',
+  'Get retention settings',
+  'Get the news retention window and whether the pruning job is running (admin)',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'put',
+  '/api/settings/retention',
+  'Update retention settings',
+  'Set how many days of news to keep (0 disables automatic pruning) (admin)',
+  schemas.retentionSettingsSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'post',
+  '/api/news/prune',
+  'Prune old news',
+  'Run the retention cleanup immediately, optionally with a retentionDays override (admin)',
+  null,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'get',
   '/api/bookmarks',
   'List bookmarks',
   'List all bookmarked news items',

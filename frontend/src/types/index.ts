@@ -222,6 +222,19 @@ export interface AppSettings {
   email: EmailSettings;
   newsletter: NewsletterConfig;
   digest: DigestConfig;
+  retention: RetentionSettings;
+}
+
+export interface RetentionSettings {
+  retentionDays: number;
+  running?: boolean;
+}
+
+export interface PruneResult {
+  skipped: boolean;
+  deleted: number;
+  retentionDays: number;
+  cutoff?: string;
 }
 
 export interface AiProviderListItem {

@@ -10,7 +10,7 @@
 // Telegram and newsletter config objects are mutated in place (server.js holds
 // those references and passes them around).
 
-import { ai, email, newsletterConfig, telegram } from '../server.config.js';
+import { ai, email, newsletterConfig, retention, telegram } from '../server.config.js';
 import { settingsRepository } from '../src/db/repositories/index.js';
 import { __setAiConfig } from './ai.service.js';
 import { getDigestConfig, updateDigestConfig } from './digest.service.js';
@@ -31,6 +31,7 @@ const ENV_AI = structuredClone(ai);
 const ENV_TELEGRAM = { ...telegram };
 const ENV_NEWSLETTER = { ...newsletterConfig };
 const ENV_EMAIL = structuredClone(email);
+const ENV_RETENTION = { ...retention };
 
 async function readArea(area) {
   const raw = await settingsRepository.get(area);
@@ -91,12 +92,20 @@ function buildEmailConfig(stored = {}) {
   };
 }
 
+function buildRetentionConfig(stored = {}) {
+  return {
+    retentionDays:
+      stored.retentionDays !== undefined ? stored.retentionDays : ENV_RETENTION.retentionDays,
+  };
+}
+
 // Admin view: effective (env + persisted) config with secrets masked.
 export async function getPublicSettings() {
-  const [aiStored, tgStored, emailStored] = await Promise.all([
+  const [aiStored, tgStored, emailStored, retentionStored] = await Promise.all([
     readArea('ai'),
     readArea('telegram'),
     readArea('email'),
+    readArea('retention'),
   ]);
   const effectiveAi = buildAiConfig(aiStored);
   const effectiveTg = buildTelegramConfig(tgStored);
@@ -129,6 +138,7 @@ export async function getPublicSettings() {
     },
     newsletter: { ...newsletterConfig },
     digest: getDigestConfig(),
+    retention: buildRetentionConfig(retentionStored),
   };
 }
 
@@ -216,6 +226,17 @@ export async function persistNewsletterSettings() {
   await writeArea('newsletter', { ...newsletterConfig });
 }
 
+export async function updateRetentionSettings(data = {}) {
+  const stored = await readArea('retention');
+  const next = { ...stored };
+
+  if (data.retentionDays !== undefined) next.retentionDays = data.retentionDays;
+
+  await writeArea('retention', next);
+  Object.assign(retention, buildRetentionConfig(next));
+  return buildRetentionConfig(next);
+}
+
 export async function persistDigestSettings() {
   await writeArea('digest', getDigestConfig());
 }
@@ -223,12 +244,13 @@ export async function persistDigestSettings() {
 // Load persisted areas and apply them to the running process. Called once at
 // boot after the DB is ready and before schedulers/jobs start.
 export async function initSettings() {
-  const [aiStored, tgStored, nlStored, dgStored, emailStored] = await Promise.all([
+  const [aiStored, tgStored, nlStored, dgStored, emailStored, retentionStored] = await Promise.all([
     readArea('ai'),
     readArea('telegram'),
     readArea('newsletter'),
     readArea('digest'),
     readArea('email'),
+    readArea('retention'),
   ]);
 
   if (hasKeys(aiStored)) __setAiConfig(buildAiConfig(aiStored));
@@ -236,6 +258,7 @@ export async function initSettings() {
   if (hasKeys(nlStored)) Object.assign(newsletterConfig, nlStored);
   if (hasKeys(dgStored)) updateDigestConfig(dgStored);
   if (hasKeys(emailStored)) Object.assign(email, buildEmailConfig(emailStored));
+  if (hasKeys(retentionStored)) Object.assign(retention, buildRetentionConfig(retentionStored));
 }
 
 // Exposed for tests.
@@ -243,9 +266,11 @@ export const __settingsInternals = {
   AI_PROVIDER_IDS,
   buildAiConfig,
   buildEmailConfig,
+  buildRetentionConfig,
   buildTelegramConfig,
   ENV_AI,
   ENV_EMAIL,
   ENV_NEWSLETTER,
+  ENV_RETENTION,
   ENV_TELEGRAM,
 };

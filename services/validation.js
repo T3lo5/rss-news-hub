@@ -135,6 +135,10 @@ export const aiTestSchema = z.object({
   provider: z.enum(['auto', 'sensenova', 'deepseek', 'openai']).optional(),
 });
 
+export const retentionSettingsSchema = z.object({
+  retentionDays: z.number().int().min(0).max(3650),
+});
+
 // Email/SMTP settings (admin). pass: omitted = keep, null/'' = clear.
 export const emailSettingsSchema = z.object({
   enabled: z.boolean().optional(),
@@ -294,6 +298,7 @@ export const schemas = {
   aiSettingsSchema,
   telegramSettingsSchema,
   aiTestSchema,
+  retentionSettingsSchema,
   emailSettingsSchema,
   emailSendSchema,
   emailTestSchema,
