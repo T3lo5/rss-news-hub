@@ -1,5 +1,6 @@
-import { formatGeneratedContent } from '../utils/content';
+import { useI18n } from '../i18n';
 import type { ContentType, Language, NewsItem, Provider, Template } from '../types';
+import { formatGeneratedContent } from '../utils/content';
 import { ProviderSelect } from './ProviderSelect';
 
 interface ShareModalProps {
@@ -59,9 +60,11 @@ export function ShareModal({
   onCopyMarkdown,
   onClose,
 }: ShareModalProps) {
+  const { t, language: uiLanguage } = useI18n();
+  const locale = uiLanguage === 'en' ? 'en-US' : 'pt-BR';
   const formatDate = (iso: string) => {
     try {
-      return new Date(iso).toLocaleString('pt-BR', {
+      return new Date(iso).toLocaleString(locale, {
         day: '2-digit',
         month: '2-digit',
         hour: '2-digit',
@@ -76,8 +79,8 @@ export function ShareModal({
   const _previewItems = isNewsletter ? selectedNews : news ? [news] : [];
 
   // Filter templates by content type
-  const typeTemplates = templates.filter((t) => t.type === contentType);
-  const defaultTemplate = templates.find((t) => t.id === templateId) || typeTemplates[0];
+  const typeTemplates = templates.filter((tpl) => tpl.type === contentType);
+  const defaultTemplate = templates.find((tpl) => tpl.id === templateId) || typeTemplates[0];
 
   // Get template variables for the selected template
   const templateVars = defaultTemplate?.variables || [];
@@ -87,7 +90,7 @@ export function ShareModal({
     if (templateVars.length === 0) return null;
     return (
       <div className="form-group" style={{ marginTop: '12px' }}>
-        <label>Variáveis do template:</label>
+        <label>{t('content.templateVars')}</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {templateVars.map((varName) => (
             <div key={varName} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -100,7 +103,7 @@ export function ShareModal({
                 onChange={(e) =>
                   onTemplateVariablesChange({ ...templateVariables, [varName]: e.target.value })
                 }
-                placeholder={`Valor para ${varName}`}
+                placeholder={t('content.varPlaceholder', { name: varName })}
                 style={{ flex: 1 }}
               />
             </div>
@@ -120,8 +123,10 @@ export function ShareModal({
     >
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 id="modal-title">{isNewsletter ? '📰 Newsletter' : '📤 Compartilhar no Telegram'}</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Fechar modal">
+          <h3 id="modal-title">
+            {isNewsletter ? t('share.newsletterTitle') : t('share.title')}
+          </h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -129,7 +134,7 @@ export function ShareModal({
           <div className="news-preview">
             {isNewsletter ? (
               <div>
-                <h4>Newsletter ({selectedNews.length} itens selecionados)</h4>
+                <h4>{t('share.newsletterItems', { count: selectedNews.length })}</h4>
                 <ul
                   style={{
                     margin: '8px 0',
@@ -157,44 +162,40 @@ export function ShareModal({
                 <a href={news.link} target="_blank" rel="noopener noreferrer">
                   🔗 {news.link}
                 </a>
-                <p>
-                  Fonte: {news.source} • {formatDate(news.pubDate)}
-                </p>
+                <p>{t('share.source', { source: news.source, date: formatDate(news.pubDate) })}</p>
               </>
             ) : (
-              <p style={{ color: 'var(--text-muted)' }}>
-                Selecione uma notícia ou marque múltiplas para newsletter
-              </p>
+              <p style={{ color: 'var(--text-muted)' }}>{t('share.selectPrompt')}</p>
             )}
           </div>
 
           <div className="form-group">
-            <label htmlFor="contentType">Tipo de conteúdo:</label>
+            <label htmlFor="contentType">{t('share.contentType')}</label>
             <select
               id="contentType"
               value={contentType}
               onChange={(e) => onContentTypeChange(e.target.value as ContentType)}
             >
-              <option value="thread">🐦 Thread Twitter/X (3 tweets)</option>
-              <option value="summary">📝 Resumo</option>
-              <option value="linkedin">💼 Post LinkedIn</option>
-              <option value="blog">📖 Post Blog (Substack/dev.to)</option>
-              <option value="newsletter">📰 Newsletter (múltiplas notícias)</option>
+              <option value="thread">{t('share.optThread')}</option>
+              <option value="summary">{t('share.optSummary')}</option>
+              <option value="linkedin">{t('share.optLinkedin')}</option>
+              <option value="blog">{t('share.optBlog')}</option>
+              <option value="newsletter">{t('share.optNewsletter')}</option>
             </select>
           </div>
 
           <div className="form-group">
-            <label htmlFor="templateSelector">Template:</label>
+            <label htmlFor="templateSelector">{t('share.template')}</label>
             <select
               id="templateSelector"
               value={templateId}
               onChange={(e) => onTemplateIdChange(e.target.value)}
             >
-              <option value="">Usar padrão para o tipo</option>
-              {typeTemplates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.builtin ? ' (padrão)' : ''}
+              <option value="">{t('share.defaultTemplate')}</option>
+              {typeTemplates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.name}
+                  {tpl.builtin ? t('content.builtin') : ''}
                 </option>
               ))}
             </select>
@@ -203,24 +204,20 @@ export function ShareModal({
           {renderVariableInputs()}
 
           <div className="form-group">
-            <label htmlFor="contentLanguage">Idioma:</label>
+            <label htmlFor="contentLanguage">{t('content.language')}</label>
             <select
               id="contentLanguage"
               value={language}
               onChange={(e) => onLanguageChange(e.target.value as Language)}
             >
-              <option value="en">English</option>
-              <option value="pt">Português</option>
+              <option value="en">{t('lang.english')}</option>
+              <option value="pt">{t('lang.portuguese')}</option>
             </select>
           </div>
 
           <div className="form-group">
-            <label htmlFor="aiProvider">Provedor IA (opcional):</label>
-            <ProviderSelect
-              id="aiProvider"
-              value={provider}
-              onChange={onProviderChange}
-            />
+            <label htmlFor="aiProvider">{t('share.aiProvider')}</label>
+            <ProviderSelect id="aiProvider" value={provider} onChange={onProviderChange} />
           </div>
 
           <button
@@ -234,14 +231,14 @@ export function ShareModal({
                 <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>
                   ⏳
                 </span>
-                Gerando...
+                {t('content.generating')}
               </>
             ) : isNewsletter ? (
-              `✨ Gerar Newsletter (${selectedNews.length} itens)`
+              t('share.generateNewsletter', { count: selectedNews.length })
             ) : hasGenerated ? (
-              '🔄 Gerar novamente'
+              t('share.regenerate')
             ) : (
-              '✨ Gerar conteúdo'
+              t('share.generate')
             )}
           </button>
 
@@ -250,12 +247,12 @@ export function ShareModal({
             aria-live="polite"
           >
             {generating
-              ? 'Gerando conteúdo...'
+              ? t('content.generatingContent')
               : aiError
-                ? `Erro: ${aiError}`
+                ? t('share.error', { error: aiError })
                 : generatedContent
                   ? formatGeneratedContent(generatedContent, contentType)
-                  : 'Clique em "Gerar" para criar o conteúdo'}
+                  : t('share.clickGenerate')}
           </div>
 
           {generatedContent && !generating && !aiError && (
@@ -265,7 +262,7 @@ export function ShareModal({
                 onClick={onSendTelegram}
                 disabled={sending || tgSuccess}
               >
-                {sending ? '⏳ Enviando...' : tgSuccess ? '✅ Enviado!' : '📤 Enviar p/ Telegram'}
+                {sending ? t('content.sending') : tgSuccess ? t('content.sent') : t('content.sendTelegram')}
               </button>
               {isNewsletter ? (
                 <>
@@ -273,13 +270,13 @@ export function ShareModal({
                     <span role="img" aria-label="copy">
                       📋
                     </span>{' '}
-                    Copiar Markdown
+                    {t('share.copyMarkdown')}
                   </button>
                   <button className="btn btn-ghost" onClick={onCopyHtml}>
                     <span role="img" aria-label="copy">
                       🌐
                     </span>{' '}
-                    Copiar HTML
+                    {t('share.copyHtml')}
                   </button>
                 </>
               ) : (
@@ -287,7 +284,7 @@ export function ShareModal({
                   <span role="img" aria-label="copy">
                     📋
                   </span>{' '}
-                  Copiar
+                  {t('content.copy')}
                 </button>
               )}
             </div>
@@ -302,7 +299,7 @@ export function ShareModal({
                 textAlign: 'center',
               }}
             >
-              Erro: {tgError}
+              {t('share.error', { error: tgError })}
             </div>
           )}
         </div>

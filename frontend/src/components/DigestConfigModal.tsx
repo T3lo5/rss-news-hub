@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { DigestConfig, DigestPreview, DigestStatus } from '../types';
 import { ProviderSelect } from './ProviderSelect';
 
 const CRON_PRESETS = [
-  { label: 'Diário 9:00', value: '0 9 * * *' },
-  { label: 'Semanal (seg) 9:00', value: '0 9 * * 1' },
-  { label: 'Seg-Sex 9:00', value: '0 9 * * 1-5' },
-  { label: 'Custom', value: '' },
+  { key: 'digest.presetDaily', value: '0 9 * * *' },
+  { key: 'digest.presetWeekly', value: '0 9 * * 1' },
+  { key: 'digest.presetWeekdays', value: '0 9 * * 1-5' },
+  { key: 'digest.presetCustom', value: '' },
 ];
 
 const DEFAULT_CONFIG: DigestConfig = {
@@ -23,6 +24,8 @@ const DEFAULT_CONFIG: DigestConfig = {
 };
 
 export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t, language } = useI18n();
+  const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const [config, setConfig] = useState<DigestConfig>(DEFAULT_CONFIG);
   const [status, setStatus] = useState<DigestStatus | null>(null);
   const [selectedPreset, setSelectedPreset] = useState('');
@@ -44,14 +47,14 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
       setConfig(cfg);
       setStatus(status);
       const preset = CRON_PRESETS.find((p) => p.value === cfg.cron);
-      setSelectedPreset(preset ? preset.label : 'Custom');
+      setSelectedPreset(preset ? preset.key : 'digest.presetCustom');
       setPreview(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar o digest');
+      setError(err instanceof Error ? err.message : t('digest.errLoad'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isOpen) load();
@@ -66,12 +69,12 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
     setConfig((prev) => ({ ...prev, [key]: value }));
     if (key === 'cron') {
       const preset = CRON_PRESETS.find((p) => p.value === value);
-      setSelectedPreset(preset ? preset.label : 'Custom');
+      setSelectedPreset(preset ? preset.key : 'digest.presetCustom');
     }
   };
 
-  const handlePresetChange = (label: string) => {
-    const preset = CRON_PRESETS.find((p) => p.label === label);
+  const handlePresetChange = (key: string) => {
+    const preset = CRON_PRESETS.find((p) => p.key === key);
     if (preset) handleChange('cron', preset.value);
   };
 
@@ -82,9 +85,9 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
     try {
       const saved = await api.updateDigestConfig(config);
       setConfig(saved);
-      flashSuccess('Configuração do digest salva!');
+      flashSuccess(t('digest.saved'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao salvar');
+      setError(err instanceof Error ? err.message : t('digest.errSave'));
     } finally {
       setSaving(false);
     }
@@ -105,7 +108,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
       });
       setPreview(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao gerar prévia');
+      setError(err instanceof Error ? err.message : t('digest.errPreview'));
     } finally {
       setPreviewing(false);
     }
@@ -120,14 +123,14 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
       if (result.success) {
         flashSuccess(
           result.itemsCount > 0
-            ? `Digest enviado! (${result.itemsCount} itens)`
-            : 'Digest gerado, mas nenhum item relevante no período.'
+            ? t('digest.sentCount', { count: result.itemsCount })
+            : t('digest.sentEmpty')
         );
       } else {
-        setError(result.error || 'Falha ao enviar o digest');
+        setError(result.error || t('digest.errSend'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao enviar o digest');
+      setError(err instanceof Error ? err.message : t('digest.errSend'));
     } finally {
       setSending(false);
     }
@@ -149,12 +152,15 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3 id="digest-config-title">🧠 Digest Automático (Best News)</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Fechar">
+          <h3 id="digest-config-title">{t('digest.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
-        <div className="modal-body" style={{ padding: '20px', overflow: 'auto', maxHeight: '75vh' }}>
+        <div
+          className="modal-body"
+          style={{ padding: '20px', overflow: 'auto', maxHeight: '75vh' }}
+        >
           {error && (
             <div className="status error" style={{ marginBottom: '16px' }}>
               {error}
@@ -167,8 +173,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
           )}
 
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: 0 }}>
-            Seleciona as notícias com maior relevância no período e gera um resumo com IA, enviado
-            pelo Telegram. As mudanças ficam salvas e sobrevivem a reinícios.
+            {t('digest.intro')}
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -182,7 +187,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   onChange={(e) => handleChange('enabled', e.target.checked)}
                   disabled={loading}
                 />
-                <strong>Ativar envio agendado</strong>
+                <strong>{t('digest.enableScheduled')}</strong>
               </label>
               <p
                 style={{
@@ -192,7 +197,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   marginLeft: '24px',
                 }}
               >
-                Quando ativo, o digest é gerado e enviado automaticamente no horário do cron.
+                {t('digest.enableScheduledHint')}
               </p>
             </div>
 
@@ -206,7 +211,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   onChange={(e) => handleChange('emailEnabled', e.target.checked)}
                   disabled={loading}
                 />
-                Enviar também por e-mail
+                {t('digest.sendEmail')}
               </label>
               <p
                 style={{
@@ -216,12 +221,12 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   marginLeft: '24px',
                 }}
               >
-                Requer SMTP configurado em Configurações → E-mail.
+                {t('digest.sendEmailHint')}
               </p>
             </div>
 
             <div className="form-group">
-              <label htmlFor="digestCronPreset">Agendamento:</label>
+              <label htmlFor="digestCronPreset">{t('digest.schedule')}</label>
               <select
                 id="digestCronPreset"
                 value={selectedPreset}
@@ -229,28 +234,35 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 disabled={loading}
               >
                 {CRON_PRESETS.map((p) => (
-                  <option key={p.label} value={p.label}>
-                    {p.label}
+                  <option key={p.key} value={p.key}>
+                    {t(p.key)}
                   </option>
                 ))}
               </select>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Cron:{' '}
-                <code style={{ background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: '4px' }}>
+                {t('digest.cron')}{' '}
+                <code
+                  style={{
+                    background: 'var(--bg-primary)',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                  }}
+                >
                   {config.cron}
                 </code>
               </p>
               {status?.enabled && status.nextRun ? (
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  Próxima execução: <strong>{new Date(status.nextRun).toLocaleString()}</strong>
+                  {t('digest.nextRun')}{' '}
+                  <strong>{new Date(status.nextRun).toLocaleString(locale)}</strong>
                 </p>
               ) : null}
-              {selectedPreset === 'Custom' && (
+              {selectedPreset === 'digest.presetCustom' && (
                 <input
                   type="text"
                   value={config.cron}
                   onChange={(e) => handleChange('cron', e.target.value)}
-                  placeholder="ex: 0 9 * * 1"
+                  placeholder={t('digest.cronPlaceholder')}
                   style={{ marginTop: '8px', fontFamily: 'monospace' }}
                   disabled={loading}
                 />
@@ -259,7 +271,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="form-group">
-                <label htmlFor="digestLookback">Janela (dias):</label>
+                <label htmlFor="digestLookback">{t('digest.lookback')}</label>
                 <input
                   id="digestLookback"
                   type="number"
@@ -272,7 +284,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
               </div>
 
               <div className="form-group">
-                <label htmlFor="digestMinScore">Relevância mínima:</label>
+                <label htmlFor="digestMinScore">{t('digest.minScore')}</label>
                 <input
                   id="digestMinScore"
                   type="number"
@@ -287,7 +299,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
               </div>
 
               <div className="form-group">
-                <label htmlFor="digestMaxItems">Máximo de itens:</label>
+                <label htmlFor="digestMaxItems">{t('digest.maxItems')}</label>
                 <input
                   id="digestMaxItems"
                   type="number"
@@ -300,7 +312,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
               </div>
 
               <div className="form-group">
-                <label htmlFor="digestProvider">Provedor de IA:</label>
+                <label htmlFor="digestProvider">{t('digest.provider')}</label>
                 <ProviderSelect
                   id="digestProvider"
                   value={config.provider}
@@ -310,21 +322,21 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
               </div>
 
               <div className="form-group">
-                <label htmlFor="digestFormat">Formato:</label>
+                <label htmlFor="digestFormat">{t('digest.format')}</label>
                 <select
                   id="digestFormat"
                   value={config.format}
                   onChange={(e) => handleChange('format', e.target.value as DigestConfig['format'])}
                   disabled={loading}
                 >
-                  <option value="thread">Thread (Twitter/X)</option>
-                  <option value="summary">Resumo</option>
-                  <option value="linkedin">LinkedIn</option>
+                  <option value="thread">{t('digest.formatThread')}</option>
+                  <option value="summary">{t('digest.formatSummary')}</option>
+                  <option value="linkedin">{t('digest.formatLinkedin')}</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label htmlFor="digestLanguage">Idioma:</label>
+                <label htmlFor="digestLanguage">{t('digest.language')}</label>
                 <select
                   id="digestLanguage"
                   value={config.language}
@@ -333,8 +345,8 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   }
                   disabled={loading}
                 >
-                  <option value="en">English</option>
-                  <option value="pt">Português</option>
+                  <option value="en">{t('lang.english')}</option>
+                  <option value="pt">{t('lang.portuguese')}</option>
                 </select>
               </div>
             </div>
@@ -354,24 +366,24 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 onClick={handlePreview}
                 disabled={loading || previewing}
               >
-                {previewing ? '⏳ Gerando...' : '👁️ Pré-visualizar'}
+                {previewing ? t('digest.previewing') : t('digest.preview')}
               </button>
               <button
                 className="btn btn-secondary"
                 onClick={handleSendNow}
                 disabled={loading || sending}
               >
-                {sending ? '⏳ Enviando...' : '📨 Enviar agora'}
+                {sending ? t('digest.sending') : t('digest.sendNow')}
               </button>
               <button className="btn btn-primary" onClick={handleSave} disabled={loading || saving}>
-                {saving ? '⏳ Salvando...' : '💾 Salvar'}
+                {saving ? t('common.saving') : `💾 ${t('common.save')}`}
               </button>
             </div>
 
             {preview && (
               <div style={{ marginTop: '20px' }}>
                 <h4 style={{ marginBottom: '12px' }}>
-                  Prévia · {preview.items.length} item(ns)
+                  {t('digest.previewTitle', { count: preview.items.length })}
                 </h4>
 
                 {preview.content ? (
@@ -393,8 +405,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   </pre>
                 ) : (
                   <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                    Nenhum conteúdo gerado (sem itens relevantes ou sem provedor de IA
-                    configurado).
+                    {t('digest.noContent')}
                   </p>
                 )}
 

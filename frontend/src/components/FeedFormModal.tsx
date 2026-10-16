@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { testFeed } from '../hooks/useFeeds';
+import { useI18n } from '../i18n';
 import type { FeedConfig } from '../types';
 
 interface FeedFormModalProps {
@@ -9,6 +10,7 @@ interface FeedFormModalProps {
 }
 
 export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [enabled, setEnabled] = useState(true);
@@ -53,18 +55,18 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
 
   const validate = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    if (!name.trim()) newErrors.name = 'Name is required';
-    if (!url.trim()) newErrors.url = 'URL is required';
+    if (!name.trim()) newErrors.name = t('feedForm.errName');
+    if (!url.trim()) newErrors.url = t('feedForm.errUrl');
     else {
       try {
         new URL(url);
       } catch {
-        newErrors.url = 'Invalid URL format';
+        newErrors.url = t('feedForm.errUrlInvalid');
       }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, url]);
+  }, [name, url, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +74,7 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
 
     const finalCategory = category === 'custom' ? customCategory.trim() : category;
     if (!finalCategory) {
-      setErrors((prev) => ({ ...prev, category: 'Category is required' }));
+      setErrors((prev) => ({ ...prev, category: t('feedForm.errCategory') }));
       return;
     }
 
@@ -91,14 +93,16 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
       setTestResult({
         success: result.success,
         message: result.success
-          ? `Success! Found ${result.itemCount} items`
-          : `Error: ${result.error}`,
+          ? t('feedForm.testSuccess', { count: result.itemCount })
+          : t('feedForm.testError', { error: result.error }),
         preview: result.preview?.slice(0, 3),
       });
     } catch (err) {
       setTestResult({
         success: false,
-        message: `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        message: t('feedForm.testError', {
+          error: err instanceof Error ? err.message : t('feedForm.unknownError'),
+        }),
       });
     } finally {
       setTesting(false);
@@ -117,27 +121,29 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
     >
       <div className="modal" style={{ maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 id="feed-form-title">{isEditing ? 'Edit Feed' : 'Add Feed'}</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
+          <h3 id="feed-form-title">
+            {isEditing ? t('feedForm.editTitle') : t('feedForm.addFeed')}
+          </h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
         <form onSubmit={handleSubmit} className="modal-body">
           <div className="form-group">
-            <label htmlFor="feed-name">Name *</label>
+            <label htmlFor="feed-name">{t('feedForm.name')}</label>
             <input
               id="feed-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., TechCrunch"
+              placeholder={t('feedForm.namePlaceholder')}
               className={errors.name ? 'error' : ''}
             />
             {errors.name && <span className="error-text">{errors.name}</span>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="feed-url">RSS URL *</label>
+            <label htmlFor="feed-url">{t('feedForm.url')}</label>
             <input
               id="feed-url"
               type="url"
@@ -150,7 +156,7 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
           </div>
 
           <div className="form-group">
-            <label htmlFor="feed-category">Category</label>
+            <label htmlFor="feed-category">{t('feedForm.category')}</label>
             <select
               id="feed-category"
               value={category}
@@ -161,14 +167,14 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
                   {cat}
                 </option>
               ))}
-              <option value="custom">+ Custom...</option>
+              <option value="custom">{t('feedForm.custom')}</option>
             </select>
             {category === 'custom' && (
               <input
                 type="text"
                 value={customCategory}
                 onChange={(e) => setCustomCategory(e.target.value)}
-                placeholder="Enter custom category"
+                placeholder={t('feedForm.customPlaceholder')}
                 style={{ marginTop: '8px' }}
               />
             )}
@@ -181,7 +187,7 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
                 checked={enabled}
                 onChange={(e) => setEnabled(e.target.checked)}
               />
-              <span>Enabled (fetch automatically)</span>
+              <span>{t('feedForm.enabled')}</span>
             </label>
           </div>
 
@@ -192,7 +198,7 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
               </div>
               {testResult.preview && testResult.preview.length > 0 && (
                 <div style={{ fontSize: '12px', opacity: 0.8 }}>
-                  Preview:
+                  {t('feedForm.preview')}
                   <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
                     {testResult.preview.map((item, i) => (
                       <li key={i}>
@@ -209,7 +215,7 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
 
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -217,10 +223,10 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
               onClick={handleTest}
               disabled={testing || !feed?.id}
             >
-              {testing ? 'Testing...' : 'Test Feed'}
+              {testing ? t('feedForm.testing') : t('feedForm.test')}
             </button>
             <button type="submit" className="btn btn-primary">
-              {isEditing ? 'Save Changes' : 'Add Feed'}
+              {isEditing ? t('feedForm.saveChanges') : t('feedForm.addFeed')}
             </button>
           </div>
         </form>

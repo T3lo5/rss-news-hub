@@ -6,14 +6,15 @@ import {
   triggerNewsletter,
   updateNewsletterConfig,
 } from '../hooks/useNewsletter';
+import { useI18n } from '../i18n';
 import type { FeedConfig, NewsletterConfig, NewsletterHistoryEntry } from '../types';
 import { ProviderSelect } from './ProviderSelect';
 
 const CRON_PRESETS = [
-  { label: 'Daily 9:00', value: '0 9 * * *' },
-  { label: 'Weekly Monday 9:00', value: '0 9 * * 1' },
-  { label: 'Mon-Fri 9:00', value: '0 9 * * 1-5' },
-  { label: 'Custom', value: '' },
+  { key: 'newsletterConfig.presetDaily', value: '0 9 * * *' },
+  { key: 'newsletterConfig.presetWeekly', value: '0 9 * * 1' },
+  { key: 'newsletterConfig.presetWeekdays', value: '0 9 * * 1-5' },
+  { key: 'newsletterConfig.presetCustom', value: '' },
 ];
 
 export function NewsletterConfigModal({
@@ -23,6 +24,8 @@ export function NewsletterConfigModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const { t, language } = useI18n();
+  const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const [config, setConfig] = useState<NewsletterConfig>({
     enabled: false,
     cron: '0 9 * * 1',
@@ -56,13 +59,13 @@ export function NewsletterConfigModal({
       setHistory(hist);
 
       const preset = CRON_PRESETS.find((p) => p.value === cfg.cron);
-      setSelectedPreset(preset ? preset.label : 'Custom');
+      setSelectedPreset(preset ? preset.key : 'newsletterConfig.presetCustom');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load config');
+      setError(err instanceof Error ? err.message : t('newsletterConfig.errLoad'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isOpen) loadData();
@@ -72,12 +75,12 @@ export function NewsletterConfigModal({
     setConfig((prev) => ({ ...prev, [key]: value }));
     if (key === 'cron') {
       const preset = CRON_PRESETS.find((p) => p.value === value);
-      setSelectedPreset(preset ? preset.label : 'Custom');
+      setSelectedPreset(preset ? preset.key : 'newsletterConfig.presetCustom');
     }
   };
 
-  const handlePresetChange = (label: string) => {
-    const preset = CRON_PRESETS.find((p) => p.label === label);
+  const handlePresetChange = (key: string) => {
+    const preset = CRON_PRESETS.find((p) => p.key === key);
     if (preset) {
       handleChange('cron', preset.value);
     }
@@ -107,10 +110,10 @@ export function NewsletterConfigModal({
     setSuccess(null);
     try {
       await updateNewsletterConfig(config);
-      setSuccess('Configuration saved!');
+      setSuccess(t('newsletterConfig.saved'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      setError(err instanceof Error ? err.message : t('newsletterConfig.errSave'));
     } finally {
       setSaving(false);
     }
@@ -123,13 +126,13 @@ export function NewsletterConfigModal({
     try {
       const result = await triggerNewsletter();
       if (result.success) {
-        setSuccess(`Test newsletter sent! (${result.itemCount} items)`);
+        setSuccess(t('newsletterConfig.testSent', { count: result.itemCount }));
       } else {
-        setError(result.error || 'Test failed');
+        setError(result.error || t('newsletterConfig.testFailed'));
       }
       loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Test failed');
+      setError(err instanceof Error ? err.message : t('newsletterConfig.testFailed'));
     } finally {
       setTesting(false);
     }
@@ -154,8 +157,8 @@ export function NewsletterConfigModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3 id="newsletter-config-title">📰 Newsletter Scheduler</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
+          <h3 id="newsletter-config-title">{t('newsletterConfig.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -185,7 +188,7 @@ export function NewsletterConfigModal({
                   onChange={(e) => handleChange('enabled', e.target.checked)}
                   disabled={loading}
                 />
-                <strong>Enable Scheduled Newsletter</strong>
+                <strong>{t('newsletterConfig.enable')}</strong>
               </label>
               <p
                 style={{
@@ -195,12 +198,12 @@ export function NewsletterConfigModal({
                   marginLeft: '24px',
                 }}
               >
-                When enabled, a newsletter will be generated and sent automatically on schedule.
+                {t('newsletterConfig.enableHint')}
               </p>
             </div>
 
             <div className="form-group">
-              <label htmlFor="cronPreset">Schedule Preset:</label>
+              <label htmlFor="cronPreset">{t('newsletterConfig.schedulePreset')}</label>
               <select
                 id="cronPreset"
                 value={selectedPreset}
@@ -208,13 +211,13 @@ export function NewsletterConfigModal({
                 disabled={loading}
               >
                 {CRON_PRESETS.map((p) => (
-                  <option key={p.label} value={p.label}>
-                    {p.label}
+                  <option key={p.key} value={p.key}>
+                    {t(p.key)}
                   </option>
                 ))}
               </select>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Cron expression:{' '}
+                {t('newsletterConfig.cronExpr')}{' '}
                 <code
                   style={{
                     background: 'var(--bg-primary)',
@@ -225,12 +228,12 @@ export function NewsletterConfigModal({
                   {config.cron}
                 </code>
               </p>
-              {selectedPreset === 'Custom' && (
+              {selectedPreset === 'newsletterConfig.presetCustom' && (
                 <input
                   type="text"
                   value={config.cron}
                   onChange={(e) => handleChange('cron', e.target.value)}
-                  placeholder="e.g. 0 9 * * 1"
+                  placeholder={t('newsletterConfig.cronPlaceholder')}
                   style={{ marginTop: '8px', fontFamily: 'monospace' }}
                   disabled={loading}
                 />
@@ -238,7 +241,7 @@ export function NewsletterConfigModal({
             </div>
 
             <div className="form-group">
-              <label htmlFor="lookbackDays">Lookback Days:</label>
+              <label htmlFor="lookbackDays">{t('newsletterConfig.lookback')}</label>
               <input
                 id="lookbackDays"
                 type="number"
@@ -249,31 +252,31 @@ export function NewsletterConfigModal({
                 disabled={loading}
               />
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Include news from the last N days
+                {t('newsletterConfig.lookbackHint')}
               </p>
             </div>
 
             <div className="form-group">
-              <label htmlFor="language">Language:</label>
+              <label htmlFor="language">{t('newsletterConfig.language')}</label>
               <select
                 id="language"
                 value={config.language}
                 onChange={(e) => handleChange('language', e.target.value as 'en' | 'pt')}
                 disabled={loading}
               >
-                <option value="en">English</option>
-                <option value="pt">Português</option>
+                <option value="en">{t('lang.english')}</option>
+                <option value="pt">{t('lang.portuguese')}</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label htmlFor="provider">AI Provider:</label>
+              <label htmlFor="provider">{t('newsletterConfig.provider')}</label>
               <ProviderSelect
                 id="provider"
                 value={config.provider}
                 onChange={(value) => handleChange('provider', value)}
                 disabled={loading}
-                autoLabel="Auto (first available)"
+                autoLabel={t('common.autoFirst')}
               />
             </div>
 
@@ -287,7 +290,7 @@ export function NewsletterConfigModal({
                   onChange={(e) => handleChange('telegramEnabled', e.target.checked)}
                   disabled={loading}
                 />
-                Send via Telegram
+                {t('newsletterConfig.telegram')}
               </label>
             </div>
 
@@ -301,7 +304,7 @@ export function NewsletterConfigModal({
                   onChange={(e) => handleChange('emailEnabled', e.target.checked)}
                   disabled={loading}
                 />
-                Send via E-mail
+                {t('newsletterConfig.email')}
               </label>
               <p
                 style={{
@@ -311,13 +314,16 @@ export function NewsletterConfigModal({
                   marginLeft: '24px',
                 }}
               >
-                Requires SMTP configured in Settings → E-mail.
+                {t('newsletterConfig.emailHint')}
               </p>
             </div>
 
             <div className="form-group">
               <label>
-                Filter by Sources ({config.sources.length}/{allSources.length}):
+                {t('newsletterConfig.filterSources', {
+                  selected: config.sources.length,
+                  total: allSources.length,
+                })}
               </label>
               <div
                 style={{
@@ -354,18 +360,21 @@ export function NewsletterConfigModal({
                 ))}
                 {allSources.length === 0 && (
                   <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                    No feeds loaded
+                    {t('newsletterConfig.noFeeds')}
                   </span>
                 )}
               </div>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Empty = all sources
+                {t('newsletterConfig.emptySources')}
               </p>
             </div>
 
             <div className="form-group">
               <label>
-                Filter by Categories ({config.categories.length}/{allCategories.length}):
+                {t('newsletterConfig.filterCategories', {
+                  selected: config.categories.length,
+                  total: allCategories.length,
+                })}
               </label>
               <div
                 style={{
@@ -402,12 +411,12 @@ export function NewsletterConfigModal({
                 ))}
                 {allCategories.length === 0 && (
                   <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                    No categories
+                    {t('newsletterConfig.noCategories')}
                   </span>
                 )}
               </div>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Empty = all categories
+                {t('newsletterConfig.emptyCategories')}
               </p>
             </div>
 
@@ -427,37 +436,39 @@ export function NewsletterConfigModal({
                 onClick={handleTest}
                 disabled={loading || testing || !config.enabled}
               >
-                {testing ? '⏳ Testing...' : '🧪 Test Now'}
+                {testing ? t('newsletterConfig.testing') : t('newsletterConfig.test')}
               </button>
               <button
                 className="btn btn-secondary"
                 onClick={handleSave}
                 disabled={loading || saving}
               >
-                {saving ? '⏳ Saving...' : '💾 Save Config'}
+                {saving ? t('common.saving') : t('newsletterConfig.save')}
               </button>
             </div>
 
             {history.length > 0 && (
               <div style={{ marginTop: '24px' }}>
-                <h4 style={{ marginBottom: '12px' }}>Recent Runs</h4>
+                <h4 style={{ marginBottom: '12px' }}>{t('newsletterConfig.recentRuns')}</h4>
                 <div className="table-container">
                   <table className="stats-table" style={{ fontSize: '12px' }}>
                     <thead>
                       <tr>
-                        <th>Time</th>
-                        <th>Status</th>
-                        <th>Items</th>
-                        <th>Preview</th>
+                        <th>{t('newsletterConfig.colTime')}</th>
+                        <th>{t('newsletterConfig.colStatus')}</th>
+                        <th>{t('newsletterConfig.colItems')}</th>
+                        <th>{t('newsletterConfig.colPreview')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {history.slice(0, 10).map((entry, i) => (
                         <tr key={i}>
-                          <td>{new Date(entry.timestamp).toLocaleString()}</td>
+                          <td>{new Date(entry.timestamp).toLocaleString(locale)}</td>
                           <td>
                             <span className={`status-badge ${entry.success ? 'ok' : 'error'}`}>
-                              {entry.success ? 'Success' : 'Failed'}
+                              {entry.success
+                                ? t('newsletterConfig.success')
+                                : t('newsletterConfig.failed')}
                             </span>
                           </td>
                           <td>{entry.itemCount}</td>
@@ -471,7 +482,10 @@ export function NewsletterConfigModal({
                               fontSize: '11px',
                             }}
                           >
-                            {entry.contentPreview || (entry.error ? `Error: ${entry.error}` : '')}
+                            {entry.contentPreview ||
+                              (entry.error
+                                ? t('newsletterConfig.errorPrefix', { error: entry.error })
+                                : '')}
                           </td>
                         </tr>
                       ))}

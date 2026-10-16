@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
+import { useI18n } from '../i18n';
 import type { Bookmark } from '../types';
 
 export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t, language } = useI18n();
+  const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,11 +16,11 @@ export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
       const data = await fetchBookmarks();
       setBookmarks(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load bookmarks');
+      setError(err instanceof Error ? err.message : t('bookmarks.errLoad'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isOpen) loadBookmarks();
@@ -28,7 +31,7 @@ export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
       await removeBookmark(newsId);
       setBookmarks((prev) => prev.filter((b) => b.newsId !== newsId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove bookmark');
+      setError(err instanceof Error ? err.message : t('bookmarks.errRemove'));
     }
   };
 
@@ -52,8 +55,8 @@ export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3 id="bookmarks-title">🔖 Read Later ({bookmarks.length})</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
+          <h3 id="bookmarks-title">{t('bookmarks.title', { count: bookmarks.length })}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -69,13 +72,13 @@ export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-              Loading bookmarks...
+              {t('bookmarks.loading')}
             </div>
           ) : bookmarks.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-              <p style={{ fontSize: '18px', marginBottom: '8px' }}>No bookmarks yet</p>
+              <p style={{ fontSize: '18px', marginBottom: '8px' }}>{t('bookmarks.empty')}</p>
               <p style={{ fontSize: '14px' }}>
-                Press <kbd>B</kbd> on any article to save it for later
+                {t('bookmarks.emptyHintPre')} <kbd>B</kbd> {t('bookmarks.emptyHintPost')}
               </p>
             </div>
           ) : (
@@ -120,13 +123,13 @@ export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
                       }}
                     >
                       <span>{bookmark.source}</span>
-                      <span>{new Date(bookmark.bookmarkedAt).toLocaleDateString()}</span>
+                      <span>{new Date(bookmark.bookmarkedAt).toLocaleDateString(locale)}</span>
                     </div>
                   </div>
                   <button
                     className="btn btn-ghost btn-sm"
                     onClick={() => handleRemove(bookmark.newsId)}
-                    aria-label="Remove bookmark"
+                    aria-label={t('bookmark.removeAria')}
                     style={{ alignSelf: 'flex-start' }}
                   >
                     <svg

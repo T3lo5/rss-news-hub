@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchProfile, updateProfile } from '../hooks/useRelevance';
+import { useI18n } from '../i18n';
 import type { InterestProfile } from '../types';
 
 export function InterestProfileModal({
@@ -9,6 +10,7 @@ export function InterestProfileModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [profile, setProfile] = useState<InterestProfile>({
     keywords: [],
     topics: [],
@@ -31,11 +33,11 @@ export function InterestProfileModal({
       const data = await fetchProfile();
       setProfile(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load profile');
+      setError(err instanceof Error ? err.message : t('profile.errLoad'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isOpen) loadProfile();
@@ -66,10 +68,10 @@ export function InterestProfileModal({
     setSuccess(null);
     try {
       await updateProfile(profile);
-      setSuccess('Profile saved!');
+      setSuccess(t('profile.saved'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      setError(err instanceof Error ? err.message : t('profile.errSave'));
     } finally {
       setSaving(false);
     }
@@ -132,7 +134,7 @@ export function InterestProfileModal({
           style={{ flex: 1 }}
         />
         <button className="btn btn-sm" onClick={() => addItem(field, newValue, setNewValue)}>
-          Add
+          {t('profile.add')}
         </button>
       </div>
     </div>
@@ -154,8 +156,8 @@ export function InterestProfileModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3 id="profile-title">🎯 Interest Profile</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
+          <h3 id="profile-title">{t('profile.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -175,35 +177,34 @@ export function InterestProfileModal({
           )}
 
           <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '14px' }}>
-            Configure your interests to get AI-powered relevance scoring on articles. Articles
-            matching your keywords/topics from preferred sources score higher.
+            {t('profile.intro')}
           </p>
 
           {renderTagList(
             'keywords',
-            'Keywords',
-            'e.g. AI, Kubernetes, TypeScript',
+            t('profile.keywords'),
+            t('profile.keywordsPlaceholder'),
             newKeyword,
             setNewKeyword
           )}
           {renderTagList(
             'topics',
-            'Topics',
-            'e.g. Machine Learning, Cloud Computing',
+            t('profile.topics'),
+            t('profile.topicsPlaceholder'),
             newTopic,
             setNewTopic
           )}
           {renderTagList(
             'preferredSources',
-            'Preferred Sources',
-            'e.g. OpenAI Blog, GitHub Blog',
+            t('profile.preferredSources'),
+            t('profile.sourcesPlaceholder'),
             newSource,
             setNewSource
           )}
           {renderTagList(
             'excludedKeywords',
-            'Excluded Keywords',
-            'e.g. crypto, blockchain',
+            t('profile.excludedKeywords'),
+            t('profile.excludedPlaceholder'),
             newExcluded,
             setNewExcluded
           )}
@@ -220,7 +221,7 @@ export function InterestProfileModal({
             }}
           >
             <button className="btn btn-primary" onClick={handleSave} disabled={loading || saving}>
-              {saving ? '⏳ Saving...' : '💾 Save Profile'}
+              {saving ? t('common.saving') : t('profile.save')}
             </button>
           </div>
         </div>

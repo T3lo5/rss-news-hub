@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useI18n } from '../i18n';
 import type { NewsItem } from '../types';
 import { BookmarkButton } from './BookmarkButton';
 import { RelevanceBadge } from './RelevanceBadge';
@@ -17,9 +18,9 @@ interface NewsGridProps {
   sentIds?: Set<string>;
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   try {
-    return new Date(iso).toLocaleString('pt-BR', {
+    return new Date(iso).toLocaleString(locale, {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
@@ -52,6 +53,8 @@ export function NewsGrid({
   generatedIds,
   sentIds,
 }: NewsGridProps) {
+  const { t, language } = useI18n();
+  const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const cardRefs = useRef<(HTMLArticleElement | null)[]>([]);
 
   // Scroll selected card into view
@@ -69,7 +72,7 @@ export function NewsGrid({
       <div className="news-grid">
         <div className="loading">
           <div className="spinner" aria-hidden="true" />
-          <span>Carregando notícias...</span>
+          <span>{t('news.loading')}</span>
         </div>
       </div>
     );
@@ -79,7 +82,7 @@ export function NewsGrid({
     return (
       <div className="news-grid">
         <div className="empty" style={{ color: 'var(--danger)' }}>
-          Erro ao carregar: {error}
+          {t('news.errLoad', { error })}
         </div>
       </div>
     );
@@ -89,14 +92,14 @@ export function NewsGrid({
     return (
       <div className="news-grid">
         <div className="empty">
-          Nenhuma notícia encontrada. Use <kbd>j</kbd>/<kbd>k</kbd> para navegar.
+          {t('news.emptyNavigatePre')} <kbd>j</kbd>/<kbd>k</kbd> {t('news.emptyNavigatePost')}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="news-grid" role="list" aria-label="Lista de notícias">
+    <div className="news-grid" role="list" aria-label={t('news.listAria')}>
       {news.map((item, index) => {
         const isSelected = selectedIds?.has(item.id) ?? false;
         const isKeyboardSelected = index === selectedIndex;
@@ -123,22 +126,22 @@ export function NewsGrid({
                     e.preventDefault();
                   }
                 }}
-                aria-label={`Selecionar: ${item.title}`}
+                aria-label={t('news.selectAria', { title: item.title })}
               />
               <div className="news-header">
-                <span className="news-source">{item.source || 'Desconhecida'}</span>
+                <span className="news-source">{item.source || t('news.unknownSource')}</span>
                 <RelevanceBadge score={item.relevanceScore} size="sm" />
                 {sentIds?.has(item.id) ? (
-                  <span className="generated-badge sent" title="Conteúdo enviado para o Telegram">
-                    ✅ Enviado
+                  <span className="generated-badge sent" title={t('news.sentTitle')}>
+                    {t('news.sent')}
                   </span>
                 ) : generatedIds?.has(item.id) ? (
-                  <span className="generated-badge" title="Conteúdo já gerado — clique em Compartilhar para reenviar">
-                    ✨ Gerado
+                  <span className="generated-badge" title={t('news.generatedTitle')}>
+                    {t('news.generated')}
                   </span>
                 ) : null}
                 <time className="news-date" dateTime={item.pubDate}>
-                  {formatDate(item.pubDate)}
+                  {formatDate(item.pubDate, locale)}
                 </time>
               </div>
             </div>
@@ -146,7 +149,7 @@ export function NewsGrid({
             <p className="news-desc">
               {item.description
                 ? escapeHtml(item.description).slice(0, 200) + '...'
-                : 'Sem descrição'}
+                : t('news.noDescription')}
             </p>
             <div className="news-actions">
               <BookmarkButton
@@ -163,17 +166,17 @@ export function NewsGrid({
                 <span role="img" aria-label="link">
                   🔗
                 </span>{' '}
-                Abrir
+                {t('news.open')}
               </a>
               <button
                 className="btn btn-share"
                 onClick={() => onShare(item)}
-                aria-label={`Compartilhar: ${item.title}`}
+                aria-label={t('news.shareAria', { title: item.title })}
               >
                 <span role="img" aria-label="share">
                   📤
                 </span>{' '}
-                Compartilhar
+                {t('news.share')}
               </button>
             </div>
           </article>

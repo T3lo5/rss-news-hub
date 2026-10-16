@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { Template } from '../types';
 
@@ -8,6 +9,7 @@ interface TemplatesModalProps {
 }
 
 export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
+  const { t } = useI18n();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,11 +30,11 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
       const data = await api.getTemplates();
       setTemplates(Array.isArray(data?.templates) ? data.templates : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao carregar templates');
+      setError(e instanceof Error ? e.message : t('templates.errLoad'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isOpen) {
@@ -90,26 +92,26 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
       handleCloseForm();
       loadTemplates();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar template');
+      setError(e instanceof Error ? e.message : t('templates.errSave'));
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este template?')) return;
+    if (!confirm(t('templates.confirmDelete'))) return;
     try {
       await api.deleteTemplate(id);
       loadTemplates();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao excluir template');
+      setError(e instanceof Error ? e.message : t('templates.errDelete'));
     }
   };
 
   const handleTest = async (template: Template) => {
     try {
       const result = await api.testTemplate(template.id, {});
-      alert(`System Prompt gerado:\n\n${result.systemPrompt.substring(0, 500)}...`);
+      alert(t('templates.testAlert', { prompt: result.systemPrompt.substring(0, 500) }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao testar template');
+      setError(e instanceof Error ? e.message : t('templates.errTest'));
     }
   };
 
@@ -123,8 +125,8 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h2>📋 Gerenciar Templates</h2>
-          <button className="btn-close" onClick={onClose} aria-label="Fechar">
+          <h2>{t('templates.title')}</h2>
+          <button className="btn-close" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -136,7 +138,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
               style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
             >
               <div className="form-group">
-                <label htmlFor="templateId">ID *</label>
+                <label htmlFor="templateId">{t('templates.idLabel')}</label>
                 <input
                   id="templateId"
                   type="text"
@@ -144,27 +146,25 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                   onChange={(e) => setFormData((prev) => ({ ...prev, id: e.target.value }))}
                   required
                   disabled={Boolean(editingTemplate)}
-                  placeholder="ex: meu-template-custom"
+                  placeholder={t('templates.idPlaceholder')}
                 />
-                <small style={{ color: 'var(--text-muted)' }}>
-                  Identificador único (não pode ser alterado após criação)
-                </small>
+                <small style={{ color: 'var(--text-muted)' }}>{t('templates.idHint')}</small>
               </div>
 
               <div className="form-group">
-                <label htmlFor="templateName">Nome *</label>
+                <label htmlFor="templateName">{t('templates.nameLabel')}</label>
                 <input
                   id="templateName"
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   required
-                  placeholder="ex: Meu Template Personalizado"
+                  placeholder={t('templates.namePlaceholder')}
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="templateType">Tipo *</label>
+                <label htmlFor="templateType">{t('templates.typeLabel')}</label>
                 <select
                   id="templateType"
                   value={formData.type}
@@ -176,30 +176,28 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                   }
                   required
                 >
-                  <option value="thread">🐦 Thread Twitter/X</option>
-                  <option value="summary">📝 Resumo</option>
-                  <option value="linkedin">💼 Post LinkedIn</option>
-                  <option value="blog">📖 Post Blog</option>
-                  <option value="newsletter">📰 Newsletter</option>
+                  <option value="thread">{t('templates.typeThread')}</option>
+                  <option value="summary">{t('templates.typeSummary')}</option>
+                  <option value="linkedin">{t('templates.typeLinkedin')}</option>
+                  <option value="blog">{t('templates.typeBlog')}</option>
+                  <option value="newsletter">{t('templates.typeNewsletter')}</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label htmlFor="templateVariables">Variáveis (separadas por vírgula)</label>
+                <label htmlFor="templateVariables">{t('templates.varsLabel')}</label>
                 <input
                   id="templateVariables"
                   type="text"
                   value={formData.variables}
                   onChange={(e) => setFormData((prev) => ({ ...prev, variables: e.target.value }))}
-                  placeholder="ex: language, title, customVar"
+                  placeholder={t('templates.varsPlaceholder')}
                 />
-                <small style={{ color: 'var(--text-muted)' }}>
-                  {'Use {{variable}} no systemPrompt'}
-                </small>
+                <small style={{ color: 'var(--text-muted)' }}>{t('templates.varsHint')}</small>
               </div>
 
               <div className="form-group">
-                <label htmlFor="templatePrompt">System Prompt *</label>
+                <label htmlFor="templatePrompt">{t('templates.promptLabel')}</label>
                 <textarea
                   id="templatePrompt"
                   value={formData.systemPrompt}
@@ -209,16 +207,16 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                   required
                   rows={12}
                   style={{ fontFamily: 'monospace', fontSize: '13px' }}
-                  placeholder="Escreva o prompt usando {{variable}} para substituição..."
+                  placeholder={t('templates.promptPlaceholder')}
                 />
               </div>
 
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={handleCloseForm}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  {editingTemplate ? 'Atualizar' : 'Criar'}
+                  {editingTemplate ? t('templates.update') : t('common.create')}
                 </button>
               </div>
             </form>
@@ -227,7 +225,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
           <div className="modal-body">
             {error && (
               <div className="error" style={{ marginBottom: '16px' }}>
-                Erro: {error}
+                {t('templates.errorPrefix', { error })}
               </div>
             )}
 
@@ -239,29 +237,29 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                 marginBottom: '16px',
               }}
             >
-              <h3>Templates ({(templates ?? []).length})</h3>
+              <h3>{t('templates.list', { count: (templates ?? []).length })}</h3>
               <button className="btn btn-primary" onClick={() => handleOpenForm()}>
                 <span role="img" aria-label="add">
                   ＋
                 </span>{' '}
-                Novo Template
+                {t('templates.new')}
               </button>
             </div>
 
             {loading ? (
-              <div className="loading">Carregando templates...</div>
+              <div className="loading">{t('templates.loading')}</div>
             ) : (templates ?? []).length === 0 ? (
-              <p className="empty">Nenhum template encontrado.</p>
+              <p className="empty">{t('templates.empty')}</p>
             ) : (
               <div className="table-container">
                 <table className="stats-table">
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Nome</th>
-                      <th>Tipo</th>
-                      <th>Variáveis</th>
-                      <th>Ações</th>
+                      <th>{t('templates.colId')}</th>
+                      <th>{t('common.name')}</th>
+                      <th>{t('templates.colType')}</th>
+                      <th>{t('templates.colVars')}</th>
+                      <th>{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -283,7 +281,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                                 borderRadius: '3px',
                               }}
                             >
-                              padrão
+                              {t('templates.builtin')}
                             </span>
                           )}
                         </td>
@@ -298,14 +296,14 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                               style={{ padding: '4px 8px', fontSize: '12px' }}
                               disabled={template.builtin}
                             >
-                              ✏️ Editar
+                              {t('templates.edit')}
                             </button>
                             <button
                               className="btn btn-ghost"
                               onClick={() => handleTest(template)}
                               style={{ padding: '4px 8px', fontSize: '12px' }}
                             >
-                              🧪 Testar
+                              {t('templates.test')}
                             </button>
                             {!template.builtin && (
                               <button
@@ -317,7 +315,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                                   color: 'var(--danger)',
                                 }}
                               >
-                                🗑️ Excluir
+                                {t('templates.delete')}
                               </button>
                             )}
                           </div>

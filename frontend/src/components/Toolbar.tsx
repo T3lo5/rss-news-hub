@@ -1,3 +1,5 @@
+import { useI18n } from '../i18n';
+
 interface ToolbarProps {
   searchQuery?: string;
   onSearchChange: (value: string) => void;
@@ -43,39 +45,42 @@ export function Toolbar({
   onProfileClick,
   onNewsletterBuilderClick,
 }: ToolbarProps) {
+  const { t } = useI18n();
   return (
     <div className="toolbar">
       <div className="search-box">
         <input
           type="text"
-          placeholder="Buscar por título ou fonte..."
+          placeholder={t('news.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          aria-label="Buscar notícias"
+          aria-label={t('toolbar.searchAria')}
         />
       </div>
       {selectedCount > 0 && (
         <div className="selection-bar">
           <span className="selection-count">
-            {selectedCount} selecionado{selectedCount !== 1 ? 's' : ''}
+            {t(selectedCount === 1 ? 'toolbar.selectedOne' : 'toolbar.selectedMany', {
+              count: selectedCount,
+            })}
           </span>
           <button className="btn btn-ghost btn-sm" onClick={onSelectAll}>
-            {selectedCount === sources.length ? 'Desmarcar todos' : 'Selecionar todos'}
+            {selectedCount === sources.length ? t('toolbar.deselectAll') : t('toolbar.selectAll')}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={onClearSelection}>
-            Limpar
+            {t('common.clear')}
           </button>
         </div>
       )}
       <div className="filter-group">
-        <label htmlFor="sourceFilter">Fonte:</label>
+        <label htmlFor="sourceFilter">{t('toolbar.source')}</label>
         <select
           id="sourceFilter"
           value={currentSourceFilter}
           onChange={(e) => onSourceFilterChange(e.target.value)}
-          aria-label="Filtrar por fonte"
+          aria-label={t('toolbar.sourceAria')}
         >
-          <option value="">Todas</option>
+          <option value="">{t('toolbar.allSources')}</option>
           {sources.map((source) => (
             <option key={source} value={source}>
               {source}
@@ -84,16 +89,16 @@ export function Toolbar({
         </select>
       </div>
       <div className="filter-group">
-        <label htmlFor="sortFilter">Ordenar:</label>
+        <label htmlFor="sortFilter">{t('toolbar.sort')}</label>
         <select
           id="sortFilter"
           value={currentSortOrder}
           onChange={(e) => onSortChange(e.target.value as 'newest' | 'oldest' | 'relevance')}
-          aria-label="Ordenar notícias"
+          aria-label={t('toolbar.sortAria')}
         >
-          <option value="newest">Mais recentes</option>
-          <option value="oldest">Mais antigos</option>
-          <option value="relevance">Relevância</option>
+          <option value="newest">{t('toolbar.newest')}</option>
+          <option value="oldest">{t('toolbar.oldest')}</option>
+          <option value="relevance">{t('toolbar.relevance')}</option>
         </select>
       </div>
       <div
@@ -104,7 +109,7 @@ export function Toolbar({
           <button
             className="btn btn-ghost btn-sm"
             onClick={onBookmarksClick}
-            title={`${bookmarkCount} saved for later`}
+            title={t('toolbar.bookmarksTitle', { count: bookmarkCount })}
           >
             <span role="img" aria-label="bookmarks">
               🔖
@@ -119,7 +124,7 @@ export function Toolbar({
           <button
             className={`btn btn-sm ${digestView ? 'btn-primary' : 'btn-ghost'}`}
             onClick={onToggleDigest}
-            title="Toggle digest view (D)"
+            title={t('toolbar.digestToggle')}
             aria-pressed={digestView}
           >
             <span role="img" aria-label="digest">
@@ -132,19 +137,19 @@ export function Toolbar({
               onChange={(e) =>
                 onChangeDigestGrouping(e.target.value as 'none' | 'daily' | 'weekly')
               }
-              aria-label="Digest grouping"
+              aria-label={t('toolbar.digestGroupingAria')}
               style={{ minWidth: '120px', fontSize: '12px', padding: '4px 8px' }}
             >
-              <option value="none">All</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
+              <option value="none">{t('toolbar.groupAll')}</option>
+              <option value="daily">{t('toolbar.groupDaily')}</option>
+              <option value="weekly">{t('toolbar.groupWeekly')}</option>
             </select>
           )}
         </div>
         <button
           className="btn btn-ghost btn-sm"
           onClick={onProfileClick}
-          title="Interest Profile (Shift+R)"
+          title={t('toolbar.profileTitle')}
         >
           <span role="img" aria-label="profile">
             🎯
@@ -153,7 +158,7 @@ export function Toolbar({
         <button
           className="btn btn-ghost btn-sm"
           onClick={onTemplatesClick}
-          title="Manage Templates"
+          title={t('toolbar.templatesTitle')}
         >
           <span role="img" aria-label="templates">
             📋
@@ -163,7 +168,7 @@ export function Toolbar({
           <button
             className="btn btn-ghost btn-sm"
             onClick={onNewsletterBuilderClick}
-            title="Montar newsletter manual"
+            title={t('toolbar.builderTitle')}
           >
             <span role="img" aria-label="build newsletter">
               ✍️
@@ -174,7 +179,7 @@ export function Toolbar({
           <span role="img" aria-label="newsletter">
             📰
           </span>{' '}
-          Newsletter
+          {t('toolbar.newsletter')}
         </button>
       </div>
     </div>

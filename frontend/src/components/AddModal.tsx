@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from 'react';
+import { useI18n } from '../i18n';
 
 interface AddModalProps {
   onSubmit: (data: { title: string; link: string; source?: string; description?: string }) => void;
@@ -6,6 +7,7 @@ interface AddModalProps {
 }
 
 export function AddModal({ onSubmit, onClose }: AddModalProps) {
+  const { t } = useI18n();
   const [title, setTitle] = useState('');
   const [link, setLink] = useState('');
   const [source, setSource] = useState('');
@@ -39,50 +41,50 @@ export function AddModal({ onSubmit, onClose }: AddModalProps) {
     >
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 id="add-modal-title">＋ Adicionar Notícia Manual</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Fechar modal">
+          <h3 id="add-modal-title">{t('add.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
         <form onSubmit={handleSubmit} className="add-modal-form">
           <div className="modal-body">
             <div className="form-group">
-              <label htmlFor="addTitle">Título *</label>
+              <label htmlFor="addTitle">{t('add.labelTitle')}</label>
               <input
                 id="addTitle"
                 type="text"
-                placeholder="Título da notícia"
+                placeholder={t('add.titlePlaceholder')}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
               />
             </div>
             <div className="form-group">
-              <label htmlFor="addLink">Link *</label>
+              <label htmlFor="addLink">{t('add.labelLink')}</label>
               <input
                 id="addLink"
                 type="url"
-                placeholder="https://exemplo.com/noticia"
+                placeholder={t('add.linkPlaceholder')}
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
                 required
               />
             </div>
             <div className="form-group">
-              <label htmlFor="addSource">Fonte</label>
+              <label htmlFor="addSource">{t('add.labelSource')}</label>
               <input
                 id="addSource"
                 type="text"
-                placeholder="Nome da fonte (opcional)"
+                placeholder={t('add.sourcePlaceholder')}
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
               />
             </div>
             <div className="form-group">
-              <label htmlFor="addDesc">Descrição/Resumo</label>
+              <label htmlFor="addDesc">{t('add.labelDescription')}</label>
               <textarea
                 id="addDesc"
-                placeholder="Descrição ou resumo da notícia (opcional)"
+                placeholder={t('add.descriptionPlaceholder')}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
@@ -91,10 +93,10 @@ export function AddModal({ onSubmit, onClose }: AddModalProps) {
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? '⏳ Salvando...' : '💾 Salvar'}
+              {submitting ? t('common.saving') : `💾 ${t('common.save')}`}
             </button>
           </div>
         </form>

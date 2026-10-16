@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useI18n } from '../i18n';
 import type { DigestGrouping, NewsItem } from '../types';
 import { BookmarkButton } from './BookmarkButton';
 import { RelevanceBadge } from './RelevanceBadge';
@@ -18,9 +19,9 @@ interface DigestViewProps {
   sentIds?: Set<string>;
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   try {
-    return new Date(iso).toLocaleString('pt-BR', {
+    return new Date(iso).toLocaleString(locale, {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
@@ -31,9 +32,9 @@ function formatDate(iso: string): string {
   }
 }
 
-function formatDay(iso: string): string {
+function formatDay(iso: string, locale: string): string {
   try {
-    return new Date(iso).toLocaleString('pt-BR', {
+    return new Date(iso).toLocaleString(locale, {
       weekday: 'long',
       day: '2-digit',
       month: '2-digit',
@@ -76,13 +77,18 @@ function getGroupKey(item: NewsItem, grouping: DigestGrouping): string {
   return 'all';
 }
 
-function getGroupLabel(key: string, grouping: DigestGrouping): string {
+function getGroupLabel(
+  key: string,
+  grouping: DigestGrouping,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  locale: string
+): string {
   if (grouping === 'daily') {
-    return formatDay(key + 'T00:00:00');
+    return formatDay(key + 'T00:00:00', locale);
   } else if (grouping === 'weekly') {
-    return `Week ${key.split('-W')[1]}, ${key.split('-W')[0]}`;
+    return t('digestView.week', { week: key.split('-W')[1], year: key.split('-W')[0] });
   }
-  return 'All';
+  return t('digestView.all');
 }
 
 function escapeHtml(str: string): string {
@@ -108,8 +114,11 @@ export function DigestView({
   generatedIds,
   sentIds,
 }: DigestViewProps) {
+  const { t, language } = useI18n();
+  const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const groups = useMemo(() => {
-    if (grouping === 'none' || !news.length) return [{ key: 'all', items: news, label: 'All' }];
+    if (grouping === 'none' || !news.length)
+      return [{ key: 'all', items: news, label: t('digestView.all') }];
 
     const map = new Map<string, NewsItem[]>();
     for (const item of news) {
@@ -119,16 +128,16 @@ export function DigestView({
     }
 
     return Array.from(map.entries())
-      .map(([key, items]) => ({ key, items, label: getGroupLabel(key, grouping) }))
+      .map(([key, items]) => ({ key, items, label: getGroupLabel(key, grouping, t, locale) }))
       .sort((a, b) => b.key.localeCompare(a.key)); // newest first
-  }, [news, grouping]);
+  }, [news, grouping, t, locale]);
 
   if (loading) {
     return (
       <div className="news-grid">
         <div className="loading">
           <div className="spinner" aria-hidden="true" />
-          <span>Carregando notícias...</span>
+          <span>{t('news.loading')}</span>
         </div>
       </div>
     );
@@ -138,7 +147,7 @@ export function DigestView({
     return (
       <div className="news-grid">
         <div className="empty" style={{ color: 'var(--danger)' }}>
-          Erro ao carregar: {error}
+          {t('news.errLoad', { error })}
         </div>
       </div>
     );
@@ -147,19 +156,21 @@ export function DigestView({
   if (!news.length) {
     return (
       <div className="news-grid">
-        <div className="empty">Nenhuma notícia encontrada.</div>
+        <div className="empty">{t('news.empty')}</div>
       </div>
     );
   }
 
   return (
-    <div className="digest-view" role="list" aria-label="Digest view">
+    <div className="digest-view" role="list" aria-label={t('digestView.aria')}>
       {groups.map(({ key, items, label }, groupIndex) => (
         <section key={key} className="digest-group">
           <header className="digest-group-header">
             <span className="digest-group-label">{label}</span>
             <span className="digest-group-count">
-              {items.length} artigo{items.length !== 1 ? 's' : ''}
+              {t(items.length === 1 ? 'digestView.articleOne' : 'digestView.articleMany', {
+                count: items.length,
+              })}
             </span>
           </header>
           <div className="digest-group-items" role="list">
@@ -188,28 +199,24 @@ export function DigestView({
                           e.preventDefault();
                         }
                       }}
-                      aria-label={`Selecionar: ${item.title}`}
+                      aria-label={t('news.selectAria', { title: item.title })}
                     />
                     <div className="digest-item-header">
-                      <span className="news-source">{item.source || 'Desconhecida'}</span>
+                      <span className="news-source">
+                        {item.source || t('news.unknownSource')}
+                      </span>
                       <RelevanceBadge score={item.relevanceScore} size="sm" />
                       {sentIds?.has(item.id) ? (
-                        <span
-                          className="generated-badge sent"
-                          title="Conteúdo enviado para o Telegram"
-                        >
-                          ✅ Enviado
+                        <span className="generated-badge sent" title={t('news.sentTitle')}>
+                          {t('news.sent')}
                         </span>
                       ) : generatedIds?.has(item.id) ? (
-                        <span
-                          className="generated-badge"
-                          title="Conteúdo já gerado — clique em Compartilhar para reenviar"
-                        >
-                          ✨ Gerado
+                        <span className="generated-badge" title={t('news.generatedTitle')}>
+                          {t('news.generated')}
                         </span>
                       ) : null}
                       <time className="news-date" dateTime={item.pubDate}>
-                        {formatDate(item.pubDate)}
+                        {formatDate(item.pubDate, locale)}
                       </time>
                     </div>
                   </div>
@@ -217,7 +224,7 @@ export function DigestView({
                   <p className="digest-item-desc">
                     {item.description
                       ? escapeHtml(item.description).slice(0, 200) + '...'
-                      : 'Sem descrição'}
+                      : t('news.noDescription')}
                   </p>
                   <div className="digest-item-actions">
                     <BookmarkButton
@@ -234,17 +241,17 @@ export function DigestView({
                       <span role="img" aria-label="link">
                         🔗
                       </span>{' '}
-                      Abrir
+                      {t('news.open')}
                     </a>
                     <button
                       className="btn btn-share btn-sm"
                       onClick={() => onShare(item)}
-                      aria-label={`Compartilhar: ${item.title}`}
+                      aria-label={t('news.shareAria', { title: item.title })}
                     >
                       <span role="img" aria-label="share">
                         📤
                       </span>{' '}
-                      Compartilhar
+                      {t('news.share')}
                     </button>
                   </div>
                 </article>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useI18n } from '../i18n';
 import { useAI } from '../hooks/useAI';
 import { addBookmark, fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -7,7 +8,6 @@ import { useNews } from '../hooks/useNews';
 import { fetchProfile } from '../hooks/useRelevance';
 import { useTelegram } from '../hooks/useTelegram';
 import { api } from '../services/api';
-import { formatGeneratedContent } from '../utils/content';
 import type {
   ContentType,
   DigestGrouping,
@@ -17,6 +17,7 @@ import type {
   Provider,
   Template,
 } from '../types';
+import { formatGeneratedContent } from '../utils/content';
 
 // Persisted map of newsId -> generated content, so a post that was already
 // generated can be reopened and re-sent (e.g. after a failed Telegram send)
@@ -40,36 +41,41 @@ function loadGeneratedStore(): Record<string, GeneratedEntry> {
     return {};
   }
 }
+
+import { useAuth } from '../contexts/AuthContext';
+import { LoginPage } from '../pages/LoginPage';
 import { AddModal } from './AddModal';
 import { BookmarksModal } from './BookmarksModal';
+import { DigestConfigModal } from './DigestConfigModal';
 import { DigestView } from './DigestView';
 import { FeedManagerModal } from './FeedManagerModal';
 import { Header } from './Header';
 import { InterestProfileModal } from './InterestProfileModal';
 import { NewsGrid } from './NewsGrid';
-import { NewsletterConfigModal } from './NewsletterConfigModal';
 import { NewsletterBuilderModal } from './NewsletterBuilderModal';
+import { NewsletterConfigModal } from './NewsletterConfigModal';
 import { SettingsModal } from './SettingsModal';
-import { DigestConfigModal } from './DigestConfigModal';
-import { UsersModal } from './UsersModal';
-import { TelegramQueueModal } from './TelegramQueueModal';
 import { ShareModal } from './ShareModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { StatsModal } from './StatsModal';
 import { Status } from './Status';
+import { TelegramQueueModal } from './TelegramQueueModal';
 import { TemplatesModal } from './TemplatesModal';
 import { Toolbar } from './Toolbar';
-import { LoginPage } from '../pages/LoginPage';
-import { useAuth } from '../contexts/AuthContext';
+import { UsersModal } from './UsersModal';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const location = useLocation();
 
   if (loading) {
     return (
-      <div className="app" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Carregando...</div>
+      <div
+        className="app"
+        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}
+      >
+        <div>{t('app.loading')}</div>
       </div>
     );
   }
@@ -83,8 +89,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
+  const { t } = useI18n();
   const { news, loading, error, fetchNews, addNews, fetchRss, fetchingRss } = useNews();
-  const { generatedContent, generating, error: aiError, generate, clear: clearAI, setContent: setAIContent } = useAI();
+  const {
+    generatedContent,
+    generating,
+    error: aiError,
+    generate,
+    clear: clearAI,
+    setContent: setAIContent,
+  } = useAI();
   const { sending, error: tgError, success: tgSuccess, send, reset: resetTG } = useTelegram();
 
   const [showShareModal, setShowShareModal] = useState(false);
@@ -276,12 +290,12 @@ function AppContent() {
     try {
       const formattedContent = formatGeneratedContent(generatedContent, contentType);
       await navigator.clipboard.writeText(formattedContent);
-      setStatus({ message: 'Conteúdo copiado!', type: 'success' });
+      setStatus({ message: t('app.copied'), type: 'success' });
       setTimeout(() => setStatus(null), 3000);
     } catch (err) {
       console.error(err);
     }
-  }, [generatedContent, contentType]);
+  }, [generatedContent, contentType, t]);
 
   const handleGenerate = useCallback(async () => {
     const isNewsletter = contentType === 'newsletter';
@@ -345,23 +359,23 @@ function AppContent() {
           return { ...prev, [selectedNews.id]: { ...existing, sentAt: Date.now() } };
         });
       }
-      setStatus({ message: 'Enviado para o Telegram!', type: 'success' });
+      setStatus({ message: t('app.sentTelegram'), type: 'success' });
       setTimeout(() => setStatus(null), 3000);
     } catch (err) {
       console.error(err);
     }
-  }, [send, generatedContent, contentType, selectedNews]);
+  }, [send, generatedContent, contentType, selectedNews, t]);
 
   const handleRefresh = useCallback(async () => {
-    setStatus({ message: 'Buscando feeds...', type: 'success' });
+    setStatus({ message: t('app.fetchingFeeds'), type: 'success' });
     try {
       await fetchRss();
-      setStatus({ message: 'Feeds atualizados!', type: 'success' });
+      setStatus({ message: t('app.feedsUpdated'), type: 'success' });
     } catch (err) {
-      setStatus({ message: 'Erro ao buscar feeds', type: 'error' });
+      setStatus({ message: t('app.errFetch'), type: 'error' });
     }
     setTimeout(() => setStatus(null), 3000);
-  }, [fetchRss]);
+  }, [fetchRss, t]);
 
   const handleToggleSelect = useCallback(
     (id: string, shiftKey?: boolean) => {
@@ -414,11 +428,11 @@ function AppContent() {
         }
       } catch (err) {
         console.error(err);
-        setStatus({ message: 'Erro ao salvar favorito', type: 'error' });
+        setStatus({ message: t('app.errBookmark'), type: 'error' });
         setTimeout(() => setStatus(null), 3000);
       }
     },
-    [bookmarkedIds]
+    [bookmarkedIds, t]
   );
 
   const handleSelectAll = useCallback(() => {
@@ -469,7 +483,9 @@ function AppContent() {
           />
         </div>
 
-        {status && <Status message={status.message} type={status.type} onClose={() => setStatus(null)} />}
+        {status && (
+          <Status message={status.message} type={status.type} onClose={() => setStatus(null)} />
+        )}
 
         {digestView ? (
           <DigestView
@@ -534,9 +550,7 @@ function AppContent() {
         />
       )}
 
-      {showAddModal && (
-        <AddModal onClose={() => setShowAddModal(false)} onSubmit={handleAddNews} />
-      )}
+      {showAddModal && <AddModal onClose={() => setShowAddModal(false)} onSubmit={handleAddNews} />}
 
       {showStatsModal && <StatsModal onClose={() => setShowStatsModal(false)} />}
 
@@ -557,22 +571,13 @@ function AppContent() {
 
       <DigestConfigModal isOpen={showDigestConfig} onClose={() => setShowDigestConfig(false)} />
       <UsersModal isOpen={showUsers} onClose={() => setShowUsers(false)} />
-      <TelegramQueueModal
-        isOpen={showTelegramQueue}
-        onClose={() => setShowTelegramQueue(false)}
-      />
+      <TelegramQueueModal isOpen={showTelegramQueue} onClose={() => setShowTelegramQueue(false)} />
 
       <BookmarksModal isOpen={showBookmarks} onClose={() => setShowBookmarks(false)} />
 
-      <InterestProfileModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-      />
+      <InterestProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
 
-      <TemplatesModal
-        isOpen={showTemplatesModal}
-        onClose={() => setShowTemplatesModal(false)}
-      />
+      <TemplatesModal isOpen={showTemplatesModal} onClose={() => setShowTemplatesModal(false)} />
 
       <ShortcutsHelp />
     </div>
@@ -583,7 +588,14 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/*" element={<ProtectedRoute><AppContent /></ProtectedRoute>} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <AppContent />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }

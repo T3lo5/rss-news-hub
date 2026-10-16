@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTelegram } from '../hooks/useTelegram';
+import { useI18n } from '../i18n';
 import { api } from '../services/api';
-import { formatGeneratedContent } from '../utils/content';
 import type { Language, NewsItem, Provider, Template } from '../types';
+import { formatGeneratedContent } from '../utils/content';
 import { ProviderSelect } from './ProviderSelect';
 
 interface NewsletterBuilderModalProps {
@@ -12,6 +13,8 @@ interface NewsletterBuilderModalProps {
 }
 
 export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuilderModalProps) {
+  const { t, language: uiLanguage } = useI18n();
+  const locale = uiLanguage === 'en' ? 'en-US' : 'pt-BR';
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState<Set<string>>(new Set());
@@ -72,7 +75,7 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
     [news, selectedIds]
   );
 
-  const selectedTemplate = templates.find((t) => t.id === templateId) || templates[0];
+  const selectedTemplate = templates.find((tpl) => tpl.id === templateId) || templates[0];
   const templateVars = selectedTemplate?.variables || [];
 
   const toggleSelect = (id: string) => {
@@ -117,11 +120,11 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
       });
       setContent(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao gerar a newsletter');
+      setError(err instanceof Error ? err.message : t('newsletterBuilder.errGenerate'));
     } finally {
       setGenerating(false);
     }
-  }, [selectedItems, language, provider, templateId, templateVariables]);
+  }, [selectedItems, language, provider, templateId, templateVariables, t]);
 
   const handleSend = async () => {
     if (!content) return;
@@ -155,12 +158,14 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
         .filter(Boolean);
       await api.sendEmail({
         to: to.length ? to : undefined,
-        subject: `Newsletter — ${new Date().toLocaleDateString('pt-BR')}`,
+        subject: t('newsletterBuilder.emailSubject', {
+          date: new Date().toLocaleDateString(locale),
+        }),
         text: content,
       });
       setEmailSuccess(true);
     } catch (err) {
-      setEmailError(err instanceof Error ? err.message : 'Erro ao enviar e-mail');
+      setEmailError(err instanceof Error ? err.message : t('newsletterBuilder.errEmail'));
     } finally {
       setEmailing(false);
     }
@@ -182,12 +187,15 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3 id="newsletter-builder-title">✍️ Montar Newsletter</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Fechar">
+          <h3 id="newsletter-builder-title">{t('newsletterBuilder.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
-        <div className="modal-body" style={{ padding: '20px', overflow: 'auto', maxHeight: '78vh' }}>
+        <div
+          className="modal-body"
+          style={{ padding: '20px', overflow: 'auto', maxHeight: '78vh' }}
+        >
           {error && (
             <div className="status error" style={{ marginBottom: '16px' }}>
               {error}
@@ -195,17 +203,17 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
           )}
           {tgSuccess && (
             <div className="status success" style={{ marginBottom: '16px' }}>
-              Enviado para o Telegram!
+              {t('content.sentTelegramBanner')}
             </div>
           )}
 
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: 0 }}>
-            Escolha as notícias e/ou filtre por fontes para gerar a sua própria newsletter.
+            {t('newsletterBuilder.intro')}
           </p>
 
           {/* Filters */}
           <div className="form-group">
-            <label>Filtrar por fonte:</label>
+            <label>{t('newsletterBuilder.filterBySource')}</label>
             <div
               style={{
                 display: 'flex',
@@ -222,7 +230,13 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
               {sources.map((source) => (
                 <label
                   key={source}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
                 >
                   <input
                     type="checkbox"
@@ -234,19 +248,19 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
               ))}
               {sources.length === 0 && (
                 <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                  Nenhuma fonte
+                  {t('newsletterBuilder.noSources')}
                 </span>
               )}
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-              Sem seleção = todas as fontes
+              {t('newsletterBuilder.allSourcesHint')}
             </p>
           </div>
 
           <div className="form-group">
             <input
               type="text"
-              placeholder="Buscar por título ou fonte..."
+              placeholder={t('news.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -263,7 +277,10 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
             }}
           >
             <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              {selectedItems.length} selecionada(s) · {visibleNews.length} visível(is)
+              {t('newsletterBuilder.selection', {
+                selected: selectedItems.length,
+                visible: visibleNews.length,
+              })}
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
@@ -271,14 +288,14 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
                 onClick={selectAllVisible}
                 disabled={visibleNews.length === 0}
               >
-                Selecionar {visibleNews.length}
+                {t('newsletterBuilder.selectCount', { count: visibleNews.length })}
               </button>
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => setSelectedIds(new Set())}
                 disabled={selectedItems.length === 0}
               >
-                Limpar
+                {t('common.clear')}
               </button>
             </div>
           </div>
@@ -293,7 +310,7 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
           >
             {visibleNews.length === 0 ? (
               <p style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                Nenhuma notícia encontrada com esses filtros.
+                {t('newsletterBuilder.noNews')}
               </p>
             ) : (
               visibleNews.map((item) => {
@@ -345,32 +362,37 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
             }}
           >
             <div className="form-group">
-              <label htmlFor="builderLanguage">Idioma:</label>
+              <label htmlFor="builderLanguage">{t('content.language')}</label>
               <select
                 id="builderLanguage"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as Language)}
               >
-                <option value="pt">Português</option>
-                <option value="en">English</option>
+                <option value="pt">{t('lang.portuguese')}</option>
+                <option value="en">{t('lang.english')}</option>
               </select>
             </div>
             <div className="form-group">
-              <label htmlFor="builderProvider">Provedor IA:</label>
-              <ProviderSelect id="builderProvider" value={provider} onChange={setProvider} autoLabel="Auto" />
+              <label htmlFor="builderProvider">{t('newsletterBuilder.providerLabel')}</label>
+              <ProviderSelect
+                id="builderProvider"
+                value={provider}
+                onChange={setProvider}
+                autoLabel={t('common.auto')}
+              />
             </div>
             <div className="form-group">
-              <label htmlFor="builderTemplate">Template:</label>
+              <label htmlFor="builderTemplate">{t('newsletterBuilder.templateLabel')}</label>
               <select
                 id="builderTemplate"
                 value={templateId}
                 onChange={(e) => setTemplateId(e.target.value)}
               >
-                <option value="">Padrão do tipo</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                    {t.builtin ? ' (padrão)' : ''}
+                <option value="">{t('newsletterBuilder.defaultTemplate')}</option>
+                {templates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    {tpl.name}
+                    {tpl.builtin ? t('content.builtin') : ''}
                   </option>
                 ))}
               </select>
@@ -379,12 +401,16 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
 
           {templateVars.length > 0 && (
             <div className="form-group">
-              <label>Variáveis do template:</label>
+              <label>{t('content.templateVars')}</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {templateVars.map((name) => (
                   <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label
-                      style={{ minWidth: '120px', fontSize: '13px', color: 'var(--text-secondary)' }}
+                      style={{
+                        minWidth: '120px',
+                        fontSize: '13px',
+                        color: 'var(--text-secondary)',
+                      }}
                     >
                       {name}
                     </label>
@@ -394,7 +420,7 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
                       onChange={(e) =>
                         setTemplateVariables({ ...templateVariables, [name]: e.target.value })
                       }
-                      placeholder={`Valor para ${name}`}
+                      placeholder={t('content.varPlaceholder', { name })}
                       style={{ flex: 1 }}
                     />
                   </div>
@@ -409,7 +435,9 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
             disabled={generating || selectedItems.length === 0}
             style={{ width: '100%', marginTop: '8px' }}
           >
-            {generating ? '⏳ Gerando...' : `✨ Gerar Newsletter (${selectedItems.length} itens)`}
+            {generating
+              ? t('newsletterBuilder.generating')
+              : t('newsletterBuilder.generate', { count: selectedItems.length })}
           </button>
 
           {(content || generating) && (
@@ -427,7 +455,7 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
                 overflow: 'auto',
               }}
             >
-              {generating ? 'Gerando newsletter...' : content}
+              {generating ? t('newsletterBuilder.generatingPre') : content}
             </pre>
           )}
 
@@ -442,17 +470,21 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
               }}
             >
               <button className="btn btn-ghost" onClick={handleCopy}>
-                {copied ? '✅ Copiado' : '📋 Copiar'}
+                {copied ? t('content.copied') : t('content.copy')}
               </button>
-              <button className="btn btn-success" onClick={handleSend} disabled={sending || tgSuccess}>
-                {sending ? '⏳ Enviando...' : tgSuccess ? '✅ Enviado!' : '📤 Enviar p/ Telegram'}
+              <button
+                className="btn btn-success"
+                onClick={handleSend}
+                disabled={sending || tgSuccess}
+              >
+                {sending ? t('content.sending') : tgSuccess ? t('content.sent') : t('content.sendTelegram')}
               </button>
             </div>
           )}
 
           {tgError && (
             <div style={{ color: 'var(--danger)', fontSize: '13px', marginTop: '12px' }}>
-              Erro no Telegram: {tgError}
+              {t('newsletterBuilder.tgError', { error: tgError })}
             </div>
           )}
 
@@ -469,14 +501,14 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
             >
               <div className="form-group" style={{ margin: 0 }}>
                 <label htmlFor="builderEmailRecipients">
-                  Enviar por e-mail para (vazio = destinatários configurados):
+                  {t('newsletterBuilder.emailToLabel')}
                 </label>
                 <input
                   id="builderEmailRecipients"
                   type="text"
                   value={emailRecipients}
                   onChange={(e) => setEmailRecipients(e.target.value)}
-                  placeholder="a@exemplo.com, b@exemplo.com"
+                  placeholder={t('newsletterBuilder.emailPlaceholder')}
                 />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -485,12 +517,16 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
                   onClick={handleSendEmail}
                   disabled={emailing || emailSuccess}
                 >
-                  {emailing ? '⏳ Enviando...' : emailSuccess ? '✅ Enviado!' : '📧 Enviar por e-mail'}
+                  {emailing
+                    ? t('content.sending')
+                    : emailSuccess
+                      ? t('content.sent')
+                      : t('newsletterBuilder.sendEmail')}
                 </button>
               </div>
               {emailError && (
                 <div style={{ color: 'var(--danger)', fontSize: '13px' }}>
-                  Erro no e-mail: {emailError}
+                  {t('newsletterBuilder.emailError', { error: emailError })}
                 </div>
               )}
             </div>

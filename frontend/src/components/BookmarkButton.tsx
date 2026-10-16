@@ -1,3 +1,5 @@
+import { useI18n } from '../i18n';
+
 interface BookmarkButtonProps {
   newsId: string;
   isBookmarked: boolean;
@@ -6,14 +8,15 @@ interface BookmarkButtonProps {
 }
 
 export function BookmarkButton({ newsId, isBookmarked, onToggle, disabled }: BookmarkButtonProps) {
+  const { t } = useI18n();
   return (
     <button
       className={`bookmark-btn ${isBookmarked ? 'bookmarked' : ''}`}
       onClick={() => !disabled && onToggle(newsId, !isBookmarked)}
       disabled={disabled}
-      aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+      aria-label={isBookmarked ? t('bookmark.removeAria') : t('bookmark.addAria')}
       aria-pressed={isBookmarked}
-      title={isBookmarked ? 'Remove from bookmarks (B)' : 'Save for later (B)'}
+      title={isBookmarked ? t('bookmark.removeTitle') : t('bookmark.saveTitle')}
     >
       {isBookmarked ? (
         <svg

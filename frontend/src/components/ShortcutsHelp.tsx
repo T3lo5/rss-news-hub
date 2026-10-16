@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { useI18n } from '../i18n';
 
 interface Shortcut {
   key: string;
@@ -12,6 +13,7 @@ interface ShortcutsHelpProps {
 }
 
 export function ShortcutsHelp({ isOpen, onClose, shortcuts }: ShortcutsHelpProps) {
+  const { t } = useI18n();
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -44,8 +46,8 @@ export function ShortcutsHelp({ isOpen, onClose, shortcuts }: ShortcutsHelpProps
     >
       <div className="modal shortcuts-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 id="shortcuts-title">Keyboard Shortcuts</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
+          <h3 id="shortcuts-title">{t('shortcuts.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>

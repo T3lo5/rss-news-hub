@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type {
   AiProviderId,
@@ -16,12 +17,13 @@ type ProviderForm = {
 };
 
 const PROVIDER_HINTS: Record<AiProviderId, string> = {
-  sensenova: 'Consumido via SDK OpenAI (base URL termina em /v1).',
-  deepseek: 'Padrão: https://api.deepseek.com',
-  openai: 'Padrão: https://api.openai.com',
+  sensenova: 'settings.hintSensenova',
+  deepseek: 'settings.hintDeepseek',
+  openai: 'settings.hintOpenai',
 };
 
 export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useI18n();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,11 +93,11 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setEmailRecipients(data.email.recipients.join(', '));
       setRetentionDays(String(data.retention.retentionDays));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar configurações');
+      setError(err instanceof Error ? err.message : t('settings.errLoad'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isOpen) load();
@@ -146,9 +148,9 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         };
       }
       setProviderForms(forms);
-      flashSuccess('Configurações de IA salvas!');
+      flashSuccess(t('settings.savedAi'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao salvar IA');
+      setError(err instanceof Error ? err.message : t('settings.errSaveAi'));
     } finally {
       setSavingAi(false);
     }
@@ -165,12 +167,17 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       const result = await api.testAiProvider(id);
       setProviderTest((prev) => ({
         ...prev,
-        [id]: { ok: true, message: result.reply ? `OK: ${result.reply}` : 'OK (sem resposta)' },
+        [id]: {
+          ok: true,
+          message: result.reply
+            ? t('settings.testOk', { reply: result.reply })
+            : t('settings.testOkNoReply'),
+        },
       }));
     } catch (err) {
       setProviderTest((prev) => ({
         ...prev,
-        [id]: { ok: false, message: err instanceof Error ? err.message : 'Falha no teste' },
+        [id]: { ok: false, message: err instanceof Error ? err.message : t('settings.errTest') },
       }));
     } finally {
       setTestingProvider(null);
@@ -190,9 +197,9 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setSettings((prev) => (prev ? { ...prev, telegram } : prev));
       setBotToken('');
       setClearToken(false);
-      flashSuccess('Configurações do Telegram salvas!');
+      flashSuccess(t('settings.savedTelegram'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao salvar Telegram');
+      setError(err instanceof Error ? err.message : t('settings.errSaveTelegram'));
     } finally {
       setSavingTelegram(false);
     }
@@ -226,9 +233,9 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setEmailPass('');
       setClearEmailPass(false);
       setEmailRecipients(emailSettings.recipients.join(', '));
-      flashSuccess('Configurações de e-mail salvas!');
+      flashSuccess(t('settings.savedEmail'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao salvar e-mail');
+      setError(err instanceof Error ? err.message : t('settings.errSaveEmail'));
     } finally {
       setSavingEmail(false);
     }
@@ -241,9 +248,9 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
     try {
       const recipients = parseRecipients();
       const result = await api.testEmail(recipients.length ? recipients : undefined);
-      flashSuccess(`E-mail de teste enviado para ${result.accepted.join(', ')}`);
+      flashSuccess(t('settings.testEmailSent', { list: result.accepted.join(', ') }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao testar e-mail');
+      setError(err instanceof Error ? err.message : t('settings.errTestEmail'));
     } finally {
       setTestingEmail(false);
     }
@@ -252,7 +259,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const handleRetentionDays = (): number | null => {
     const parsed = Number.parseInt(retentionDays, 10);
     if (Number.isNaN(parsed) || parsed < 0) {
-      setError('Informe um número de dias válido (0 desliga a limpeza automática).');
+      setError(t('settings.errRetention'));
       return null;
     }
     return parsed;
@@ -268,9 +275,9 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
     try {
       const retention = await api.updateRetentionSettings(days);
       setSettings((prev) => (prev ? { ...prev, retention } : prev));
-      flashSuccess('Retenção atualizada!');
+      flashSuccess(t('settings.savedRetention'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao salvar retenção');
+      setError(err instanceof Error ? err.message : t('settings.errSaveRetention'));
     } finally {
       setSavingRetention(false);
     }
@@ -286,12 +293,12 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
     try {
       const result = await api.pruneNews(days > 0 ? days : undefined);
       if (result.skipped) {
-        flashSuccess('Nada a limpar: a retenção está desligada.');
+        flashSuccess(t('settings.pruneSkipped'));
       } else {
-        flashSuccess(`${result.deleted} notícia(s) removida(s).`);
+        flashSuccess(t('settings.pruneDone', { count: result.deleted }));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao limpar notícias');
+      setError(err instanceof Error ? err.message : t('settings.errPrune'));
     } finally {
       setPruning(false);
     }
@@ -313,8 +320,8 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3 id="settings-title">⚙️ Configurações</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Fechar">
+          <h3 id="settings-title">{t('settings.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -334,30 +341,27 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
           )}
 
           {loading && !settings ? (
-            <p style={{ color: 'var(--text-secondary)' }}>Carregando…</p>
+            <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
           ) : (
             settings && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                  Valores definidos aqui ficam salvos no banco e têm prioridade sobre o{' '}
-                  <code>.env</code>. As chaves são armazenadas cifradas e nunca são devolvidas em
-                  texto puro.
+                  {t('settings.introPre')} <code>.env</code>
+                  {t('settings.introPost')}
                 </p>
 
                 {/* AI providers */}
                 <section>
-                  <h4 style={{ marginBottom: '12px' }}>🤖 Provedores de IA</h4>
+                  <h4 style={{ marginBottom: '12px' }}>{t('settings.aiSection')}</h4>
 
                   <div className="form-group">
-                    <label htmlFor="defaultProvider">Provedor padrão (sugerido no front):</label>
+                    <label htmlFor="defaultProvider">{t('settings.defaultProvider')}</label>
                     <select
                       id="defaultProvider"
                       value={defaultProvider}
-                      onChange={(e) =>
-                        setDefaultProvider(e.target.value as 'auto' | AiProviderId)
-                      }
+                      onChange={(e) => setDefaultProvider(e.target.value as 'auto' | AiProviderId)}
                     >
-                      <option value="auto">Auto (primeiro disponível)</option>
+                      <option value="auto">{t('common.autoFirst')}</option>
                       {settings.ai.providers.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.label}
@@ -398,15 +402,21 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                               className="btn btn-ghost btn-sm"
                               onClick={() => handleTestProvider(provider.id)}
                               disabled={testingProvider === provider.id}
-                              title="Enviar uma requisição de teste a este provedor"
+                              title={t('settings.testProviderTitle')}
                             >
-                              {testingProvider === provider.id ? '⏳ Testando…' : '🔌 Testar'}
+                              {testingProvider === provider.id
+                                ? t('common.testing')
+                                : t('common.test')}
                             </button>
                             <span
                               className={`status-badge ${provider.apiKeySet ? 'ok' : 'error'}`}
-                              title={provider.apiKeySet ? 'Chave configurada' : 'Sem chave'}
+                              title={
+                                provider.apiKeySet
+                                  ? t('settings.keySetTitle')
+                                  : t('settings.noKeyTitle')
+                              }
                             >
-                              {provider.apiKeySet ? 'chave definida' : 'sem chave'}
+                              {provider.apiKeySet ? t('settings.keySet') : t('settings.noKey')}
                             </span>
                           </div>
                         </div>
@@ -426,12 +436,14 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         )}
 
                         <div className="form-group">
-                          <label>API Key:</label>
+                          <label>{t('settings.apiKeyLabel')}</label>
                           <input
                             type="password"
                             autoComplete="off"
                             value={form.apiKey}
-                            placeholder={provider.apiKeySet ? '•••••••• (deixe vazio p/ manter)' : 'sk-...'}
+                            placeholder={
+                              provider.apiKeySet ? t('settings.secretPlaceholderKeep') : 'sk-...'
+                            }
                             onChange={(e) =>
                               updateProviderForm(provider.id, {
                                 apiKey: e.target.value,
@@ -460,13 +472,13 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                   })
                                 }
                               />
-                              Remover chave (volta ao .env)
+                              {t('settings.removeKey')}
                             </label>
                           )}
                         </div>
 
                         <div className="form-group">
-                          <label>Base URL:</label>
+                          <label>{t('settings.baseUrl')}</label>
                           <input
                             type="text"
                             value={form.baseUrl}
@@ -477,7 +489,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         </div>
 
                         <div className="form-group">
-                          <label>Modelo:</label>
+                          <label>{t('settings.model')}</label>
                           <input
                             type="text"
                             value={form.model}
@@ -492,7 +504,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                               marginTop: '4px',
                             }}
                           >
-                            {PROVIDER_HINTS[provider.id]}
+                            {t(PROVIDER_HINTS[provider.id])}
                           </p>
                         </div>
                       </div>
@@ -501,17 +513,17 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
                     <button className="btn btn-primary" onClick={handleSaveAi} disabled={savingAi}>
-                      {savingAi ? '⏳ Salvando...' : '💾 Salvar IA'}
+                      {savingAi ? t('common.saving') : t('settings.saveAi')}
                     </button>
                   </div>
                 </section>
 
                 {/* Telegram */}
                 <section style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-                  <h4 style={{ marginBottom: '12px' }}>📨 Telegram</h4>
+                  <h4 style={{ marginBottom: '12px' }}>{t('settings.telegramSection')}</h4>
 
                   <div className="form-group">
-                    <label htmlFor="tgChatId">Chat ID:</label>
+                    <label htmlFor="tgChatId">{t('settings.chatId')}</label>
                     <input
                       id="tgChatId"
                       type="text"
@@ -522,7 +534,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="tgBotToken">Bot Token:</label>
+                    <label htmlFor="tgBotToken">{t('settings.botToken')}</label>
                     <input
                       id="tgBotToken"
                       type="password"
@@ -530,7 +542,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       value={botToken}
                       placeholder={
                         settings.telegram.botTokenSet
-                          ? '•••••••• (deixe vazio p/ manter)'
+                          ? t('settings.secretPlaceholderKeep')
                           : '123456:ABC-DEF...'
                       }
                       onChange={(e) => {
@@ -557,7 +569,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                             setBotToken('');
                           }}
                         />
-                        Remover token (volta ao .env)
+                        {t('settings.removeToken')}
                       </label>
                     )}
                   </div>
@@ -568,14 +580,14 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       onClick={handleSaveTelegram}
                       disabled={savingTelegram}
                     >
-                      {savingTelegram ? '⏳ Salvando...' : '💾 Salvar Telegram'}
+                      {savingTelegram ? t('common.saving') : t('settings.saveTelegram')}
                     </button>
                   </div>
                 </section>
 
                 {/* Email */}
                 <section style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-                  <h4 style={{ marginBottom: '12px' }}>📧 E-mail (SMTP)</h4>
+                  <h4 style={{ marginBottom: '12px' }}>{t('settings.emailSection')}</h4>
 
                   <p
                     style={{
@@ -585,8 +597,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       marginBottom: '12px',
                     }}
                   >
-                    Usado para enviar a newsletter e o digest por e-mail. A senha fica cifrada no
-                    banco.
+                    {t('settings.emailIntro')}
                   </p>
 
                   <label
@@ -604,7 +615,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       checked={emailEnabled}
                       onChange={(e) => setEmailEnabled(e.target.checked)}
                     />
-                    Habilitar envio por e-mail
+                    {t('settings.emailEnable')}
                   </label>
 
                   <div
@@ -615,7 +626,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     }}
                   >
                     <div className="form-group">
-                      <label htmlFor="smtpHost">Host SMTP:</label>
+                      <label htmlFor="smtpHost">{t('settings.smtpHost')}</label>
                       <input
                         id="smtpHost"
                         type="text"
@@ -625,7 +636,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       />
                     </div>
                     <div className="form-group">
-                      <label htmlFor="smtpPort">Porta:</label>
+                      <label htmlFor="smtpPort">{t('settings.port')}</label>
                       <input
                         id="smtpPort"
                         type="number"
@@ -651,11 +662,11 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       checked={emailSecure}
                       onChange={(e) => setEmailSecure(e.target.checked)}
                     />
-                    Conexão segura (TLS implícito, porta 465)
+                    {t('settings.emailSecure')}
                   </label>
 
                   <div className="form-group">
-                    <label htmlFor="smtpUser">Usuário:</label>
+                    <label htmlFor="smtpUser">{t('settings.user')}</label>
                     <input
                       id="smtpUser"
                       type="text"
@@ -666,7 +677,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="smtpPass">Senha / App Password:</label>
+                    <label htmlFor="smtpPass">{t('settings.emailPass')}</label>
                     <input
                       id="smtpPass"
                       type="password"
@@ -674,7 +685,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       value={emailPass}
                       placeholder={
                         settings.email.passwordSet
-                          ? '•••••••• (deixe vazio p/ manter)'
+                          ? t('settings.secretPlaceholderKeep')
                           : 'app password'
                       }
                       onChange={(e) => {
@@ -701,13 +712,13 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                             setEmailPass('');
                           }}
                         />
-                        Remover senha (volta ao .env)
+                        {t('settings.removePass')}
                       </label>
                     )}
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="smtpFrom">Remetente (From):</label>
+                    <label htmlFor="smtpFrom">{t('settings.from')}</label>
                     <input
                       id="smtpFrom"
                       type="text"
@@ -718,7 +729,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="smtpRecipients">Destinatários (separados por vírgula):</label>
+                    <label htmlFor="smtpRecipients">{t('settings.recipients')}</label>
                     <input
                       id="smtpRecipients"
                       type="text"
@@ -741,23 +752,23 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       className="btn btn-ghost"
                       onClick={handleTestEmail}
                       disabled={testingEmail || !emailHost || !emailFrom}
-                      title="Verifica a conexão e envia um e-mail de teste"
+                      title={t('settings.testEmailTitle')}
                     >
-                      {testingEmail ? '⏳ Testando...' : '🔌 Testar conexão'}
+                      {testingEmail ? t('settings.testingEmail') : t('settings.testConnection')}
                     </button>
                     <button
                       className="btn btn-primary"
                       onClick={handleSaveEmail}
                       disabled={savingEmail}
                     >
-                      {savingEmail ? '⏳ Salvando...' : '💾 Salvar E-mail'}
+                      {savingEmail ? t('common.saving') : t('settings.saveEmail')}
                     </button>
                   </div>
                 </section>
 
                 {/* Maintenance / retention */}
                 <section style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-                  <h4 style={{ marginBottom: '12px' }}>🧹 Manutenção</h4>
+                  <h4 style={{ marginBottom: '12px' }}>{t('settings.maintenance')}</h4>
                   <p
                     style={{
                       fontSize: '12px',
@@ -766,12 +777,13 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       marginBottom: '12px',
                     }}
                   >
-                    Remove notícias mais antigas que o número de dias definido para o banco não
-                    crescer sem limite. <strong>0 desliga</strong> a limpeza automática.
+                    {t('settings.maintenancePre')}{' '}
+                    <strong>{t('settings.maintenanceOff')}</strong>{' '}
+                    {t('settings.maintenancePost')}
                   </p>
 
                   <div className="form-group" style={{ maxWidth: '220px' }}>
-                    <label htmlFor="retentionDays">Manter notícias por (dias):</label>
+                    <label htmlFor="retentionDays">{t('settings.retentionLabel')}</label>
                     <input
                       id="retentionDays"
                       type="number"
@@ -792,14 +804,14 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     }}
                   >
                     <button className="btn btn-ghost" onClick={handlePrune} disabled={pruning}>
-                      {pruning ? '⏳ Limpando...' : '🗑️ Limpar agora'}
+                      {pruning ? t('settings.pruning') : t('settings.prune')}
                     </button>
                     <button
                       className="btn btn-primary"
                       onClick={handleSaveRetention}
                       disabled={savingRetention}
                     >
-                      {savingRetention ? '⏳ Salvando...' : '💾 Salvar Retenção'}
+                      {savingRetention ? t('common.saving') : t('settings.saveRetention')}
                     </button>
                   </div>
                 </section>

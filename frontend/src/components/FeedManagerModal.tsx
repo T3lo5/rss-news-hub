@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { addFeed, deleteFeed, fetchFeeds, updateFeed } from '../hooks/useFeeds';
 import { exportOPML, importOPML } from '../hooks/useOPML';
+import { useI18n } from '../i18n';
 import type { FeedConfig, OPMLImportResult } from '../types';
 import { FeedFormModal } from './FeedFormModal';
 import { FeedTable } from './FeedTable';
 
 export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useI18n();
   const [feeds, setFeeds] = useState<FeedConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,11 +28,11 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
       const data = await fetchFeeds();
       setFeeds(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load feeds');
+      setError(err instanceof Error ? err.message : t('feedManager.errLoad'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isOpen) {
@@ -45,7 +47,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
       await updateFeed(feed.id, { enabled: !feed.enabled });
     } catch {
       setFeeds((prev) => prev.map((f) => (f.id === feed.id ? feed : f)));
-      setError('Failed to update feed');
+      setError(t('feedManager.errUpdate'));
     }
   };
 
@@ -62,14 +64,14 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
   };
 
   const handleDelete = async (feed: FeedConfig) => {
-    if (!confirm(`Delete "${feed.name}"? This cannot be undone.`)) return;
+    if (!confirm(t('feedManager.confirmDelete', { name: feed.name }))) return;
 
     setFeeds((prev) => prev.filter((f) => f.id !== feed.id));
     try {
       await deleteFeed(feed.id);
     } catch {
       loadFeeds();
-      setError('Failed to delete feed');
+      setError(t('feedManager.errDelete'));
     }
   };
 
@@ -112,9 +114,9 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed');
+      setError(err instanceof Error ? err.message : t('feedManager.errExport'));
     }
-  }, []);
+  }, [t]);
 
   const handleImportOPML = useCallback(
     async (file: File) => {
@@ -128,12 +130,12 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
           loadFeeds();
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Import failed');
+        setError(err instanceof Error ? err.message : t('feedManager.errImport'));
       } finally {
         setImporting(false);
       }
     },
-    [loadFeeds]
+    [loadFeeds, t]
   );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,8 +162,8 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3 id="feed-manager-title">Feed Manager</h3>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
+          <h3 id="feed-manager-title">{t('feedManager.title')}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -183,7 +185,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
               <div className="search-box" style={{ flex: 1, minWidth: '250px' }}>
                 <input
                   type="text"
-                  placeholder="Search feeds..."
+                  placeholder={t('feedManager.search')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{ paddingLeft: '40px' }}
@@ -194,20 +196,20 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                 onChange={(e) => setFilter(e.target.value as any)}
                 style={{ minWidth: '140px' }}
               >
-                <option value="all">All Feeds</option>
-                <option value="active">Active Only</option>
-                <option value="inactive">Inactive Only</option>
+                <option value="all">{t('feedManager.filterAll')}</option>
+                <option value="active">{t('feedManager.filterActive')}</option>
+                <option value="inactive">{t('feedManager.filterInactive')}</option>
               </select>
               <button className="btn btn-primary" onClick={handleOpenAdd}>
-                <span role="img">＋</span> Add Feed
+                <span role="img">＋</span> {t('feedManager.addFeed')}
               </button>
               <button
                 className="btn btn-secondary"
                 onClick={handleExportOPML}
                 disabled={loading}
-                title="Export OPML (O)"
+                title={t('feedManager.exportOpmlTitle')}
               >
-                <span role="img">📤</span> Export OPML
+                <span role="img">📤</span> {t('feedManager.exportOpml')}
               </button>
               <label style={{ display: 'flex', alignItems: 'center' }}>
                 <input
@@ -222,13 +224,13 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                   type="button"
                   onClick={() => document.getElementById('opml-import')?.click()}
                   disabled={loading || importing}
-                  title="Import OPML (Shift+O)"
+                  title={t('feedManager.importOpmlTitle')}
                 >
-                  <span role="img">📥</span> Import OPML
+                  <span role="img">📥</span> {t('feedManager.importOpml')}
                 </button>
               </label>
               <button className="btn btn-secondary" onClick={loadFeeds} disabled={loading}>
-                {loading ? '⟳' : '🔄'} Reload
+                {loading ? '⟳' : '🔄'} {t('feedManager.reload')}
               </button>
             </div>
           </div>
@@ -281,11 +283,11 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
-              <h3 id="import-result-title">Import Result</h3>
+              <h3 id="import-result-title">{t('feedManager.importResult')}</h3>
               <button
                 className="close-btn"
                 onClick={() => setShowImportResult(false)}
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 ×
               </button>
@@ -311,7 +313,9 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                   <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--success)' }}>
                     {importResult.added}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Added</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {t('feedManager.added')}
+                  </div>
                 </div>
                 <div
                   style={{
@@ -326,7 +330,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                     {importResult.skipped}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Skipped (duplicates)
+                    {t('feedManager.skipped')}
                   </div>
                 </div>
                 <div
@@ -341,12 +345,16 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                   <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--danger)' }}>
                     {importResult.errors.length}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Errors</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {t('feedManager.errors')}
+                  </div>
                 </div>
               </div>
               {importResult.errors.length > 0 && (
                 <div style={{ maxHeight: '200px', overflow: 'auto' }}>
-                  <h4 style={{ marginBottom: '8px', fontSize: '14px' }}>Errors:</h4>
+                  <h4 style={{ marginBottom: '8px', fontSize: '14px' }}>
+                    {t('feedManager.errorsLabel')}
+                  </h4>
                   <ul style={{ fontSize: '12px', color: 'var(--danger)', paddingLeft: '20px' }}>
                     {importResult.errors.map((err, i) => (
                       <li key={i}>{err}</li>
@@ -356,7 +364,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
               )}
               <div className="modal-footer" style={{ justifyContent: 'center' }}>
                 <button className="btn btn-primary" onClick={() => setShowImportResult(false)}>
-                  OK
+                  {t('common.ok')}
                 </button>
               </div>
             </div>

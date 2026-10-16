@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n';
 import type { FeedConfig } from '../types';
 
 interface FeedTableProps {
@@ -13,20 +14,27 @@ interface FeedTableProps {
   onSort: (field: string) => void;
 }
 
-function formatDate(timestamp: number | null | undefined): string {
-  if (!timestamp) return 'Never';
+function formatDate(
+  timestamp: number | null | undefined,
+  neverLabel: string,
+  locale: string
+): string {
+  if (!timestamp) return neverLabel;
   const date = new Date(timestamp);
-  return date.toLocaleString();
+  return date.toLocaleString(locale);
 }
 
-function getStatusBadge(status: 'ok' | 'error' | 'unknown' | undefined) {
+function getStatusBadge(
+  status: 'ok' | 'error' | 'unknown' | undefined,
+  t: (key: string) => string
+) {
   switch (status) {
     case 'ok':
-      return <span className="status-badge ok">OK</span>;
+      return <span className="status-badge ok">{t('feedTable.statusOk')}</span>;
     case 'error':
-      return <span className="status-badge error">Error</span>;
+      return <span className="status-badge error">{t('feedTable.statusError')}</span>;
     default:
-      return <span className="status-badge unknown">Unknown</span>;
+      return <span className="status-badge unknown">{t('feedTable.statusUnknown')}</span>;
   }
 }
 
@@ -43,6 +51,8 @@ function FeedRow({
   onTest: (feed: FeedConfig) => void;
   onDelete: (feed: FeedConfig) => void;
 }) {
+  const { t, language } = useI18n();
+  const locale = language === 'en' ? 'en-US' : 'pt-BR';
   return (
     <tr key={feed.id} className={!feed.enabled ? 'disabled' : ''}>
       <td style={{ textAlign: 'center' }}>
@@ -69,32 +79,26 @@ function FeedRow({
       <td>
         <span className="category-badge">{feed.category}</span>
       </td>
-      <td>{formatDate(feed.lastFetch)}</td>
-      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-        {feed.itemCount || 0}
-      </td>
-      <td>{getStatusBadge(feed.status)}</td>
+      <td>{formatDate(feed.lastFetch, t('feedTable.never'), locale)}</td>
+      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{feed.itemCount || 0}</td>
+      <td>{getStatusBadge(feed.status, t)}</td>
       <td>
         <div className="action-buttons">
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => onTest(feed)}
-            title="Test feed"
+            title={t('feedTable.test')}
             disabled={!feed.enabled}
           >
             🔍
           </button>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => onEdit(feed)}
-            title="Edit"
-          >
+          <button className="btn btn-ghost btn-sm" onClick={() => onEdit(feed)} title={t('feedTable.edit')}>
             ✏️
           </button>
           <button
             className="btn btn-ghost btn-sm danger"
             onClick={() => onDelete(feed)}
-            title="Delete"
+            title={t('common.delete')}
           >
             🗑️
           </button>
@@ -116,6 +120,7 @@ export function FeedTable({
   sortOrder,
   onSort,
 }: FeedTableProps) {
+  const { t } = useI18n();
   // Defensive: ensure feeds is an array and filter out undefined/null entries
   const feedsArray = Array.isArray(feeds) ? feeds.filter(Boolean) : [];
   let filtered = [...feedsArray];
@@ -152,14 +157,14 @@ export function FeedTable({
   });
 
   const columns = [
-    { key: 'enabled', label: 'Status', width: '80px' },
-    { key: 'name', label: 'Name', width: '200px' },
-    { key: 'url', label: 'URL', width: '300px' },
-    { key: 'category', label: 'Category', width: '120px' },
-    { key: 'lastFetch', label: 'Last Fetch', width: '160px' },
-    { key: 'itemCount', label: 'Items', width: '80px', align: 'right' },
-    { key: 'status', label: 'Health', width: '100px' },
-    { key: 'actions', label: 'Actions', width: '140px' },
+    { key: 'enabled', label: t('feedTable.colStatus'), width: '80px' },
+    { key: 'name', label: t('common.name'), width: '200px' },
+    { key: 'url', label: t('feedTable.colUrl'), width: '300px' },
+    { key: 'category', label: t('feedTable.colCategory'), width: '120px' },
+    { key: 'lastFetch', label: t('feedTable.colLastFetch'), width: '160px' },
+    { key: 'itemCount', label: t('feedTable.colItems'), width: '80px', align: 'right' },
+    { key: 'status', label: t('feedTable.colHealth'), width: '100px' },
+    { key: 'actions', label: t('common.actions'), width: '140px' },
   ];
 
   const handleSort = (key: string) => {
@@ -191,8 +196,8 @@ export function FeedTable({
             <tr>
               <td colSpan={columns.length} className="empty">
                 {searchQuery || filter !== 'all'
-                  ? 'No feeds match your filters'
-                  : 'No feeds configured. Click "Add Feed" to get started.'}
+                  ? t('feedTable.noMatch')
+                  : t('feedTable.noFeeds')}
               </td>
             </tr>
           ) : (

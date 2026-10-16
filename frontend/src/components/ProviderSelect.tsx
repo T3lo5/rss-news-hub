@@ -1,4 +1,5 @@
 import { useAiProviders } from '../hooks/useAiProviders';
+import { useI18n } from '../i18n';
 import type { AiProviderListItem, Provider } from '../types';
 
 const DEFAULT_PROVIDERS: AiProviderListItem[] = [
@@ -22,8 +23,9 @@ export function ProviderSelect({
   onChange,
   id,
   disabled,
-  autoLabel = 'Auto (primeiro disponível)',
+  autoLabel,
 }: ProviderSelectProps) {
+  const { t } = useI18n();
   const list = useAiProviders(true);
   const providers = list?.providers ?? DEFAULT_PROVIDERS;
   const known = Boolean(list);
@@ -35,11 +37,11 @@ export function ProviderSelect({
       onChange={(e) => onChange(e.target.value as Provider)}
       disabled={disabled}
     >
-      <option value="auto">{autoLabel}</option>
+      <option value="auto">{autoLabel ?? t('common.autoFirst')}</option>
       {providers.map((p) => (
         <option key={p.id} value={p.id} disabled={known && !p.configured}>
           {p.label}
-          {known && !p.configured ? ' — não configurado' : ''}
+          {known && !p.configured ? ` ${t('common.notConfigured')}` : ''}
         </option>
       ))}
     </select>
