@@ -38,7 +38,9 @@ export class UserProfileRepository {
 
     if (result[0]) return result[0];
 
-    // Create default profile
+    // Create default profile. Parallel callers (e.g. two digest/scoring runs)
+    // can race here, so tolerate the conflict and re-read instead of throwing
+    // a UNIQUE constraint error.
     const inserted = await this.db
       .insert(schema.userProfiles)
       .values({
@@ -48,8 +50,17 @@ export class UserProfileRepository {
         preferredSources: JSON.stringify(DEFAULT_PROFILE.preferredSources),
         excludedKeywords: JSON.stringify(DEFAULT_PROFILE.excludedKeywords),
       })
+      .onConflictDoNothing()
       .returning();
-    return inserted[0];
+
+    if (inserted[0]) return inserted[0];
+
+    const existing = await this.db
+      .select()
+      .from(schema.userProfiles)
+      .where(eq(schema.userProfiles.id, id))
+      .limit(1);
+    return existing[0];
   }
 
   async update(id: string, updates: Partial<schema.NewUserProfile>): Promise<schema.UserProfile> {
