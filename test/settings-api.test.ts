@@ -346,4 +346,67 @@ describe('Settings API', () => {
     assert.strictEqual(email.host, 'smtp.boot.test');
     assert.strictEqual(email.pass, 'boot-pass');
   });
+
+  test('POST /api/ai/test is admin-only and runs a provider call', async () => {
+    const token = await createAdminToken();
+    const saved = structuredClone(__getAiConfig());
+    __setAiConfig({
+      ...saved,
+      sensenova: { ...saved.sensenova, apiKey: '' },
+      deepseek: { ...saved.deepseek, apiKey: '' },
+      openai: {
+        ...saved.openai,
+        apiKey: 'sk-test',
+        baseUrl: 'http://ai.test',
+        model: 'test-model',
+      },
+    });
+
+    const originalFetch = global.fetch;
+    global.fetch = (async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { role: 'assistant', content: 'OK' } }] }),
+    })) as any;
+
+    try {
+      const user = await createUserToken();
+      const denied = await request('POST', '/api/ai/test', { provider: 'openai' }, bearer(user));
+      assert.strictEqual(denied.status, 403, denied.raw);
+
+      const res = await request('POST', '/api/ai/test', { provider: 'openai' }, bearer(token));
+      assert.strictEqual(res.status, 200, res.raw);
+      assert.strictEqual(res.json.data.provider, 'openai');
+      assert.strictEqual(res.json.data.reply, 'OK');
+    } finally {
+      global.fetch = originalFetch;
+      __setAiConfig(saved);
+    }
+  });
+
+  test('POST /api/ai/test reports a failure when the provider errors', async () => {
+    const token = await createAdminToken();
+    const saved = structuredClone(__getAiConfig());
+    __setAiConfig({
+      ...saved,
+      sensenova: { ...saved.sensenova, apiKey: '' },
+      deepseek: { ...saved.deepseek, apiKey: '' },
+      openai: { ...saved.openai, apiKey: 'sk-test', baseUrl: 'http://ai.test', model: 'm' },
+    });
+
+    const originalFetch = global.fetch;
+    global.fetch = (async () => ({
+      ok: false,
+      status: 401,
+      text: async () => 'invalid key',
+    })) as any;
+
+    try {
+      const res = await request('POST', '/api/ai/test', { provider: 'openai' }, bearer(token));
+      assert.strictEqual(res.status, 502, res.raw);
+      assert.match(res.json.error, /401/);
+    } finally {
+      global.fetch = originalFetch;
+      __setAiConfig(saved);
+    }
+  });
 });

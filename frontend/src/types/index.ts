@@ -169,6 +169,12 @@ export interface ScoredNewsItem extends NewsItem {
 
 export type AiProviderId = 'sensenova' | 'deepseek' | 'openai';
 
+export type Provider = 'auto' | AiProviderId;
+
+export type ContentType = 'thread' | 'summary' | 'linkedin' | 'blog' | 'newsletter';
+
+export type Language = 'en' | 'pt';
+
 export interface AiProviderInfo {
   id: AiProviderId;
   label: string;
@@ -227,6 +233,11 @@ export interface AiProviderListItem {
 export interface AiProviderList {
   defaultProvider: 'auto' | AiProviderId;
   providers: AiProviderListItem[];
+}
+
+export interface AiTestResult {
+  provider: string;
+  reply: string;
 }
 
 export interface AiProviderOverride {

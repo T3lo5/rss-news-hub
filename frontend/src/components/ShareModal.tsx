@@ -1,5 +1,6 @@
 import { formatGeneratedContent } from '../utils/content';
 import type { ContentType, Language, NewsItem, Provider, Template } from '../types';
+import { ProviderSelect } from './ProviderSelect';
 
 interface ShareModalProps {
   news: NewsItem | null;
@@ -215,16 +216,11 @@ export function ShareModal({
 
           <div className="form-group">
             <label htmlFor="aiProvider">Provedor IA (opcional):</label>
-            <select
+            <ProviderSelect
               id="aiProvider"
               value={provider}
-              onChange={(e) => onProviderChange(e.target.value as Provider)}
-            >
-              <option value="auto">Auto (primeiro disponível)</option>
-              <option value="sensenova">SenseNova</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="openai">OpenAI</option>
-            </select>
+              onChange={onProviderChange}
+            />
           </div>
 
           <button

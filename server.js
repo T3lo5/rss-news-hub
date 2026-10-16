@@ -935,6 +935,37 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    // POST /api/ai/test - quick provider connectivity check (admin)
+    if (path === '/api/ai/test' && req.method === 'POST') {
+      requireAdmin()(req, res, () => {
+        aiGenerateLimiter(req, res, () => {
+          validateBody(schemas.aiTestSchema)(req, res, async () => {
+            const provider = req.body.provider || 'auto';
+            try {
+              const reply = await chat(
+                'You are a connectivity check. Answer with a single word.',
+                'Reply with the single word OK.',
+                provider
+              );
+              return sendJSON(res, 200, {
+                ok: true,
+                data: {
+                  provider,
+                  reply: String(reply || '')
+                    .trim()
+                    .slice(0, 200),
+                },
+              });
+            } catch (err) {
+              log.error({ err }, 'AI test failed');
+              return sendJSON(res, 502, { ok: false, error: err.message });
+            }
+          });
+        });
+      });
+      return;
+    }
+
     // GET /api/bookmarks - list all bookmarks
     if (path === '/api/bookmarks' && req.method === 'GET') {
       requireUser()(req, res, async () => {

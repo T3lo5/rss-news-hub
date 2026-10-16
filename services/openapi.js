@@ -447,6 +447,15 @@ registerPath(
 );
 registerPath(
   'post',
+  '/api/ai/test',
+  'Test AI provider',
+  'Run a tiny completion against a provider to verify the configuration (admin)',
+  schemas.aiTestSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
+  'post',
   '/api/ai/score',
   'Score news items',
   'Score news items for relevance',

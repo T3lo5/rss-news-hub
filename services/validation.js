@@ -131,6 +131,10 @@ export const telegramSettingsSchema = z.object({
   chatId: z.string().max(200).optional(),
 });
 
+export const aiTestSchema = z.object({
+  provider: z.enum(['auto', 'sensenova', 'deepseek', 'openai']).optional(),
+});
+
 // Email/SMTP settings (admin). pass: omitted = keep, null/'' = clear.
 export const emailSettingsSchema = z.object({
   enabled: z.boolean().optional(),
@@ -274,6 +278,7 @@ export const schemas = {
   updateUserProfileSchema,
   aiSettingsSchema,
   telegramSettingsSchema,
+  aiTestSchema,
   emailSettingsSchema,
   emailSendSchema,
   emailTestSchema,

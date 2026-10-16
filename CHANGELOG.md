@@ -22,6 +22,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   **pré-visualizar** o conteúdo e **enviar agora** — o envio manual funciona
   mesmo com o agendamento desligado
 - Endpoints do digest documentados no OpenAPI
+- **Teste de provedor de IA**: botão "Testar" em cada provedor nas Configurações
+  e endpoint `POST /api/ai/test` (admin), além de os dropdowns de provedor
+  passarem a usar `GET /api/ai/providers` e desabilitar os que não têm chave
 - Tela **Montar Newsletter** (Toolbar) para criar uma newsletter própria:
   selecionar notícias manualmente e/ou filtrar por fontes, com busca, idioma,
   provedor, template e variáveis; inclui prévia, copiar e enviar pelo Telegram

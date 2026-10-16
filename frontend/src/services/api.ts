@@ -4,6 +4,7 @@ import type {
   AiProviderList,
   AiSettings,
   AiSettingsUpdate,
+  AiTestResult,
   AppSettings,
   Bookmark,
   DigestConfig,
@@ -495,6 +496,15 @@ export const api = {
   async getAiProviders(): Promise<AiProviderList> {
     const res = await fetchWithAuth('/api/ai/providers');
     const data = await handleResponse<{ ok: boolean; data: AiProviderList }>(res);
+    return data.data;
+  },
+
+  async testAiProvider(provider: 'auto' | AiProviderId): Promise<AiTestResult> {
+    const res = await fetchWithAuth('/api/ai/test', {
+      method: 'POST',
+      body: JSON.stringify({ provider }),
+    });
+    const data = await handleResponse<{ ok: boolean; data: AiTestResult }>(res);
     return data.data;
   },
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
 import type { DigestConfig, DigestPreview, DigestStatus } from '../types';
+import { ProviderSelect } from './ProviderSelect';
 
 const CRON_PRESETS = [
   { label: 'Diário 9:00', value: '0 9 * * *' },
@@ -300,19 +301,12 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
               <div className="form-group">
                 <label htmlFor="digestProvider">Provedor de IA:</label>
-                <select
+                <ProviderSelect
                   id="digestProvider"
                   value={config.provider}
-                  onChange={(e) =>
-                    handleChange('provider', e.target.value as DigestConfig['provider'])
-                  }
+                  onChange={(value) => handleChange('provider', value)}
                   disabled={loading}
-                >
-                  <option value="auto">Auto (primeiro disponível)</option>
-                  <option value="sensenova">SenseNova</option>
-                  <option value="deepseek">DeepSeek</option>
-                  <option value="openai">OpenAI</option>
-                </select>
+                />
               </div>
 
               <div className="form-group">

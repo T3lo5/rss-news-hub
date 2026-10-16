@@ -3,6 +3,7 @@ import { useTelegram } from '../hooks/useTelegram';
 import { api } from '../services/api';
 import { formatGeneratedContent } from '../utils/content';
 import type { Language, NewsItem, Provider, Template } from '../types';
+import { ProviderSelect } from './ProviderSelect';
 
 interface NewsletterBuilderModalProps {
   isOpen: boolean;
@@ -356,16 +357,7 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
             </div>
             <div className="form-group">
               <label htmlFor="builderProvider">Provedor IA:</label>
-              <select
-                id="builderProvider"
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as Provider)}
-              >
-                <option value="auto">Auto</option>
-                <option value="sensenova">SenseNova</option>
-                <option value="deepseek">DeepSeek</option>
-                <option value="openai">OpenAI</option>
-              </select>
+              <ProviderSelect id="builderProvider" value={provider} onChange={setProvider} autoLabel="Auto" />
             </div>
             <div className="form-group">
               <label htmlFor="builderTemplate">Template:</label>

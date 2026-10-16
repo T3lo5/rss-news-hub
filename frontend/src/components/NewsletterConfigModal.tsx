@@ -7,6 +7,7 @@ import {
   updateNewsletterConfig,
 } from '../hooks/useNewsletter';
 import type { FeedConfig, NewsletterConfig, NewsletterHistoryEntry } from '../types';
+import { ProviderSelect } from './ProviderSelect';
 
 const CRON_PRESETS = [
   { label: 'Daily 9:00', value: '0 9 * * *' },
@@ -267,17 +268,13 @@ export function NewsletterConfigModal({
 
             <div className="form-group">
               <label htmlFor="provider">AI Provider:</label>
-              <select
+              <ProviderSelect
                 id="provider"
                 value={config.provider}
-                onChange={(e) => handleChange('provider', e.target.value as any)}
+                onChange={(value) => handleChange('provider', value)}
                 disabled={loading}
-              >
-                <option value="auto">Auto (first available)</option>
-                <option value="sensenova">SenseNova</option>
-                <option value="deepseek">DeepSeek</option>
-                <option value="openai">OpenAI</option>
-              </select>
+                autoLabel="Auto (first available)"
+              />
             </div>
 
             <div className="form-group">

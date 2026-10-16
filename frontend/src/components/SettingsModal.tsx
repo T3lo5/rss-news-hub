@@ -29,6 +29,10 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
   const [savingAi, setSavingAi] = useState(false);
   const [savingTelegram, setSavingTelegram] = useState(false);
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const [providerTest, setProviderTest] = useState<
+    Record<string, { ok: boolean; message: string }>
+  >({});
 
   const [defaultProvider, setDefaultProvider] = useState<'auto' | AiProviderId>('auto');
   const [providerForms, setProviderForms] = useState<Record<string, ProviderForm>>({});
@@ -142,6 +146,29 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setError(err instanceof Error ? err.message : 'Falha ao salvar IA');
     } finally {
       setSavingAi(false);
+    }
+  };
+
+  const handleTestProvider = async (id: AiProviderId) => {
+    setTestingProvider(id);
+    setProviderTest((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    try {
+      const result = await api.testAiProvider(id);
+      setProviderTest((prev) => ({
+        ...prev,
+        [id]: { ok: true, message: result.reply ? `OK: ${result.reply}` : 'OK (sem resposta)' },
+      }));
+    } catch (err) {
+      setProviderTest((prev) => ({
+        ...prev,
+        [id]: { ok: false, message: err instanceof Error ? err.message : 'Falha no teste' },
+      }));
+    } finally {
+      setTestingProvider(null);
     }
   };
 
@@ -309,16 +336,41 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             marginBottom: '10px',
+                            gap: '8px',
                           }}
                         >
                           <strong>{provider.label}</strong>
-                          <span
-                            className={`status-badge ${provider.apiKeySet ? 'ok' : 'error'}`}
-                            title={provider.apiKeySet ? 'Chave configurada' : 'Sem chave'}
-                          >
-                            {provider.apiKeySet ? 'chave definida' : 'sem chave'}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleTestProvider(provider.id)}
+                              disabled={testingProvider === provider.id}
+                              title="Enviar uma requisição de teste a este provedor"
+                            >
+                              {testingProvider === provider.id ? '⏳ Testando…' : '🔌 Testar'}
+                            </button>
+                            <span
+                              className={`status-badge ${provider.apiKeySet ? 'ok' : 'error'}`}
+                              title={provider.apiKeySet ? 'Chave configurada' : 'Sem chave'}
+                            >
+                              {provider.apiKeySet ? 'chave definida' : 'sem chave'}
+                            </span>
+                          </div>
                         </div>
+
+                        {providerTest[provider.id] && (
+                          <p
+                            style={{
+                              fontSize: '12px',
+                              margin: '0 0 8px',
+                              color: providerTest[provider.id].ok ? '#16a34a' : 'var(--danger)',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {providerTest[provider.id].ok ? '✅ ' : '❌ '}
+                            {providerTest[provider.id].message}
+                          </p>
+                        )}
 
                         <div className="form-group">
                           <label>API Key:</label>
