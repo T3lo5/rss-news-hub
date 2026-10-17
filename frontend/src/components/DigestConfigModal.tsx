@@ -1,3 +1,4 @@
+import { Save, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
@@ -154,7 +155,7 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
         <div className="modal-header">
           <h3 id="digest-config-title">{t('digest.title')}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
-            ×
+            <X size={18} />
           </button>
         </div>
         <div
@@ -376,7 +377,8 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 {sending ? t('digest.sending') : t('digest.sendNow')}
               </button>
               <button className="btn btn-primary" onClick={handleSave} disabled={loading || saving}>
-                {saving ? t('common.saving') : `💾 ${t('common.save')}`}
+                <Save size={15} />
+                {saving ? t('common.saving') : t('common.save')}
               </button>
             </div>
 

@@ -1,3 +1,4 @@
+import { Check, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { testFeed } from '../hooks/useFeeds';
 import { useI18n } from '../i18n';
@@ -125,7 +126,7 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
             {isEditing ? t('feedForm.editTitle') : t('feedForm.addFeed')}
           </h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
-            ×
+            <X size={18} />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="modal-body">
@@ -194,7 +195,7 @@ export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
           {testResult && (
             <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>
               <div style={{ fontWeight: 600, marginBottom: '8px' }}>
-                {testResult.success ? '✓' : '✗'} {testResult.message}
+                {testResult.success ? <Check size={13} /> : <X size={13} />} {testResult.message}
               </div>
               {testResult.preview && testResult.preview.length > 0 && (
                 <div style={{ fontSize: '12px', opacity: 0.8 }}>

@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
 import { useI18n } from '../i18n';
@@ -57,7 +58,7 @@ export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
         <div className="modal-header">
           <h3 id="bookmarks-title">{t('bookmarks.title', { count: bookmarks.length })}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
-            ×
+            <X size={18} />
           </button>
         </div>
         <div

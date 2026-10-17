@@ -1,3 +1,4 @@
+import { Download, Plus, RefreshCw, Search, Upload, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { addFeed, deleteFeed, fetchFeeds, updateFeed } from '../hooks/useFeeds';
 import { exportOPML, importOPML } from '../hooks/useOPML';
@@ -164,7 +165,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
         <div className="modal-header">
           <h3 id="feed-manager-title">{t('feedManager.title')}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
-            ×
+            <X size={18} />
           </button>
         </div>
         <div
@@ -183,12 +184,12 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
           >
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
               <div className="search-box" style={{ flex: 1, minWidth: '250px' }}>
+                <Search className="search-icon" size={16} aria-hidden="true" />
                 <input
-                  type="text"
+                  type="search"
                   placeholder={t('feedManager.search')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ paddingLeft: '40px' }}
                 />
               </div>
               <select
@@ -201,7 +202,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                 <option value="inactive">{t('feedManager.filterInactive')}</option>
               </select>
               <button className="btn btn-primary" onClick={handleOpenAdd}>
-                <span role="img">＋</span> {t('feedManager.addFeed')}
+                <Plus size={15} /> {t('feedManager.addFeed')}
               </button>
               <button
                 className="btn btn-secondary"
@@ -209,7 +210,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                 disabled={loading}
                 title={t('feedManager.exportOpmlTitle')}
               >
-                <span role="img">📤</span> {t('feedManager.exportOpml')}
+                <Download size={15} /> {t('feedManager.exportOpml')}
               </button>
               <label style={{ display: 'flex', alignItems: 'center' }}>
                 <input
@@ -226,11 +227,11 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                   disabled={loading || importing}
                   title={t('feedManager.importOpmlTitle')}
                 >
-                  <span role="img">📥</span> {t('feedManager.importOpml')}
+                  <Upload size={15} /> {t('feedManager.importOpml')}
                 </button>
               </label>
               <button className="btn btn-secondary" onClick={loadFeeds} disabled={loading}>
-                {loading ? '⟳' : '🔄'} {t('feedManager.reload')}
+                <RefreshCw size={15} className={loading ? 'spin' : ''} /> {t('feedManager.reload')}
               </button>
             </div>
           </div>

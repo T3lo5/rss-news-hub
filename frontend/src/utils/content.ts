@@ -1,5 +1,32 @@
 import type { ContentType } from '../types';
 
+// RSS descriptions are frequently HTML (often entity-escaped). Render them as
+// plain text: decode entities, drop tags, collapse whitespace.
+export function cleanDescription(input?: string): string {
+  if (!input) return '';
+
+  const decodeAndStrip = (value: string): string =>
+    value
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#0*39;/g, "'")
+      .replace(/&#x27;/gi, "'")
+      .replace(/&apos;/gi, "'")
+      .replace(/&amp;/gi, '&')
+      .replace(/<[^>]*>/g, ' ')
+      // Drop an unterminated tag (feeds sometimes truncate mid-tag).
+      .replace(/<[^>]*$/, ' ');
+  // Run twice so double-escaped markup (e.g. "&amp;lt;p&amp;gt;") is fully decoded.
+  const text = decodeAndStrip(decodeAndStrip(String(input)));
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+export function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
+}
+
 // Mirrors services/ai.service.js#stripEditorialMeta. Some models still emit the
 // editorial analysis sections even when instructed not to; strip them so the
 // displayed, copied, and Telegram-sent text contains only the post.

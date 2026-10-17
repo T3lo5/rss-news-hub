@@ -7,13 +7,9 @@ interface RelevanceBadgeProps {
 
 export function RelevanceBadge({ score, size = 'md' }: RelevanceBadgeProps) {
   const { t } = useI18n();
-  if (score === undefined || score === null) {
-    return (
-      <span className={`relevance-badge ${size}`} style={{ opacity: 0.4 }}>
-        —
-      </span>
-    );
-  }
+
+  // Nothing to show when the item has not been scored — avoid an empty chip.
+  if (score === undefined || score === null) return null;
 
   let colorClass = 'low';
   if (score >= 70) colorClass = 'high';

@@ -1,3 +1,4 @@
+import { BookMarked, Bookmark } from 'lucide-react';
 import { useI18n } from '../i18n';
 
 interface BookmarkButtonProps {
@@ -18,29 +19,7 @@ export function BookmarkButton({ newsId, isBookmarked, onToggle, disabled }: Boo
       aria-pressed={isBookmarked}
       title={isBookmarked ? t('bookmark.removeTitle') : t('bookmark.saveTitle')}
     >
-      {isBookmarked ? (
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        </svg>
-      ) : (
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        </svg>
-      )}
+      {isBookmarked ? <BookMarked size={17} fill="currentColor" /> : <Bookmark size={17} />}
     </button>
   );
 }

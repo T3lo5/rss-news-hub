@@ -1,3 +1,16 @@
+import {
+  ArrowUpDown,
+  Bookmark,
+  FileText,
+  Filter,
+  LayoutGrid,
+  List,
+  Newspaper,
+  PenLine,
+  Search,
+  Target,
+  X,
+} from 'lucide-react';
 import { useI18n } from '../i18n';
 
 interface ToolbarProps {
@@ -46,17 +59,20 @@ export function Toolbar({
   onNewsletterBuilderClick,
 }: ToolbarProps) {
   const { t } = useI18n();
+
   return (
     <div className="toolbar">
       <div className="search-box">
+        <Search className="search-icon" size={16} aria-hidden="true" />
         <input
-          type="text"
+          type="search"
           placeholder={t('news.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           aria-label={t('toolbar.searchAria')}
         />
       </div>
+
       {selectedCount > 0 && (
         <div className="selection-bar">
           <span className="selection-count">
@@ -67,13 +83,21 @@ export function Toolbar({
           <button className="btn btn-ghost btn-sm" onClick={onSelectAll}>
             {selectedCount === sources.length ? t('toolbar.deselectAll') : t('toolbar.selectAll')}
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={onClearSelection}>
-            {t('common.clear')}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={onClearSelection}
+            aria-label={t('common.clear')}
+          >
+            <X size={14} />
           </button>
         </div>
       )}
+
       <div className="filter-group">
-        <label htmlFor="sourceFilter">{t('toolbar.source')}</label>
+        <label htmlFor="sourceFilter">
+          <Filter size={13} aria-hidden="true" />
+          {t('toolbar.source')}
+        </label>
         <select
           id="sourceFilter"
           value={currentSourceFilter}
@@ -88,8 +112,12 @@ export function Toolbar({
           ))}
         </select>
       </div>
+
       <div className="filter-group">
-        <label htmlFor="sortFilter">{t('toolbar.sort')}</label>
+        <label htmlFor="sortFilter">
+          <ArrowUpDown size={13} aria-hidden="true" />
+          {t('toolbar.sort')}
+        </label>
         <select
           id="sortFilter"
           value={currentSortOrder}
@@ -101,35 +129,27 @@ export function Toolbar({
           <option value="relevance">{t('toolbar.relevance')}</option>
         </select>
       </div>
-      <div
-        className="filter-group"
-        style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}
-      >
+
+      <div className="filter-group toolbar-spacer">
         {bookmarkCount > 0 && (
           <button
             className="btn btn-ghost btn-sm"
             onClick={onBookmarksClick}
             title={t('toolbar.bookmarksTitle', { count: bookmarkCount })}
           >
-            <span role="img" aria-label="bookmarks">
-              🔖
-            </span>
+            <Bookmark size={15} />
             <span className="badge">{bookmarkCount}</span>
           </button>
         )}
-        <div
-          className="digest-controls"
-          style={{ display: 'flex', gap: '4px', alignItems: 'center' }}
-        >
+
+        <div className="digest-controls">
           <button
-            className={`btn btn-sm ${digestView ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn btn-icon btn-sm ${digestView ? 'active' : ''}`}
             onClick={onToggleDigest}
             title={t('toolbar.digestToggle')}
             aria-pressed={digestView}
           >
-            <span role="img" aria-label="digest">
-              📑
-            </span>
+            {digestView ? <LayoutGrid size={16} /> : <List size={16} />}
           </button>
           {digestView && (
             <select
@@ -138,7 +158,6 @@ export function Toolbar({
                 onChangeDigestGrouping(e.target.value as 'none' | 'daily' | 'weekly')
               }
               aria-label={t('toolbar.digestGroupingAria')}
-              style={{ minWidth: '120px', fontSize: '12px', padding: '4px 8px' }}
             >
               <option value="none">{t('toolbar.groupAll')}</option>
               <option value="daily">{t('toolbar.groupDaily')}</option>
@@ -146,40 +165,37 @@ export function Toolbar({
             </select>
           )}
         </div>
+
         <button
-          className="btn btn-ghost btn-sm"
+          className="btn btn-icon btn-sm"
           onClick={onProfileClick}
           title={t('toolbar.profileTitle')}
+          aria-label={t('toolbar.profileTitle')}
         >
-          <span role="img" aria-label="profile">
-            🎯
-          </span>
+          <Target size={16} />
         </button>
         <button
-          className="btn btn-ghost btn-sm"
+          className="btn btn-icon btn-sm"
           onClick={onTemplatesClick}
           title={t('toolbar.templatesTitle')}
+          aria-label={t('toolbar.templatesTitle')}
         >
-          <span role="img" aria-label="templates">
-            📋
-          </span>
+          <FileText size={16} />
         </button>
         {onNewsletterBuilderClick && (
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-icon btn-sm"
             onClick={onNewsletterBuilderClick}
             title={t('toolbar.builderTitle')}
+            aria-label={t('toolbar.builderTitle')}
           >
-            <span role="img" aria-label="build newsletter">
-              ✍️
-            </span>
+            <PenLine size={16} />
           </button>
         )}
-        <button className="btn btn-secondary" onClick={onNewsletterClick}>
-          <span role="img" aria-label="newsletter">
-            📰
-          </span>{' '}
-          {t('toolbar.newsletter')}
+
+        <button className="btn btn-secondary btn-sm" onClick={onNewsletterClick}>
+          <Newspaper size={15} />
+          <span className="btn-label">{t('toolbar.newsletter')}</span>
         </button>
       </div>
     </div>

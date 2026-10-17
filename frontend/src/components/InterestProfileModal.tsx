@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { fetchProfile, updateProfile } from '../hooks/useRelevance';
 import { useI18n } from '../i18n';
@@ -117,7 +118,7 @@ export function InterestProfileModal({
                 lineHeight: 1,
               }}
             >
-              ×
+              <X size={18} />
             </button>
           </span>
         ))}

@@ -1,3 +1,4 @@
+import { FlaskConical, Pencil, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import type { FeedConfig } from '../types';
 
@@ -90,17 +91,21 @@ function FeedRow({
             title={t('feedTable.test')}
             disabled={!feed.enabled}
           >
-            🔍
+            <FlaskConical size={15} />
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => onEdit(feed)} title={t('feedTable.edit')}>
-            ✏️
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => onEdit(feed)}
+            title={t('feedTable.edit')}
+          >
+            <Pencil size={15} />
           </button>
           <button
             className="btn btn-ghost btn-sm danger"
             onClick={() => onDelete(feed)}
             title={t('common.delete')}
           >
-            🗑️
+            <Trash2 size={15} />
           </button>
         </div>
       </td>
@@ -195,9 +200,7 @@ export function FeedTable({
           {filtered.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="empty">
-                {searchQuery || filter !== 'all'
-                  ? t('feedTable.noMatch')
-                  : t('feedTable.noFeeds')}
+                {searchQuery || filter !== 'all' ? t('feedTable.noMatch') : t('feedTable.noFeeds')}
               </td>
             </tr>
           ) : (

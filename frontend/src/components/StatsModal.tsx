@@ -1,3 +1,4 @@
+import { Check, Clock, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
@@ -75,7 +76,7 @@ export function StatsModal({ onClose }: StatsModalProps) {
     <div className="modal-header">
       <h2>{t('stats.title')}</h2>
       <button className="btn-close" onClick={onClose} aria-label={t('common.close')}>
-        ×
+        <X size={18} />
       </button>
     </div>
   );
@@ -262,11 +263,19 @@ export function StatsModal({ onClose }: StatsModalProps) {
                         <td className="feed-name">{feed.name}</td>
                         <td>
                           <span className={`status-badge ${feed.lastStatus || 'unknown'}`}>
-                            {feed.lastStatus === 'ok'
-                              ? `✅ ${t('stats.ok')}`
-                              : feed.lastStatus === 'error'
-                                ? `❌ ${t('stats.errorWord')}`
-                                : '⏳ --'}
+                            {feed.lastStatus === 'ok' ? (
+                              <>
+                                <Check size={12} /> {t('stats.ok')}
+                              </>
+                            ) : feed.lastStatus === 'error' ? (
+                              <>
+                                <X size={12} /> {t('stats.errorWord')}
+                              </>
+                            ) : (
+                              <>
+                                <Clock size={12} /> --
+                              </>
+                            )}
                           </span>
                         </td>
                         <td>{formatDate(feed.lastFetch, never, locale)}</td>

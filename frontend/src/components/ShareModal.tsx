@@ -1,3 +1,4 @@
+import { Copy, ExternalLink, Globe, Loader2, Send, Sparkles, X } from 'lucide-react';
 import { useI18n } from '../i18n';
 import type { ContentType, Language, NewsItem, Provider, Template } from '../types';
 import { formatGeneratedContent } from '../utils/content';
@@ -76,35 +77,30 @@ export function ShareModal({
   };
 
   const isNewsletter = contentType === 'newsletter';
-  const _previewItems = isNewsletter ? selectedNews : news ? [news] : [];
 
-  // Filter templates by content type
   const typeTemplates = templates.filter((tpl) => tpl.type === contentType);
   const defaultTemplate = templates.find((tpl) => tpl.id === templateId) || typeTemplates[0];
-
-  // Get template variables for the selected template
   const templateVars = defaultTemplate?.variables || [];
 
-  // Render variable inputs for the selected template
   const renderVariableInputs = () => {
     if (templateVars.length === 0) return null;
     return (
-      <div className="form-group" style={{ marginTop: '12px' }}>
+      <div className="form-group">
         <label>{t('content.templateVars')}</label>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="template-vars">
           {templateVars.map((varName) => (
-            <div key={varName} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ minWidth: '120px', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div key={varName} className="template-var-row">
+              <label className="template-var-name" htmlFor={`var-${varName}`}>
                 {varName}
               </label>
               <input
+                id={`var-${varName}`}
                 type="text"
                 value={templateVariables[varName] || ''}
                 onChange={(e) =>
                   onTemplateVariablesChange({ ...templateVariables, [varName]: e.target.value })
                 }
                 placeholder={t('content.varPlaceholder', { name: varName })}
-                style={{ flex: 1 }}
               />
             </div>
           ))}
@@ -123,11 +119,9 @@ export function ShareModal({
     >
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 id="modal-title">
-            {isNewsletter ? t('share.newsletterTitle') : t('share.title')}
-          </h3>
+          <h3 id="modal-title">{isNewsletter ? t('share.newsletterTitle') : t('share.title')}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
-            ×
+            <X size={18} />
           </button>
         </div>
         <div className="modal-body">
@@ -135,23 +129,13 @@ export function ShareModal({
             {isNewsletter ? (
               <div>
                 <h4>{t('share.newsletterItems', { count: selectedNews.length })}</h4>
-                <ul
-                  style={{
-                    margin: '8px 0',
-                    paddingLeft: '20px',
-                    maxHeight: '200px',
-                    overflow: 'auto',
-                  }}
-                >
+                <ul className="share-news-list">
                   {selectedNews.map((item) => (
-                    <li key={item.id} style={{ marginBottom: '4px' }}>
+                    <li key={item.id}>
                       <a href={item.link} target="_blank" rel="noopener noreferrer">
                         {item.title}
                       </a>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                        {' '}
-                        • {item.source}
-                      </span>
+                      <span className="muted"> • {item.source}</span>
                     </li>
                   ))}
                 </ul>
@@ -160,12 +144,12 @@ export function ShareModal({
               <>
                 <h4>{news.title}</h4>
                 <a href={news.link} target="_blank" rel="noopener noreferrer">
-                  🔗 {news.link}
+                  <ExternalLink size={13} style={{ verticalAlign: '-2px' }} /> {news.link}
                 </a>
                 <p>{t('share.source', { source: news.source, date: formatDate(news.pubDate) })}</p>
               </>
             ) : (
-              <p style={{ color: 'var(--text-muted)' }}>{t('share.selectPrompt')}</p>
+              <p className="muted">{t('share.selectPrompt')}</p>
             )}
           </div>
 
@@ -221,25 +205,18 @@ export function ShareModal({
           </div>
 
           <button
-            className="btn btn-primary"
+            className="btn btn-primary w-full mb-3"
             onClick={onGenerate}
             disabled={generating || (isNewsletter && selectedNews.length === 0)}
-            style={{ width: '100%', marginBottom: '12px' }}
           >
-            {generating ? (
-              <>
-                <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>
-                  ⏳
-                </span>
-                {t('content.generating')}
-              </>
-            ) : isNewsletter ? (
-              t('share.generateNewsletter', { count: selectedNews.length })
-            ) : hasGenerated ? (
-              t('share.regenerate')
-            ) : (
-              t('share.generate')
-            )}
+            {generating ? <Loader2 size={16} className="spin" /> : <Sparkles size={16} />}
+            {generating
+              ? t('content.generating')
+              : isNewsletter
+                ? t('share.generateNewsletter', { count: selectedNews.length })
+                : hasGenerated
+                  ? t('share.regenerate')
+                  : t('share.generate')}
           </button>
 
           <div
@@ -262,28 +239,27 @@ export function ShareModal({
                 onClick={onSendTelegram}
                 disabled={sending || tgSuccess}
               >
-                {sending ? t('content.sending') : tgSuccess ? t('content.sent') : t('content.sendTelegram')}
+                <Send size={15} />
+                {sending
+                  ? t('content.sending')
+                  : tgSuccess
+                    ? t('content.sent')
+                    : t('content.sendTelegram')}
               </button>
               {isNewsletter ? (
                 <>
                   <button className="btn btn-ghost" onClick={onCopyMarkdown}>
-                    <span role="img" aria-label="copy">
-                      📋
-                    </span>{' '}
+                    <Copy size={15} />
                     {t('share.copyMarkdown')}
                   </button>
                   <button className="btn btn-ghost" onClick={onCopyHtml}>
-                    <span role="img" aria-label="copy">
-                      🌐
-                    </span>{' '}
+                    <Globe size={15} />
                     {t('share.copyHtml')}
                   </button>
                 </>
               ) : (
                 <button className="btn btn-ghost" onClick={onCopy}>
-                  <span role="img" aria-label="copy">
-                    📋
-                  </span>{' '}
+                  <Copy size={15} />
                   {t('content.copy')}
                 </button>
               )}
@@ -291,14 +267,7 @@ export function ShareModal({
           )}
 
           {tgError && (
-            <div
-              style={{
-                color: 'var(--danger)',
-                fontSize: '13px',
-                marginTop: '12px',
-                textAlign: 'center',
-              }}
-            >
+            <div className="error-text text-center mt-3">
               {t('share.error', { error: tgError })}
             </div>
           )}

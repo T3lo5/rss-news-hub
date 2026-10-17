@@ -1,7 +1,8 @@
+import { Check, CheckCircle2, Info, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
-import type { AiProviderId, Provider } from '../types';
+import type { AiProviderId } from '../types';
 
 // Tipos para a visão geral de configurações por usuário
 interface UserSettingsOverview {
@@ -107,7 +108,10 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
       // AI forms
       setDefaultProvider(data.ai.defaultProvider);
-      const forms: Record<string, { baseUrl: string; model: string; apiKey: string; clear: boolean }> = {};
+      const forms: Record<
+        string,
+        { baseUrl: string; model: string; apiKey: string; clear: boolean }
+      > = {};
       for (const provider of data.ai.providers) {
         forms[provider.id] = {
           baseUrl: provider.baseUrl,
@@ -178,7 +182,10 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
       // Recarrega o overview
       const data = await api.getUserSettings();
       setSettings(data);
-      const forms: Record<string, { baseUrl: string; model: string; apiKey: string; clear: boolean }> = {};
+      const forms: Record<
+        string,
+        { baseUrl: string; model: string; apiKey: string; clear: boolean }
+      > = {};
       for (const provider of data.ai.providers) {
         forms[provider.id] = {
           baseUrl: provider.baseUrl,
@@ -232,7 +239,10 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
         secure: emailSecure,
         user: emailUser,
         from: emailFrom,
-        recipients: emailRecipients.split(',').map((v) => v.trim()).filter(Boolean),
+        recipients: emailRecipients
+          .split(',')
+          .map((v) => v.trim())
+          .filter(Boolean),
       };
       if (emailPass) payload.pass = emailPass;
       else if (clearEmailPass) payload.pass = null;
@@ -299,18 +309,30 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '720px' }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content"
+        style={{ maxWidth: '720px' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h2>{t('userSettings.title') || 'My Settings'}</h2>
           <button className="modal-close" onClick={onClose}>
-            ×
+            <X size={18} />
           </button>
         </div>
 
         {loading && <div className="modal-body">{t('app.loading') || 'Loading...'}</div>}
 
-        {error && <div className="error-message" style={{ padding: '8px 16px' }}>{error}</div>}
-        {success && <div className="success-message" style={{ padding: '8px 16px' }}>{success}</div>}
+        {error && (
+          <div className="error-message" style={{ padding: '8px 16px' }}>
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="success-message" style={{ padding: '8px 16px' }}>
+            {success}
+          </div>
+        )}
 
         {settings && !loading && (
           <div className="modal-body">
@@ -335,40 +357,23 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
             {/* Fallback badge */}
             {!settings[activeTab].hasUserOverride && (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  marginBottom: '12px',
-                  borderRadius: '4px',
-                  background: '#f0f0f0',
-                  fontSize: '13px',
-                  color: '#666',
-                }}
-              >
-                ℹ️ {t('userSettings.usingFallback') || 'Using global configuration (set your own below)'}
+              <div className="notice info">
+                <Info size={15} />
+                <span>
+                  {t('userSettings.usingFallback') ||
+                    'Using global configuration (set your own below)'}
+                </span>
               </div>
             )}
 
             {settings[activeTab].hasUserOverride && (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  marginBottom: '12px',
-                  borderRadius: '4px',
-                  background: '#e8f5e9',
-                  fontSize: '13px',
-                  color: '#2e7d32',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <span>✅ {t('userSettings.usingOwn') || 'Using your own configuration'}</span>
+              <div className="notice success">
+                <CheckCircle2 size={15} />
+                <span>{t('userSettings.usingOwn') || 'Using your own configuration'}</span>
                 <button
-                  className="btn btn-sm"
+                  className="btn btn-sm btn-secondary spacer"
                   onClick={() => handleDeleteOverride(activeTab)}
                   disabled={saving}
-                  style={{ fontSize: '12px' }}
                 >
                   {t('userSettings.resetToFallback') || 'Reset to global'}
                 </button>
@@ -401,27 +406,42 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     <div
                       key={provider.id}
                       style={{
-                        border: '1px solid #ddd',
+                        border: '1px solid var(--border)',
                         borderRadius: '6px',
                         padding: '12px',
                         marginBottom: '12px',
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginBottom: '8px',
+                        }}
+                      >
                         <strong>{PROVIDER_LABELS[provider.id]}</strong>
-                        <span
-                          style={{
-                            fontSize: '12px',
-                            color: provider.configured ? '#2e7d32' : '#999',
-                          }}
-                        >
-                          {provider.configured ? '✓ configured' : 'not configured'}
+                        <span className={`key-status ${provider.configured ? 'set' : 'unset'}`}>
+                          {provider.configured ? <Check size={12} /> : null}
+                          {provider.configured ? 'configured' : 'not configured'}
                         </span>
                       </div>
-                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: 'var(--text-secondary)',
+                          marginBottom: '8px',
+                        }}
+                      >
                         {t(PROVIDER_HINT_KEYS[provider.id]) || provider.baseUrl}
                       </div>
-                      <div style={{ display: 'grid', gridColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridColumns: '1fr 1fr',
+                          gap: '8px',
+                          marginBottom: '8px',
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Base URL"
@@ -447,7 +467,9 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                       </div>
                       <input
                         type="password"
-                        placeholder={provider.configured ? 'API key (leave blank to keep current)' : 'API key'}
+                        placeholder={
+                          provider.configured ? 'API key (leave blank to keep current)' : 'API key'
+                        }
                         value={form.apiKey}
                         onChange={(e) =>
                           setProviderForms((prev) => ({
@@ -458,7 +480,15 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                         style={{ width: '100%', marginBottom: '8px' }}
                       />
                       {provider.configured && (
-                        <label style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <label
+                          style={{
+                            fontSize: '12px',
+                            color: 'var(--text-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={form.clear}
@@ -491,14 +521,31 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   </label>
                   <input
                     type="password"
-                    placeholder={settings.telegram.botTokenSet ? 'Bot token (leave blank to keep current)' : 'Bot token'}
+                    placeholder={
+                      settings.telegram.botTokenSet
+                        ? 'Bot token (leave blank to keep current)'
+                        : 'Bot token'
+                    }
                     value={botToken}
                     onChange={(e) => setBotToken(e.target.value)}
                     style={{ width: '100%' }}
                   />
                   {settings.telegram.botTokenSet && (
-                    <label style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                      <input type="checkbox" checked={clearToken} onChange={(e) => setClearToken(e.target.checked)} />
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        marginTop: '4px',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={clearToken}
+                        onChange={(e) => setClearToken(e.target.checked)}
+                      />
                       Clear bot token
                     </label>
                   )}
@@ -523,7 +570,15 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
             {/* ── EMAIL TAB ── */}
             {activeTab === 'email' && (
               <div>
-                <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                <label
+                  style={{
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '12px',
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={emailEnabled}
@@ -532,45 +587,118 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   Enable email delivery
                 </label>
 
-                <div style={{ display: 'grid', gridColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridColumns: '1fr 1fr',
+                    gap: '8px',
+                    marginBottom: '8px',
+                  }}
+                >
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>SMTP Host</label>
-                    <input type="text" value={emailHost} onChange={(e) => setEmailHost(e.target.value)} style={{ width: '100%' }} />
+                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
+                      SMTP Host
+                    </label>
+                    <input
+                      type="text"
+                      value={emailHost}
+                      onChange={(e) => setEmailHost(e.target.value)}
+                      style={{ width: '100%' }}
+                    />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>Port</label>
-                    <input type="text" value={emailPort} onChange={(e) => setEmailPort(e.target.value)} style={{ width: '100%' }} />
+                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
+                      Port
+                    </label>
+                    <input
+                      type="text"
+                      value={emailPort}
+                      onChange={(e) => setEmailPort(e.target.value)}
+                      style={{ width: '100%' }}
+                    />
                   </div>
                 </div>
 
-                <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                  <input type="checkbox" checked={emailSecure} onChange={(e) => setEmailSecure(e.target.checked)} />
+                <label
+                  style={{
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={emailSecure}
+                    onChange={(e) => setEmailSecure(e.target.checked)}
+                  />
                   Use TLS/SSL
                 </label>
 
-                <div style={{ display: 'grid', gridColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridColumns: '1fr 1fr',
+                    gap: '8px',
+                    marginBottom: '8px',
+                  }}
+                >
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>SMTP User</label>
-                    <input type="text" value={emailUser} onChange={(e) => setEmailUser(e.target.value)} style={{ width: '100%' }} />
+                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
+                      SMTP User
+                    </label>
+                    <input
+                      type="text"
+                      value={emailUser}
+                      onChange={(e) => setEmailUser(e.target.value)}
+                      style={{ width: '100%' }}
+                    />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>From</label>
-                    <input type="text" value={emailFrom} onChange={(e) => setEmailFrom(e.target.value)} style={{ width: '100%' }} />
+                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
+                      From
+                    </label>
+                    <input
+                      type="text"
+                      value={emailFrom}
+                      onChange={(e) => setEmailFrom(e.target.value)}
+                      style={{ width: '100%' }}
+                    />
                   </div>
                 </div>
 
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>SMTP Password</label>
+                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
+                    SMTP Password
+                  </label>
                   <input
                     type="password"
-                    placeholder={settings.email.passwordSet ? 'Password (leave blank to keep current)' : 'Password'}
+                    placeholder={
+                      settings.email.passwordSet
+                        ? 'Password (leave blank to keep current)'
+                        : 'Password'
+                    }
                     value={emailPass}
                     onChange={(e) => setEmailPass(e.target.value)}
                     style={{ width: '100%' }}
                   />
                   {settings.email.passwordSet && (
-                    <label style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                      <input type="checkbox" checked={clearEmailPass} onChange={(e) => setClearEmailPass(e.target.checked)} />
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        marginTop: '4px',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={clearEmailPass}
+                        onChange={(e) => setClearEmailPass(e.target.checked)}
+                      />
                       Clear password
                     </label>
                   )}
@@ -597,8 +725,20 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
             {/* ── NEWSLETTER TAB ── */}
             {activeTab === 'newsletter' && (
               <div>
-                <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-                  <input type="checkbox" checked={nlEnabled} onChange={(e) => setNlEnabled(e.target.checked)} />
+                <label
+                  style={{
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '12px',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={nlEnabled}
+                    onChange={(e) => setNlEnabled(e.target.checked)}
+                  />
                   Enable my newsletter
                 </label>
 
@@ -606,17 +746,31 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
                     Cron schedule (5-field: min hour day month weekday)
                   </label>
-                  <input type="text" value={nlCron} onChange={(e) => setNlCron(e.target.value)} style={{ width: '100%' }} />
+                  <input
+                    type="text"
+                    value={nlCron}
+                    onChange={(e) => setNlCron(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
                 </div>
 
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
                     Lookback days
                   </label>
-                  <input type="number" value={nlLookback} onChange={(e) => setNlLookback(e.target.value)} style={{ width: '100%' }} />
+                  <input
+                    type="number"
+                    value={nlLookback}
+                    onChange={(e) => setNlLookback(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
                 </div>
 
-                <button className="btn btn-primary" onClick={handleSaveNewsletter} disabled={saving}>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSaveNewsletter}
+                  disabled={saving}
+                >
                   {saving ? 'Saving...' : 'Save newsletter settings'}
                 </button>
               </div>
@@ -625,7 +779,9 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
             {/* ── DIGEST TAB ── */}
             {activeTab === 'digest' && (
               <div>
-                <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+                <p
+                  style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}
+                >
                   {t('userSettings.digestComingSoon') || 'Digest configuration coming soon.'}
                 </p>
               </div>

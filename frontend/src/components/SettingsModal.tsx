@@ -1,3 +1,4 @@
+import { Check, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
@@ -322,7 +323,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         <div className="modal-header">
           <h3 id="settings-title">{t('settings.title')}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
-            ×
+            <X size={18} />
           </button>
         </div>
         <div
@@ -422,17 +423,12 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         </div>
 
                         {providerTest[provider.id] && (
-                          <p
-                            style={{
-                              fontSize: '12px',
-                              margin: '0 0 8px',
-                              color: providerTest[provider.id].ok ? '#16a34a' : 'var(--danger)',
-                              wordBreak: 'break-word',
-                            }}
+                          <div
+                            className={`test-result ${providerTest[provider.id].ok ? 'success' : 'error'}`}
                           >
-                            {providerTest[provider.id].ok ? '✅ ' : '❌ '}
+                            {providerTest[provider.id].ok ? <Check size={13} /> : <X size={13} />}{' '}
                             {providerTest[provider.id].message}
-                          </p>
+                          </div>
                         )}
 
                         <div className="form-group">
@@ -777,8 +773,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       marginBottom: '12px',
                     }}
                   >
-                    {t('settings.maintenancePre')}{' '}
-                    <strong>{t('settings.maintenanceOff')}</strong>{' '}
+                    {t('settings.maintenancePre')} <strong>{t('settings.maintenanceOff')}</strong>{' '}
                     {t('settings.maintenancePost')}
                   </p>
 

@@ -1,3 +1,4 @@
+import { Save, X } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { useI18n } from '../i18n';
 
@@ -43,7 +44,7 @@ export function AddModal({ onSubmit, onClose }: AddModalProps) {
         <div className="modal-header">
           <h3 id="add-modal-title">{t('add.title')}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
-            ×
+            <X size={18} />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="add-modal-form">
@@ -96,7 +97,8 @@ export function AddModal({ onSubmit, onClose }: AddModalProps) {
               {t('common.cancel')}
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? t('common.saving') : `💾 ${t('common.save')}`}
+              <Save size={15} />
+              {submitting ? t('common.saving') : t('common.save')}
             </button>
           </div>
         </form>

@@ -1,3 +1,4 @@
+import { Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
@@ -127,7 +128,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
         <div className="modal-header">
           <h2>{t('templates.title')}</h2>
           <button className="btn-close" onClick={onClose} aria-label={t('common.close')}>
-            ×
+            <X size={18} />
           </button>
         </div>
 
@@ -239,9 +240,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
             >
               <h3>{t('templates.list', { count: (templates ?? []).length })}</h3>
               <button className="btn btn-primary" onClick={() => handleOpenForm()}>
-                <span role="img" aria-label="add">
-                  ＋
-                </span>{' '}
+                <Plus size={15} />
                 {t('templates.new')}
               </button>
             </div>

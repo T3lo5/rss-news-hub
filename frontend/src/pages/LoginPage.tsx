@@ -1,5 +1,8 @@
+import { LogIn, Radio } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LanguageSelector } from '../components/LanguageSelector';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n';
 
@@ -14,7 +17,6 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Redirect to home if already logged in
   useEffect(() => {
     if (user) {
       navigate('/', { replace: true });
@@ -31,7 +33,6 @@ export function LoginPage() {
       } else {
         await register(email, password, name);
       }
-      // navigate is triggered by useEffect above when user is set
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('login.unknownError'));
     } finally {
@@ -41,8 +42,19 @@ export function LoginPage() {
 
   return (
     <div className="login-container">
+      <div className="login-topbar">
+        <LanguageSelector />
+        <ThemeToggle />
+      </div>
+
       <div className="login-card">
-        <h2>{isLogin ? t('login.signIn') : t('login.signUp')}</h2>
+        <div className="login-brand">
+          <span className="brand-mark" aria-hidden="true">
+            <Radio size={22} strokeWidth={2.2} />
+          </span>
+          <h2>RSS News Hub</h2>
+          <p className="subtitle">{t('header.subtitle')}</p>
+        </div>
 
         {error && <div className="error-message">{error}</div>}
 
@@ -89,6 +101,7 @@ export function LoginPage() {
           </div>
 
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+            <LogIn size={16} />
             {loading ? t('login.submitting') : isLogin ? t('login.signIn') : t('login.signUp')}
           </button>
         </form>

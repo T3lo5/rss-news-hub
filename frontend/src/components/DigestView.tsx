@@ -1,6 +1,8 @@
+import { Check, ExternalLink, Inbox, Share2, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 import { useI18n } from '../i18n';
 import type { DigestGrouping, NewsItem } from '../types';
+import { cleanDescription, truncate } from '../utils/content';
 import { BookmarkButton } from './BookmarkButton';
 import { RelevanceBadge } from './RelevanceBadge';
 
@@ -91,15 +93,6 @@ function getGroupLabel(
   return t('digestView.all');
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, "'");
-}
-
 export function DigestView({
   news,
   loading,
@@ -156,7 +149,10 @@ export function DigestView({
   if (!news.length) {
     return (
       <div className="news-grid">
-        <div className="empty">{t('news.empty')}</div>
+        <div className="empty">
+          <Inbox size={40} style={{ opacity: 0.5, marginBottom: 12 }} aria-hidden="true" />
+          <div>{t('news.empty')}</div>
+        </div>
       </div>
     );
   }
@@ -202,16 +198,16 @@ export function DigestView({
                       aria-label={t('news.selectAria', { title: item.title })}
                     />
                     <div className="digest-item-header">
-                      <span className="news-source">
-                        {item.source || t('news.unknownSource')}
-                      </span>
+                      <span className="news-source">{item.source || t('news.unknownSource')}</span>
                       <RelevanceBadge score={item.relevanceScore} size="sm" />
                       {sentIds?.has(item.id) ? (
                         <span className="generated-badge sent" title={t('news.sentTitle')}>
+                          <Check size={12} />
                           {t('news.sent')}
                         </span>
                       ) : generatedIds?.has(item.id) ? (
                         <span className="generated-badge" title={t('news.generatedTitle')}>
+                          <Sparkles size={12} />
                           {t('news.generated')}
                         </span>
                       ) : null}
@@ -223,7 +219,7 @@ export function DigestView({
                   <h3 className="digest-item-title">{item.title}</h3>
                   <p className="digest-item-desc">
                     {item.description
-                      ? escapeHtml(item.description).slice(0, 200) + '...'
+                      ? truncate(cleanDescription(item.description), 220)
                       : t('news.noDescription')}
                   </p>
                   <div className="digest-item-actions">
@@ -238,9 +234,7 @@ export function DigestView({
                       rel="noopener noreferrer"
                       className="btn btn-link btn-sm"
                     >
-                      <span role="img" aria-label="link">
-                        🔗
-                      </span>{' '}
+                      <ExternalLink size={14} />
                       {t('news.open')}
                     </a>
                     <button
@@ -248,9 +242,7 @@ export function DigestView({
                       onClick={() => onShare(item)}
                       aria-label={t('news.shareAria', { title: item.title })}
                     >
-                      <span role="img" aria-label="share">
-                        📤
-                      </span>{' '}
+                      <Share2 size={14} />
                       {t('news.share')}
                     </button>
                   </div>

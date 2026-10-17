@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n';
@@ -189,7 +190,7 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
         <div className="modal-header">
           <h3 id="newsletter-builder-title">{t('newsletterBuilder.title')}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
-            ×
+            <X size={18} />
           </button>
         </div>
         <div
@@ -477,7 +478,11 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
                 onClick={handleSend}
                 disabled={sending || tgSuccess}
               >
-                {sending ? t('content.sending') : tgSuccess ? t('content.sent') : t('content.sendTelegram')}
+                {sending
+                  ? t('content.sending')
+                  : tgSuccess
+                    ? t('content.sent')
+                    : t('content.sendTelegram')}
               </button>
             </div>
           )}

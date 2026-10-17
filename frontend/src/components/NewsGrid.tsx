@@ -1,6 +1,8 @@
+import { Check, ExternalLink, Inbox, Share2, Sparkles } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useI18n } from '../i18n';
 import type { NewsItem } from '../types';
+import { cleanDescription, truncate } from '../utils/content';
 import { BookmarkButton } from './BookmarkButton';
 import { RelevanceBadge } from './RelevanceBadge';
 
@@ -31,13 +33,31 @@ function formatDate(iso: string, locale: string): string {
   }
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, "'");
+function SkeletonCard() {
+  return (
+    <article className="news-card" aria-hidden="true">
+      <div className="news-card-top">
+        <div className="skeleton" style={{ width: '42%', height: 20, borderRadius: 999 }} />
+        <div className="skeleton" style={{ width: 54, height: 20, marginLeft: 'auto' }} />
+      </div>
+      <div className="skeleton" style={{ width: '92%', height: 18, marginBottom: 8 }} />
+      <div className="skeleton" style={{ width: '70%', height: 18, marginBottom: 16 }} />
+      <div className="skeleton" style={{ width: '100%', height: 12, marginBottom: 6 }} />
+      <div className="skeleton" style={{ width: '85%', height: 12, marginBottom: 20 }} />
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          paddingTop: 12,
+          borderTop: '1px solid var(--border-subtle)',
+        }}
+      >
+        <div className="skeleton" style={{ width: 38, height: 38 }} />
+        <div className="skeleton" style={{ flex: 1, height: 38 }} />
+        <div className="skeleton" style={{ flex: 1, height: 38 }} />
+      </div>
+    </article>
+  );
 }
 
 export function NewsGrid({
@@ -55,25 +75,20 @@ export function NewsGrid({
 }: NewsGridProps) {
   const { t, language } = useI18n();
   const locale = language === 'en' ? 'en-US' : 'pt-BR';
-  const cardRefs = useRef<(HTMLArticleElement | null)[]>([]);
+  const cardRefs = useRef<(HTMLElement | null)[]>([]);
 
-  // Scroll selected card into view
   useEffect(() => {
     if (selectedIndex >= 0 && selectedIndex < cardRefs.current.length) {
-      const card = cardRefs.current[selectedIndex];
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+      cardRefs.current[selectedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [selectedIndex]);
 
   if (loading) {
     return (
-      <div className="news-grid">
-        <div className="loading">
-          <div className="spinner" aria-hidden="true" />
-          <span>{t('news.loading')}</span>
-        </div>
+      <div className="news-grid" aria-busy="true" aria-label={t('news.loading')}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
       </div>
     );
   }
@@ -92,7 +107,10 @@ export function NewsGrid({
     return (
       <div className="news-grid">
         <div className="empty">
-          {t('news.emptyNavigatePre')} <kbd>j</kbd>/<kbd>k</kbd> {t('news.emptyNavigatePost')}
+          <Inbox size={40} style={{ opacity: 0.5, marginBottom: 12 }} aria-hidden="true" />
+          <div>
+            {t('news.emptyNavigatePre')} <kbd>j</kbd>/<kbd>k</kbd> {t('news.emptyNavigatePost')}
+          </div>
         </div>
       </div>
     );
@@ -133,10 +151,12 @@ export function NewsGrid({
                 <RelevanceBadge score={item.relevanceScore} size="sm" />
                 {sentIds?.has(item.id) ? (
                   <span className="generated-badge sent" title={t('news.sentTitle')}>
+                    <Check size={12} />
                     {t('news.sent')}
                   </span>
                 ) : generatedIds?.has(item.id) ? (
                   <span className="generated-badge" title={t('news.generatedTitle')}>
+                    <Sparkles size={12} />
                     {t('news.generated')}
                   </span>
                 ) : null}
@@ -148,7 +168,7 @@ export function NewsGrid({
             <h3 className="news-title">{item.title}</h3>
             <p className="news-desc">
               {item.description
-                ? escapeHtml(item.description).slice(0, 200) + '...'
+                ? truncate(cleanDescription(item.description), 220)
                 : t('news.noDescription')}
             </p>
             <div className="news-actions">
@@ -163,9 +183,7 @@ export function NewsGrid({
                 rel="noopener noreferrer"
                 className="btn btn-link"
               >
-                <span role="img" aria-label="link">
-                  🔗
-                </span>{' '}
+                <ExternalLink size={15} />
                 {t('news.open')}
               </a>
               <button
@@ -173,9 +191,7 @@ export function NewsGrid({
                 onClick={() => onShare(item)}
                 aria-label={t('news.shareAria', { title: item.title })}
               >
-                <span role="img" aria-label="share">
-                  📤
-                </span>{' '}
+                <Share2 size={15} />
                 {t('news.share')}
               </button>
             </div>
