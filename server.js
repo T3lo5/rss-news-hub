@@ -54,14 +54,6 @@ import {
   trigger as triggerScheduler,
 } from './services/scheduler.service.js';
 import {
-  deleteUserSetting,
-  getUserSettingsOverview,
-  resolveAiConfig,
-  resolveEmailConfig,
-  resolveTelegramConfig,
-  saveUserSetting,
-} from './services/user-config.service.js';
-import {
   getProviderList,
   getPublicSettings,
   initSettings,
@@ -80,6 +72,12 @@ import {
   stopTelegramQueueWorker,
 } from './services/telegram-worker.js';
 import { getTemplateSystemPrompt } from './services/templates.js';
+import {
+  deleteUserSetting,
+  getUserSettingsOverview,
+  resolveTelegramConfig,
+  saveUserSetting,
+} from './services/user-config.service.js';
 import { schemas, validateBody } from './services/validation.js';
 import { createConfigWatcher } from './src/plugins/config-watcher.js';
 

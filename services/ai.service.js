@@ -123,7 +123,9 @@ export async function chat(systemPrompt, userContent, provider = 'auto', userId 
         : listConfiguredProviders();
 
     if (candidates.length === 0 || !candidates[0]?.cfg) {
-      throw new Error('No AI provider configured. Set at least one API key in .env or in your profile settings');
+      throw new Error(
+        'No AI provider configured. Set at least one API key in .env or in your profile settings'
+      );
     }
 
     let lastErr;
@@ -138,7 +140,12 @@ export async function chat(systemPrompt, userContent, provider = 'auto', userId 
         }
       }
     }
-    throw lastErr || new Error('No AI provider configured. Set at least one API key in .env or in your profile settings');
+    throw (
+      lastErr ||
+      new Error(
+        'No AI provider configured. Set at least one API key in .env or in your profile settings'
+      )
+    );
   } finally {
     aiConfig = prevConfig; // restaura
   }
@@ -159,7 +166,9 @@ export async function chatStream(
   try {
     const cfg = pickProvider(provider);
     if (!cfg) {
-      throw new Error('No AI provider configured. Set at least one API key in .env or in your profile settings');
+      throw new Error(
+        'No AI provider configured. Set at least one API key in .env or in your profile settings'
+      );
     }
 
     const abortSignal = options.signal;

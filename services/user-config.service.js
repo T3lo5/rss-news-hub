@@ -9,9 +9,14 @@
 // Segredos (apiKey, botToken, senha SMTP) são criptografados em repouso com
 // AES-256-GCM (services/secrets.js) e nunca são retornados em texto claro.
 
-import { ai as envAi, email as envEmail, newsletterConfig, telegram as envTelegram } from '../server.config.js';
+import {
+  ai as envAi,
+  email as envEmail,
+  telegram as envTelegram,
+  newsletterConfig,
+} from '../server.config.js';
+import { settingsRepository, userSettingsRepository } from '../src/db/repositories/index.js';
 import { decryptSecret, encryptSecret } from './secrets.js';
-import { userSettingsRepository, settingsRepository } from '../src/db/repositories/index.js';
 
 const AI_PROVIDER_IDS = ['sensenova', 'deepseek', 'openai'];
 
@@ -93,34 +98,38 @@ export function resolveEmailConfig(userId) {
     const userStored = await readUserArea(userId, 'email');
     const globalStored = await readGlobalArea('email');
     return {
-      enabled: userStored.enabled !== undefined
-        ? userStored.enabled
-        : globalStored.enabled !== undefined
-          ? globalStored.enabled
-          : envEmail.enabled,
+      enabled:
+        userStored.enabled !== undefined
+          ? userStored.enabled
+          : globalStored.enabled !== undefined
+            ? globalStored.enabled
+            : envEmail.enabled,
       host: userStored.host || globalStored.host || envEmail.host,
       port: userStored.port || globalStored.port || envEmail.port,
-      secure: userStored.secure !== undefined
-        ? userStored.secure
-        : globalStored.secure !== undefined
-          ? globalStored.secure
-          : envEmail.secure,
-      user: userStored.user !== undefined
-        ? userStored.user
-        : globalStored.user !== undefined
-          ? globalStored.user
-          : envEmail.user,
+      secure:
+        userStored.secure !== undefined
+          ? userStored.secure
+          : globalStored.secure !== undefined
+            ? globalStored.secure
+            : envEmail.secure,
+      user:
+        userStored.user !== undefined
+          ? userStored.user
+          : globalStored.user !== undefined
+            ? globalStored.user
+            : envEmail.user,
       pass: userStored.pass
         ? decryptSecret(userStored.pass)
         : globalStored.pass
           ? decryptSecret(globalStored.pass)
           : envEmail.pass,
       from: userStored.from || globalStored.from || envEmail.from,
-      recipients: userStored.recipients !== undefined
-        ? userStored.recipients
-        : globalStored.recipients !== undefined
-          ? globalStored.recipients
-          : envEmail.recipients,
+      recipients:
+        userStored.recipients !== undefined
+          ? userStored.recipients
+          : globalStored.recipients !== undefined
+            ? globalStored.recipients
+            : envEmail.recipients,
     };
   });
 }
@@ -130,31 +139,35 @@ export function resolveNewsletterConfig(userId) {
     const userStored = await readUserArea(userId, 'newsletter');
     const globalStored = await readGlobalArea('newsletter');
     return {
-      enabled: userStored.enabled !== undefined
-        ? userStored.enabled
-        : globalStored.enabled !== undefined
-          ? globalStored.enabled
-          : newsletterConfig.enabled,
+      enabled:
+        userStored.enabled !== undefined
+          ? userStored.enabled
+          : globalStored.enabled !== undefined
+            ? globalStored.enabled
+            : newsletterConfig.enabled,
       cron: userStored.cron || globalStored.cron || newsletterConfig.cron,
-      lookbackDays: userStored.lookbackDays !== undefined
-        ? userStored.lookbackDays
-        : globalStored.lookbackDays !== undefined
-          ? globalStored.lookbackDays
-          : newsletterConfig.lookbackDays,
+      lookbackDays:
+        userStored.lookbackDays !== undefined
+          ? userStored.lookbackDays
+          : globalStored.lookbackDays !== undefined
+            ? globalStored.lookbackDays
+            : newsletterConfig.lookbackDays,
       sources: userStored.sources || globalStored.sources || newsletterConfig.sources,
       categories: userStored.categories || globalStored.categories || newsletterConfig.categories,
       language: userStored.language || globalStored.language || newsletterConfig.language,
       provider: userStored.provider || globalStored.provider || newsletterConfig.provider,
-      telegramEnabled: userStored.telegramEnabled !== undefined
-        ? userStored.telegramEnabled
-        : globalStored.telegramEnabled !== undefined
-          ? globalStored.telegramEnabled
-          : newsletterConfig.telegramEnabled,
-      emailEnabled: userStored.emailEnabled !== undefined
-        ? userStored.emailEnabled
-        : globalStored.emailEnabled !== undefined
-          ? globalStored.emailEnabled
-          : newsletterConfig.emailEnabled,
+      telegramEnabled:
+        userStored.telegramEnabled !== undefined
+          ? userStored.telegramEnabled
+          : globalStored.telegramEnabled !== undefined
+            ? globalStored.telegramEnabled
+            : newsletterConfig.telegramEnabled,
+      emailEnabled:
+        userStored.emailEnabled !== undefined
+          ? userStored.emailEnabled
+          : globalStored.emailEnabled !== undefined
+            ? globalStored.emailEnabled
+            : newsletterConfig.emailEnabled,
     };
   });
 }
@@ -181,9 +194,21 @@ export async function getUserSettingsOverview(userId) {
     const hasUserOverride = hasKeys(userStored);
 
     if (area === 'ai') {
-      const aiCfg = mergeProvider(userStored?.sensenova || {}, globalStored?.sensenova || {}, envAi.sensenova);
-      const aiCfgDs = mergeProvider(userStored?.deepseek || {}, globalStored?.deepseek || {}, envAi.deepseek);
-      const aiCfgOi = mergeProvider(userStored?.openai || {}, globalStored?.openai || {}, envAi.openai);
+      const aiCfg = mergeProvider(
+        userStored?.sensenova || {},
+        globalStored?.sensenova || {},
+        envAi.sensenova
+      );
+      const aiCfgDs = mergeProvider(
+        userStored?.deepseek || {},
+        globalStored?.deepseek || {},
+        envAi.deepseek
+      );
+      const aiCfgOi = mergeProvider(
+        userStored?.openai || {},
+        globalStored?.openai || {},
+        envAi.openai
+      );
       result[area] = {
         hasUserOverride,
         defaultProvider: userStored?.defaultProvider || globalStored?.defaultProvider || 'auto',
@@ -232,7 +257,8 @@ export async function getUserSettingsOverview(userId) {
         hasUserOverride,
         enabled: userStored?.enabled ?? globalStored?.enabled ?? newsletterConfig.enabled,
         cron: userStored?.cron || globalStored?.cron || newsletterConfig.cron,
-        lookbackDays: userStored?.lookbackDays ?? globalStored?.lookbackDays ?? newsletterConfig.lookbackDays,
+        lookbackDays:
+          userStored?.lookbackDays ?? globalStored?.lookbackDays ?? newsletterConfig.lookbackDays,
         language: userStored?.language || globalStored?.language || newsletterConfig.language,
         provider: userStored?.provider || globalStored?.provider || newsletterConfig.provider,
       };

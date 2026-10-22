@@ -1,7 +1,6 @@
 import assert from 'node:assert';
 import { beforeEach, describe, test } from 'node:test';
 import { createUser } from '../services/auth.service.js';
-import { userSettingsRepository } from '../src/db/repositories/index.js';
 import { bearer, request } from './helpers/auth-http.js';
 import { getTestDb, resetTestDb } from './setup.js';
 
@@ -48,9 +47,14 @@ describe('User Settings API (per-user self-service)', () => {
 
   test('PUT /api/me/settings/ai saves user override and returns hasUserOverride=true', async () => {
     const token = await createUserToken();
-    const res = await request('PUT', '/api/me/settings/ai', {
-      sensenova: { apiKey: 'my-custom-key', model: 'custom-model' },
-    }, bearer(token));
+    const res = await request(
+      'PUT',
+      '/api/me/settings/ai',
+      {
+        sensenova: { apiKey: 'my-custom-key', model: 'custom-model' },
+      },
+      bearer(token)
+    );
     assert.strictEqual(res.status, 200, res.raw);
     assert.strictEqual(res.json.data.hasUserOverride, true);
 
@@ -63,10 +67,15 @@ describe('User Settings API (per-user self-service)', () => {
 
   test('PUT /api/me/settings/telegram saves botToken encrypted', async () => {
     const token = await createUserToken();
-    const res = await request('PUT', '/api/me/settings/telegram', {
-      botToken: 'my-bot-token-123',
-      chatId: '999888777',
-    }, bearer(token));
+    const res = await request(
+      'PUT',
+      '/api/me/settings/telegram',
+      {
+        botToken: 'my-bot-token-123',
+        chatId: '999888777',
+      },
+      bearer(token)
+    );
     assert.strictEqual(res.status, 200, res.raw);
 
     const overview = await request('GET', '/api/me/settings', undefined, bearer(token));
@@ -77,15 +86,20 @@ describe('User Settings API (per-user self-service)', () => {
 
   test('PUT /api/me/settings/email saves SMTP config', async () => {
     const token = await createUserToken();
-    const res = await request('PUT', '/api/me/settings/email', {
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: true,
-      user: 'user@gmail.com',
-      pass: 'app-password',
-      from: 'user@gmail.com',
-      recipients: ['dest@example.com'],
-    }, bearer(token));
+    const res = await request(
+      'PUT',
+      '/api/me/settings/email',
+      {
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: true,
+        user: 'user@gmail.com',
+        pass: 'app-password',
+        from: 'user@gmail.com',
+        recipients: ['dest@example.com'],
+      },
+      bearer(token)
+    );
     assert.strictEqual(res.status, 200, res.raw);
 
     const overview = await request('GET', '/api/me/settings', undefined, bearer(token));
@@ -98,10 +112,15 @@ describe('User Settings API (per-user self-service)', () => {
     const token = await createUserToken();
 
     // Salva override
-    await request('PUT', '/api/me/settings/telegram', {
-      botToken: 'my-bot-token',
-      chatId: '12345',
-    }, bearer(token));
+    await request(
+      'PUT',
+      '/api/me/settings/telegram',
+      {
+        botToken: 'my-bot-token',
+        chatId: '12345',
+      },
+      bearer(token)
+    );
 
     let overview = await request('GET', '/api/me/settings', undefined, bearer(token));
     assert.strictEqual(overview.json.data.telegram.hasUserOverride, true);
@@ -134,9 +153,14 @@ describe('User Settings API (per-user self-service)', () => {
   test('Per-user AI override does not affect global config', async () => {
     const userToken = await createUserToken();
     // Usuário salva sua própria key
-    await request('PUT', '/api/me/settings/ai', {
-      openai: { apiKey: 'user-specific-key' },
-    }, bearer(userToken));
+    await request(
+      'PUT',
+      '/api/me/settings/ai',
+      {
+        openai: { apiKey: 'user-specific-key' },
+      },
+      bearer(userToken)
+    );
 
     // Admin vê config global (não afetada)
     const adminToken = await createAdminToken();
