@@ -1,0 +1,121 @@
+name: Deploy
+
+# Fluxo: push na main -> testa -> builda a imagem amd64 -> GHCR -> SSH -> deploy.sh
+#
+# O job `deploy` usa o environment `production`, que tem required reviewers:
+# depois do build, o GitHub para e espera alguém clicar em "Approve".
+# Enquanto ninguém aprova, nada toca na instância.
+#
+# Rollback: re-rode um workflow anterior (Actions -> run antigo -> "Re-run all
+# jobs"). A imagem é reconstruída do mesmo commit e re-deployada com o mesmo SHA.
+# Para reverter só a aplicação, use /opt/rss-news-hub/deploy.sh direto na
+# instância com o SHA antigo.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Nunca dois deploys ao mesmo tempo. Se um push novo chegar enquanto o anterior
+# espera aprovação, o novo espera (não cancela: cancelar no meio do deploy
+# deixaria o container em estado indefinido).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/t3lo5/rss-news-hub
+
+jobs:
+  test:
+    name: Test, Lint, Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Biome lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build amd64 -> GHCR
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      tag: ${{ github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # A instância é x86_64 (E2.1.Micro); não há build lá.
+      # O cache do gha reaproveita as camadas entre runs (~3 min -> ~30 s).
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy na instância (aprovação manual)
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+    timeout-minutes: 15
+    steps:
+      # A chave é restrita no authorized_keys da instância:
+      #   command="/opt/rss-news-hub/deploy.sh",no-pty,no-port-forwarding,...
+      # Ou seja: mesmo vazada, ela só executa o deploy.sh — e o script valida
+      # que o argumento é um SHA em hex.
+      - name: SSH -> deploy.sh
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" | install -m 600 /dev/stdin ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          ssh -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -i ~/.ssh/id_ed25519 "${DEPLOY_USER}@${HOST}" "$TAG"
