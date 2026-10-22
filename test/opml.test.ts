@@ -14,8 +14,8 @@ describe('OPML Import/Export', () => {
   beforeEach(() => {
     testFeeds = [];
     setConfigProvider({
-      readFeedsConfig: () => testFeeds,
-      writeFeedsConfig: (feeds: any[]) => {
+      readFeedsConfig: async () => testFeeds,
+      writeFeedsConfig: async (feeds: any[]) => {
         testFeeds = feeds;
       },
       generateFeedId: (name: string, existingIds: string[] = []) => {

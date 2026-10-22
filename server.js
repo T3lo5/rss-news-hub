@@ -243,19 +243,27 @@ export async function handleRequest(req, res) {
   // Parse JSON body for POST/PUT requests. This must happen before the auth
   // routes are dispatched, otherwise their validators see req.body as
   // undefined and every payload is rejected.
+  // Multipart (OPML import) is left untouched: whoever handles it reads the
+  // stream itself. Sem essa excecao o corpo e consumido aqui e o import
+  // responde sempre "No file uploaded".
   if (['POST', 'PUT'].includes(req.method)) {
-    await new Promise((resolve) => {
-      let body = '';
-      req.on('data', (c) => (body += c));
-      req.on('end', () => {
-        try {
-          req.body = body ? JSON.parse(body) : {};
-        } catch {
-          req.body = {};
-        }
-        resolve();
+    const contentType = req.headers['content-type'] || '';
+    if (contentType.includes('multipart/form-data')) {
+      req.body = {};
+    } else {
+      await new Promise((resolve) => {
+        let body = '';
+        req.on('data', (c) => (body += c));
+        req.on('end', () => {
+          try {
+            req.body = body ? JSON.parse(body) : {};
+          } catch {
+            req.body = {};
+          }
+          resolve();
+        });
       });
-    });
+    }
   } else {
     req.body = {};
   }
@@ -678,70 +686,74 @@ export async function handleRequest(req, res) {
 
     // GET /api/feeds/opml - export feeds as OPML
     if (path === '/api/feeds/opml' && req.method === 'GET') {
-      try {
-        const { exportOPML } = await import('./services/opml.service.js');
-        const opml = await exportOPML();
-        res.writeHead(200, {
-          'Content-Type': 'application/xml; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="rss-news-hub-feeds.opml"',
-        });
-        res.end(opml);
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      requireViewer()(req, res, async () => {
+        try {
+          const { exportOPML } = await import('./services/opml.service.js');
+          const opml = await exportOPML();
+          res.writeHead(200, {
+            'Content-Type': 'application/xml; charset=utf-8',
+            'Content-Disposition': 'attachment; filename="rss-news-hub-feeds.opml"',
+          });
+          res.end(opml);
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
       return;
     }
 
     // POST /api/feeds/opml - import feeds from OPML
     if (path === '/api/feeds/opml' && req.method === 'POST') {
-      try {
-        const { importOPML } = await import('./services/opml.service.js');
+      requireUser()(req, res, async () => {
+        try {
+          const { importOPML } = await import('./services/opml.service.js');
 
-        const contentType = req.headers['content-type'] || '';
-        if (!contentType.includes('multipart/form-data')) {
-          return sendJSON(res, 400, {
-            ok: false,
-            error: 'Content-Type must be multipart/form-data',
-          });
-        }
+          const contentType = req.headers['content-type'] || '';
+          if (!contentType.includes('multipart/form-data')) {
+            return sendJSON(res, 400, {
+              ok: false,
+              error: 'Content-Type must be multipart/form-data',
+            });
+          }
 
-        const boundary = contentType.split('boundary=')[1];
-        if (!boundary) {
-          return sendJSON(res, 400, { ok: false, error: 'Missing boundary' });
-        }
+          const boundary = contentType.split('boundary=')[1];
+          if (!boundary) {
+            return sendJSON(res, 400, { ok: false, error: 'Missing boundary' });
+          }
 
-        const chunks = [];
-        for await (const chunk of req) {
-          chunks.push(chunk);
-        }
-        const body = Buffer.concat(chunks);
+          const chunks = [];
+          for await (const chunk of req) {
+            chunks.push(chunk);
+          }
+          const body = Buffer.concat(chunks);
 
-        const _boundaryBytes = Buffer.from('\r\n--' + boundary);
-        const parts = body.toString('binary').split('--' + boundary + '\r\n');
+          const _boundaryBytes = Buffer.from('\r\n--' + boundary);
+          const parts = body.toString('binary').split('--' + boundary + '\r\n');
 
-        let fileBuffer = null;
-        for (const part of parts) {
-          if (part.includes('filename=') && part.includes('Content-Type:')) {
-            const headerEnd = part.indexOf('\r\n\r\n');
-            if (headerEnd !== -1) {
-              const content = part.slice(headerEnd + 4);
-              const endBoundary = content.lastIndexOf('\r\n--');
-              if (endBoundary !== -1) {
-                fileBuffer = Buffer.from(content.slice(0, endBoundary), 'binary');
+          let fileBuffer = null;
+          for (const part of parts) {
+            if (part.includes('filename=') && part.includes('Content-Type:')) {
+              const headerEnd = part.indexOf('\r\n\r\n');
+              if (headerEnd !== -1) {
+                const content = part.slice(headerEnd + 4);
+                const endBoundary = content.lastIndexOf('\r\n--');
+                if (endBoundary !== -1) {
+                  fileBuffer = Buffer.from(content.slice(0, endBoundary), 'binary');
+                }
               }
             }
           }
-        }
 
-        if (!fileBuffer) {
-          return sendJSON(res, 400, { ok: false, error: 'No file uploaded' });
-        }
+          if (!fileBuffer) {
+            return sendJSON(res, 400, { ok: false, error: 'No file uploaded' });
+          }
 
-        const results = await importOPML(fileBuffer);
-        return sendJSON(res, 200, { ok: true, data: results });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+          const results = await importOPML(fileBuffer);
+          return sendJSON(res, 200, { ok: true, data: results });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
       return;
     }
 

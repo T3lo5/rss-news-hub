@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>RSS News Hub - fontes padrão</title>
+    <dateCreated>Thu, 22 Oct 2026 17:30:00 GMT</dateCreated>
+    <ownerName>RSS News Hub</ownerName>
+  </head>
+  <body>
+    <outline text="Dev" title="Dev">
+      <outline type="rss" text="TypeScript" title="TypeScript" xmlUrl="https://devblogs.microsoft.com/typescript/feed/" />
+      <outline type="rss" text="React" title="React" xmlUrl="https://react.dev/rss.xml" />
+      <outline type="rss" text="Node.js" title="Node.js" xmlUrl="https://nodejs.org/en/feed/blog.xml" />
+      <outline type="rss" text="Martin Fowler" title="Martin Fowler" xmlUrl="https://martinfowler.com/feed.atom" />
+      <outline type="rss" text="Rust" title="Rust" xmlUrl="https://blog.rust-lang.org/feed.xml" />
+      <outline type="rss" text="Go" title="Go" xmlUrl="https://go.dev/blog/feed.atom" />
+      <outline type="rss" text="Python" title="Python" xmlUrl="https://blog.python.org/feeds/posts/default" />
+      <outline type="rss" text="Stack Overflow Blog" title="Stack Overflow Blog" xmlUrl="https://stackoverflow.blog/feed/" />
+      <outline type="rss" text="dev.to" title="dev.to" xmlUrl="https://dev.to/feed" />
+      <outline type="rss" text="CSS-Tricks" title="CSS-Tricks" xmlUrl="https://css-tricks.com/feed/" />
+      <outline type="rss" text="Smashing Magazine" title="Smashing Magazine" xmlUrl="https://www.smashingmagazine.com/feed/" />
+    </outline>
+    <outline text="AI/ML" title="AI/ML">
+      <outline type="rss" text="Simon Willison" title="Simon Willison" xmlUrl="https://simonwillison.net/atom/everything/" />
+      <outline type="rss" text="GitHub Changelog" title="GitHub Changelog" xmlUrl="https://github.blog/changelog/feed/" />
+      <outline type="rss" text="arXiv AI" title="arXiv AI" xmlUrl="https://arxiv.org/rss/cs.AI" />
+    </outline>
+    <outline text="DevOps" title="DevOps">
+      <outline type="rss" text="Docker" title="Docker" xmlUrl="https://www.docker.com/blog/feed/" />
+      <outline type="rss" text="Cloudflare" title="Cloudflare" xmlUrl="https://blog.cloudflare.com/rss/" />
+      <outline type="rss" text="Netflix TechBlog" title="Netflix TechBlog" xmlUrl="https://netflixtechblog.com/feed" />
+    </outline>
+    <outline text="Tech" title="Tech">
+      <outline type="rss" text="TechCrunch" title="TechCrunch" xmlUrl="https://techcrunch.com/feed/" />
+      <outline type="rss" text="The Verge" title="The Verge" xmlUrl="https://www.theverge.com/rss/index.xml" />
+      <outline type="rss" text="Ars Technica" title="Ars Technica" xmlUrl="https://feeds.arstechnica.com/arstechnica/index" />
+      <outline type="rss" text="Hacker News" title="Hacker News" xmlUrl="https://hnrss.org/frontpage" />
+      <outline type="rss" text="Lobsters" title="Lobsters" xmlUrl="https://lobste.rs/rss" />
+      <outline type="rss" text="MIT Technology Review" title="MIT Technology Review" xmlUrl="https://www.technologyreview.com/feed/" />
+      <outline type="rss" text="Tecnoblog" title="Tecnoblog" xmlUrl="https://tecnoblog.net/feed/" />
+      <outline type="rss" text="arXiv CS" title="arXiv CS" xmlUrl="http://rss.arxiv.org/rss/cs" />
+    </outline>
+    <outline text="Security" title="Security">
+      <outline type="rss" text="Krebs on Security" title="Krebs on Security" xmlUrl="https://krebsonsecurity.com/feed/" />
+      <outline type="rss" text="CISA" title="CISA" xmlUrl="https://www.cisa.gov/news.xml" />
+    </outline>
+  </body>
+</opml>

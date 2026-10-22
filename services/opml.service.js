@@ -101,7 +101,7 @@ function escapeXML(str) {
 
 export async function exportOPML() {
   const { readFeedsConfig } = await getConfigProvider();
-  const feeds = readFeedsConfig();
+  const feeds = await readFeedsConfig();
   return generateOPML(feeds);
 }
 
@@ -111,7 +111,7 @@ export async function importOPML(fileBuffer) {
 
   const { readFeedsConfig, writeFeedsConfig, generateFeedId, validateFeedUrl } =
     await getConfigProvider();
-  const existingFeeds = readFeedsConfig();
+  const existingFeeds = await readFeedsConfig();
   const existingUrls = new Set(existingFeeds.map((f) => f.url.toLowerCase()));
 
   const results = {
@@ -153,7 +153,7 @@ export async function importOPML(fileBuffer) {
   }
 
   if (results.added > 0) {
-    writeFeedsConfig(existingFeeds);
+    await writeFeedsConfig(existingFeeds);
   }
 
   return results;

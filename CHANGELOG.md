@@ -8,6 +8,13 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- **Conjunto padrão de 27 fontes RSS** (`deploy/feeds-default.opml`, com
+  categorias): cada URL testada (status, tipo, itens e data do post mais
+  recente) e importável pelo Gerenciador de Feeds. Entram oficiais de baixo
+  volume (TypeScript, React, Node.js, Rust, Go, Python), engenharia (Martin
+  Fowler, Netflix TechBlog, Cloudflare, Docker), curadoria (Lobsters),
+  segurança (Krebs on Security, CISA), IA prática (Simon Willison, GitHub
+  Changelog) e PT-BR (Tecnoblog). Vue fica fora porque o RSS morreu em 2024
 - **Backup diário do banco** (`deploy/backup.sh` + timer do systemd): snapshot
   online via `.backup()` do better-sqlite3 (consistente mesmo com o app rodando
   em WAL mode), verificação com `PRAGMA integrity_check` e retenção de 7
@@ -69,6 +76,13 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   opção "enviar também por e-mail" na newsletter agendada e no digest
 
 ### Fixed
+- **Import/export OPML não funcionava**: o parser de JSON consumia o corpo de
+  todo POST/PUT, então o import multipart recebia o stream vazio e respondia
+  "No file uploaded"; além disso `readFeedsConfig()`/`writeFeedsConfig()` são
+  `async` e eram chamadas sem `await`, devolvendo Promise no lugar de array.
+  O mock do teste agora é async, como o provider real
+- **Rotas OPML sem autenticação**: `GET` e `POST /api/feeds/opml` eram as únicas
+  rotas de feed sem `requireUser()`/`requireViewer()`, expostas no site público
 - `.env.prod` não estava no `.gitignore`: o arquivo com `JWT_SECRET`, senhas e
   chaves de IA poderia ser commitado por engano. Agora `.env.prod` e
   `.env.caddy` são ignorados, e o template `.env.prod.example` continua

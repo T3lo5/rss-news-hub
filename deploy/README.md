@@ -81,6 +81,7 @@ HTTP/3 está **desligado** (`protocols h1 h2`): a security list da OCI libera s�
 | `backup.sh` | snapshot SQLite consistente + retenção (diário/semanal) + upload offsite |
 | `rss-backup.service` / `.timer` | agenda o `backup.sh` todo dia 03:30 UTC |
 | `setup-offsite.sh` | configura o rclone para o bucket (executar uma vez, como `ubuntu`) |
+| `feeds-default.opml` | conjunto curado de 27 fontes, importável pelo Gerenciador de Feeds |
 
 ## Operação
 
@@ -139,6 +140,42 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 Se a arquitetura mudar (E2.1.Micro é x86_64; A1.Flex é arm64), troque `IMAGE_TAG` no `.env.prod`.
 
+## Fontes padrão (feeds)
+
+`feeds-default.opml` é o conjunto curado de 27 fontes, já com categorias
+(`Dev`, `AI/ML`, `DevOps`, `Tech`, `Security`). O app importa e exporta OPML em
+Gerenciador de Feeds → Importar OPML, ou direto:
+
+```bash
+TOKEN=$(curl -s -X POST https://rssnewshub.duckdns.org/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"...","password":"..."}' | jq -r .data.accessToken)
+
+curl -X POST https://rssnewshub.duckdns.org/api/feeds/opml \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@deploy/feeds-default.opml"
+```
+
+A importação é idempotente por URL: rodar de novo só acrescenta o que falta.
+
+Curadoria de 2026-10-22, com cada URL testada (status, tipo, itens e data do
+post mais recente):
+
+- **entram**: oficiais de baixo volume (TypeScript, React, Node.js, Rust, Go,
+  Python), engenharia e arquitetura (Martin Fowler, Netflix TechBlog, Docker,
+  Cloudflare), curadoria (Lobsters), segurança (Krebs on Security, CISA), IA
+  prática (Simon Willison, GitHub Changelog) e uma PT-BR (Tecnoblog).
+- **ficam de fora**: Vue (o RSS morreu em 2024 e não existe substituto),
+  `news.ycombinator.com/rss` (devolve 419; o `hnrss.org/frontpage` cobre o
+  mesmo conteúdo), Vercel e Supabase (1.693 e 439 itens de changelog), Techmeme
+  (agregador de agregadores), Next.js/Svelte/Astro/Tailwind (stack específica) e
+  Canaltech/Olhar Digital (redundantes com o Tecnoblog — três portais publicam
+  a mesma matéria).
+
+O parser pega no máximo **5 itens por feed por busca**
+(`services/fetch.service.js`), então feed de alto volume não inunda o banco —
+é o caso do arXiv, que sozinho tem 1.252 itens.
+
 ## Armadilhas já resolvidas (não repita)
 
 1. **`JWT_SECRET` vazio** — em `NODE_ENV=production` o app não sobe:
@@ -168,6 +205,14 @@ Se a arquitetura mudar (E2.1.Micro é x86_64; A1.Flex é arm64), troque `IMAGE_T
 
 7. **Portas fechadas no console** — a security list é independente do firewall da máquina.
    O Caddy escutar em `:443` não adianta se a regra de ingress não existir.
+
+8. **OPML quebrado por três motivos ao mesmo tempo** — (a) o parser de JSON do topo do
+   `server.js` consumia o corpo de *todo* POST/PUT, então o import multipart recebia o
+   stream vazio e respondia sempre "No file uploaded"; (b) `readFeedsConfig()` e
+   `writeFeedsConfig()` são `async` e eram chamadas sem `await` no `opml.service.js`;
+   (c) as duas rotas OPML eram as únicas de feed sem `requireUser()`/`requireViewer()`.
+   O mock do teste era síncrono, então escondia o `await` faltando — agora ele é async,
+   como o provider real.
 
 ## Backup
 
