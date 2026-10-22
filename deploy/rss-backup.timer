@@ -1,0 +1,12 @@
+[Unit]
+Description=RSS News Hub - backup diario
+
+[Timer]
+# A instancia roda em UTC. 03:30 UTC = 00:30 em Sao Paulo.
+OnCalendar=*-*-* 03:30:00
+# Se a maquina estava desligada na hora marcada, roda no proximo boot.
+Persistent=true
+RandomizedDelaySec=15min
+
+[Install]
+WantedBy=timers.target

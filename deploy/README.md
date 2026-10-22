@@ -78,6 +78,8 @@ HTTP/3 está **desligado** (`protocols h1 h2`): a security list da OCI libera s�
 | `provision.sh` | gera `.env.prod` com segredos e importa chaves de API |
 | `.env.prod.example` | template do arquivo de ambiente |
 | `setup-instance.sh` | Docker CE + Compose v2 + swap + UFW (para instância nova) |
+| `backup.sh` | snapshot SQLite consistente + retenção (diário/semanal) |
+| `rss-backup.service` / `.timer` | agenda o `backup.sh` todo dia 03:30 UTC |
 
 ## Operação
 
@@ -168,20 +170,68 @@ Se a arquitetura mudar (E2.1.Micro é x86_64; A1.Flex é arm64), troque `IMAGE_T
 
 ## Backup
 
-O banco é SQLite em `/app/data/rss-news-hub.db` (volume `rss-data`, ~6 MB):
+### Camada 1 — local (ativa)
+
+`backup.sh` + `rss-backup.timer` rodam todo dia às 03:30 UTC (00:30 em São
+Paulo): snapshot online consistente, `integrity_check` e retenção de 7 diários
++ 4 semanais em `/opt/rss-news-hub/backups/`.
 
 ```bash
-docker exec rss-news-hub sh -c \
-  'sqlite3 /app/data/rss-news-hub.db ".backup /tmp/b.db" 2>/dev/null || cp /app/data/rss-news-hub.db /tmp/b.db'
-docker cp rss-news-hub:/tmp/b.db ./rss-backup-$(date +%F).db
+sudo systemctl start rss-backup.service     # rodar agora
+journalctl -u rss-backup.service -n 20      # log da última execução
+systemctl list-timers rss-backup.timer      # próximo agendado
 ```
 
-O `.env.prod` também precisa de backup — sem ele o `JWT_SECRET` e a senha do admin se perdem
-(e o login para de funcionar para quem estava logado).
+**Por que não `cp`:** o app roda em WAL mode e o `-wal` fica no limiar do
+auto-checkpoint (~4 MB). Copiar só o `.db` perde as transações que ainda estão
+no WAL. O `.backup()` do better-sqlite3 tira um snapshot consistente com o app
+rodando — e o script valida com `PRAGMA integrity_check` antes de gravar.
+
+**Isso não protege contra perder a instância.** Serve para rollback rápido de
+erro de aplicação: migração ruim, feed apagado, notícia removida por engano.
+
+### Restaurar (testado)
+
+```bash
+cd /opt/rss-news-hub
+docker compose -f docker-compose.prod.yml --env-file .env.prod stop app
+
+# Atenção: o volume tem o prefixo do projeto -> rss-news-hub_rss-data
+docker run --rm \
+  -v rss-news-hub_rss-data:/data \
+  -v /opt/rss-news-hub/backups:/backup:ro \
+  alpine sh -c "
+    gunzip -c /backup/daily/<arquivo>.db.gz > /data/rss-news-hub.db &&
+    rm -f /data/rss-news-hub.db-wal /data/rss-news-hub.db-shm &&
+    chown -R 1000:1000 /data
+  "
+
+docker compose -f docker-compose.prod.yml --env-file .env.prod start app
+```
+
+Os três detalhes que quebram um restore se esquecidos:
+
+1. remover `-wal`/`-shm`, senão o WAL antigo é reaplicado sobre o banco restaurado;
+2. `chown` da **pasta** também — o processo roda como `node` (uid 1000) e precisa
+   criar `-wal`/`-shm`; sem isso o SQLite aborta com `SQLITE_READONLY_DIRECTORY`;
+3. o volume chama `rss-news-hub_rss-data`, não `rss-data`.
+
+### Camada 2 — offsite (pendente)
+
+Cópia fora da instância (Object Storage). Sem ela, uma instância perdida leva o
+banco junto. Precisa de um bucket e de uma credencial — decisão em aberto.
+
+### Segredos que o backup não resolve
+
+O banco guarda o **hash** da senha do admin, não a senha. O `JWT_SECRET` e as
+chaves de IA ficam no `.env.prod`, fora do snapshot. Anote no gerenciador de
+senhas: a senha do admin e as chaves de OpenAI/DeepSeek/SenseNova (estas também
+são recuperáveis nos painéis dos provedores).
 
 ## Pendências
 
 - [x] Liberar 80/443 na Security List do VCN `vcn-20260105-2125`
 - [x] Domínio + TLS automático (`rssnewshub.duckdns.org`)
 - [x] Trocar Basic Auth por bloqueio do register (performance + popup)
-- [ ] Backup periódico do SQLite + do `.env.prod`
+- [x] Backup local diário com retenção e restore testado
+- [ ] Backup offsite (Object Storage) + cópia cifrada do `.env.prod`

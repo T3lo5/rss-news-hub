@@ -8,6 +8,10 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- **Backup diário do banco** (`deploy/backup.sh` + timer do systemd): snapshot
+  online via `.backup()` do better-sqlite3 (consistente mesmo com o app rodando
+  em WAL mode), verificação com `PRAGMA integrity_check` e retenção de 7
+  diários + 4 semanais; o `README.md` documenta o restore testado
 - **Deploy de produção na OCI** (`deploy/`): stack Docker Compose com Caddy
   (TLS automático via Let's Encrypt, bloqueio de `POST /api/auth/register`,
   cache de assets e HTTP/3 desligado) e app sem porta publicada; `provision.sh`

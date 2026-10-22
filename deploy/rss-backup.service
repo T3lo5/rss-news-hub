@@ -1,0 +1,15 @@
+[Unit]
+Description=RSS News Hub - snapshot do banco SQLite
+Documentation=file:/opt/rss-news-hub/README.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+ExecStart=/usr/bin/bash /opt/rss-news-hub/backup.sh
+Nice=10
+IOSchedulingClass=idle
+
+# Nao reinicia em falha: se o backup quebrar, o timer tenta de novo amanha e o
+# erro fica no journal (journalctl -u rss-backup.service).
