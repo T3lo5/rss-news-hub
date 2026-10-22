@@ -916,6 +916,17 @@
   .filter-group {
     flex: 1;
   }
+  /* Os rotulos "Fonte:"/"Ordenar:" roubavam ~60px de cada select e o texto
+     era cortado ("Mais r"). O icone fica; o nome acessivel vem do aria-label
+     do proprio select. */
+  .filter-group label {
+    font-size: 0;
+    gap: 0;
+  }
+  .filter-group label svg {
+    width: 15px;
+    height: 15px;
+  }
   .filter-group select {
     flex: 1;
     min-width: 0;
