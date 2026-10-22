@@ -14,6 +14,9 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # Documentação não muda a imagem: evita um build+deploy por commit de texto.
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
 
 # Nunca dois deploys ao mesmo tempo. Se um push novo chegar enquanto o anterior

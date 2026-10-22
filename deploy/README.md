@@ -123,8 +123,69 @@ repositório. O `provision.sh` imprime a senha do admin **uma única vez**.
 
 ## Atualizar a aplicação
 
-O build acontece na máquina de desenvolvimento, não na instância (1 GB de RAM não compila
+O build acontece fora da instância, não nela (1 GB de RAM não compila
 `better-sqlite3` + front com folga).
+
+### Pelo CI/CD (caminho normal)
+
+Push na `main` dispara `.github/workflows/deploy.yml`:
+
+```
+test + typecheck + lint
+   -> build linux/amd64 -> ghcr.io/t3lo5/rss-news-hub:<sha>
+   -> job "Deploy" espera APROVAÇÃO do environment `production`
+   -> ssh ubuntu@instância "<sha>"
+        -> /opt/rss-news-hub/deploy.sh
+             1. backup.sh (snapshot antes de tocar no banco)
+             2. docker pull
+             3. troca IMAGE_TAG no .env.prod
+             4. compose up -d app
+             5. healthcheck (até 120 s)
+             6. falhou? volta a imagem anterior e sai com código 1
+```
+
+Enquanto ninguém aprova, a produção não muda. Para disparar sem commit novo:
+**Actions → Deploy → Run workflow**.
+
+**Rollback:** Actions → run anterior → **Re-run all jobs**. A imagem é
+reconstruída do mesmo commit e re-deployada. Para reverter só a aplicação, sem
+passar pelo GitHub:
+
+```bash
+ssh -i ~/deploy-key ubuntu@163.176.141.23 "<sha-antigo>"
+```
+
+O `deploy.sh` roda um backup **antes** de cada deploy porque as migrações do
+banco rodam no boot: voltar a imagem não desfaz uma migração. O snapshot é a
+saída de emergência.
+
+### Chave de deploy e configuração no GitHub
+
+A chave usada pelo Actions é dedicada (sem passphrase) e presa no
+`~/.ssh/authorized_keys` por um comando forçado:
+
+```
+command="/opt/rss-news-hub/deploy.sh",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAA... rss-news-hub-deploy
+```
+
+Ou seja: mesmo que a chave vaze, ela não abre shell — só executa o
+`deploy.sh`, e o script valida que o argumento é um SHA em hex. O
+`deploy.sh` fica em `/opt/rss-news-hub/deploy.sh` (root:root 0755) e usa um
+`flock` para impedir dois deploys simultâneos.
+
+O workflow depende de:
+
+| Tipo | Nome | Conteúdo |
+|---|---|---|
+| secret | `DEPLOY_SSH_KEY` | chave privada ed25519 da deploy key |
+| secret | `DEPLOY_KNOWN_HOSTS` | saída de `ssh-keyscan -t ed25519,ecdsa,rsa 163.176.141.23` |
+| var | `DEPLOY_HOST` | `163.176.141.23` |
+| var | `DEPLOY_USER` | `ubuntu` |
+
+O environment `production` tem required reviewer: o deploy só anda depois do
+clique em **Approve**.
+
+### Manual (fallback, sem GitHub)
 
 ```bash
 # no projeto, na máquina local
@@ -340,4 +401,5 @@ As chaves de IA também são recuperáveis nos painéis de cada provedor.
 - [x] Domínio + TLS automático (`rssnewshub.duckdns.org`)
 - [x] Trocar Basic Auth por bloqueio do register (performance + popup)
 - [x] Backup local diário com retenção e restore testado
+- [x] CI/CD: push na `main` -> testes -> imagem no GHCR -> deploy com aprovação manual
 - [ ] Backup offsite: `setup-offsite.sh` pronto, falta criar bucket + credencial no console

@@ -8,6 +8,14 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- **CI/CD da `main` para a instância** (`.github/workflows/deploy.yml` +
+  `deploy/deploy.sh`): push na `main` roda testes/typecheck/lint, builda a
+  imagem `linux/amd64`, publica no GHCR com o SHA do commit e espera a
+  aprovação do environment `production`; o deploy na instância faz backup
+  antes de trocar a imagem, espera o healthcheck por até 120 s e volta a
+  imagem anterior se o container não ficar saudável. A chave usada é dedicada
+  e restrita por `command=` no `authorized_keys` — não abre shell, só executa
+  o `deploy.sh`, que valida o SHA recebido
 - **Conjunto padrão de 27 fontes RSS** (`deploy/feeds-default.opml`, com
   categorias): cada URL testada (status, tipo, itens e data do post mais
   recente) e importável pelo Gerenciador de Feeds. Entram oficiais de baixo
@@ -76,6 +84,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   opção "enviar também por e-mail" na newsletter agendada e no digest
 
 ### Fixed
+- **Lint do Biome zerado** (9 erros → 0): imports não usados, ordem de imports
+  e formatação em `server.js`, `services/` e `test/user-settings-api.test.ts`,
+  para o CI da `main` não quebrar
 - **Import/export OPML não funcionava**: o parser de JSON consumia o corpo de
   todo POST/PUT, então o import multipart recebia o stream vazio e respondia
   "No file uploaded"; além disso `readFeedsConfig()`/`writeFeedsConfig()` são
