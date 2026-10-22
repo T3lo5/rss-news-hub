@@ -33,8 +33,13 @@ O que ficou no lugar:
 | Regra | Onde | Efeito |
 |---|---|---|
 | `respond @register 403` | Caddy | ninguém cria conta; instantâneo, sem hash, sem banco |
+| `ALLOW_REGISTRATION=false` | app | a tela de login esconde o link "Criar conta" |
 | JWT em `/api/**` | app | todo dado exige login |
 | rate limit em `auth/*` | app | freia força bruta no login |
+
+`GET /api/auth/config` (público) devolve `{ registrationEnabled }`, e a tela de login
+usa isso para não oferecer um formulário que o proxy vai recusar com 403. O bloqueio
+do Caddy continua sendo a garantia; a flag é só para a UI não mentir.
 
 Consequência: **uma senha só** (a do app). O Caddy não recebe o `.env.prod`, apenas
 `DOMAIN` — as chaves de IA e o `JWT_SECRET` não existem no processo do proxy.

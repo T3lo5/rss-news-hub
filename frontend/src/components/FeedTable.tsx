@@ -81,7 +81,12 @@ function FeedRow({
         <span className="category-badge">{feed.category}</span>
       </td>
       <td>{formatDate(feed.lastFetch, t('feedTable.never'), locale)}</td>
-      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{feed.itemCount || 0}</td>
+      <td
+        data-label={t('feedTable.colItems')}
+        style={{ textAlign: 'right', fontFamily: 'monospace' }}
+      >
+        {feed.itemCount || 0}
+      </td>
       <td>{getStatusBadge(feed.status, t)}</td>
       <td>
         <div className="action-buttons">

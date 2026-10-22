@@ -301,9 +301,9 @@
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-3) var(--space-4);
-  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* Opaco de proposito: translucido + backdrop-filter deixava o conteudo
+     aparecer por tras ao rolar (duas camadas de vidro empilhadas). */
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -470,8 +470,8 @@
 }
 
 .news-date {
-  font-size: var(--text-xs);
-  color: var(--text-faint);
+  font-size: var(--text-sm);
+  color: var(--text-meta);
   margin-left: auto;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -732,6 +732,18 @@
   }
 }
 
+/* Bottom sheet do menu no mobile (ver @media max-width: 640px). */
+@keyframes sheetUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 640px) {
   .main {
     padding: var(--space-4);
@@ -743,6 +755,13 @@
     flex-wrap: wrap;
     padding: var(--space-3) var(--space-4);
     gap: var(--space-3);
+    /* Sem backdrop-filter: ele cria containing block e o .menu-panel
+       position:fixed (bottom sheet) passaria a se ancorar no header,
+       ficando fora da tela. Como o header e' static aqui, o vidro nao
+       serve para nada de qualquer forma. */
+    background: var(--bg-tertiary);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   .header-left {
     flex: 1 1 100%;
@@ -753,21 +772,59 @@
     justify-content: flex-start;
     gap: 6px;
   }
-  /* Compact the header controls so they fit on a single actions row. */
+  /* Alvos de toque: 44px e' o minimo confortavel no celular. O header cabe
+     porque o chip do usuario esconde nome/cargo abaixo de 640px. */
   .header .btn {
     padding: 8px 10px;
+    min-height: 44px;
   }
   .header .btn-icon,
   .header .theme-toggle {
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
   }
   .header .language-select {
-    height: 34px;
+    height: 44px;
     padding: 0 4px 0 8px;
   }
   .header .language-select > svg {
     display: none;
+  }
+
+  /* Menu do header vira bottom sheet: ancorado no .menu ele saia da tela
+     a esquerda (o botao fica a ~120px da borda e o painel tem 270px). */
+  .menu-panel {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    min-width: 0;
+    max-height: 72vh;
+    overflow-y: auto;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: none;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
+    animation: sheetUp 0.18s var(--ease-out);
+  }
+  .menu-panel .menu-item {
+    min-height: 46px;
+    font-size: var(--text-md);
+  }
+
+  .toolbar .btn,
+  .toolbar .btn-sm,
+  .toolbar .btn-icon {
+    min-height: 40px;
+  }
+  .toolbar .btn-icon {
+    min-width: 40px;
+  }
+  .modal .close-btn,
+  .modal .modal-close {
+    width: 44px;
+    height: 44px;
   }
   .toolbar-container {
     top: 0;

@@ -89,6 +89,16 @@ function requireAuthedUser(req, res) {
 }
 
 export async function handleAuthRoutes(req, res, path) {
+  // GET /api/auth/config - flags publicas para a tela de login.
+  // Sem auth e sem rate limit: e' a primeira chamada, antes de existir token.
+  if (path === '/api/auth/config' && req.method === 'GET') {
+    sendJSON(res, 200, {
+      ok: true,
+      data: { registrationEnabled: process.env.ALLOW_REGISTRATION !== 'false' },
+    });
+    return true;
+  }
+
   // POST /api/auth/register
   if (path === '/api/auth/register' && req.method === 'POST') {
     if (!applyLimiter(registerLimiter, req, res)) return true;

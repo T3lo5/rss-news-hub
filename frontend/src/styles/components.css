@@ -355,7 +355,9 @@
   color: var(--text-secondary);
 }
 
-.form-group input,
+/* Checkbox/radio ficam de fora: sem o :not() eles herdam width:100% e viram
+   uma caixa vazia de 688px (ex.: "Remover chave" em Configuracoes). */
+.form-group input:not([type='checkbox']):not([type='radio']),
 .form-group select,
 .form-group textarea {
   width: 100%;
@@ -633,6 +635,102 @@
   gap: var(--space-2);
   flex-wrap: wrap;
   margin-bottom: var(--space-4);
+}
+
+/* ============================================================
+   Feeds table -> cards no mobile
+   ============================================================
+   A tabela tem 8 colunas fixas; abaixo de 640px a coluna de URL caia para
+   ~30px e a URL quebrava em uma letra por linha. Aqui cada <tr> vira um card. */
+@media (max-width: 640px) {
+  .table-container {
+    overflow: visible;
+    border: none;
+    border-radius: 0;
+  }
+
+  .feeds-table,
+  .feeds-table tbody {
+    display: block;
+  }
+
+  .feeds-table thead {
+    display: none;
+  }
+
+  .feeds-table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  .feeds-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .feeds-table tbody td {
+    display: block;
+    padding: 0;
+    border: none;
+    text-align: left !important;
+    font-family: inherit !important;
+  }
+
+  /* Linha 1: toggle | nome | acoes */
+  .feeds-table tbody td:nth-child(1) {
+    order: 1;
+  }
+  .feeds-table tbody td:nth-child(2) {
+    order: 2;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .feeds-table tbody td:nth-child(8) {
+    order: 3;
+    margin-left: auto;
+  }
+
+  /* Linha 2: URL inteira, no maximo 2 linhas */
+  .feeds-table tbody td:nth-child(3) {
+    order: 4;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .feeds-table tbody td:nth-child(3) a {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: var(--text-sm);
+  }
+
+  /* Linha 3: categoria, itens e saude */
+  .feeds-table tbody td:nth-child(4),
+  .feeds-table tbody td:nth-child(6),
+  .feeds-table tbody td:nth-child(7) {
+    order: 5;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+  /* Ultima busca e' ruido no card (o dado continua no desktop). */
+  .feeds-table tbody td:nth-child(5) {
+    display: none;
+  }
+  .feeds-table tbody td:nth-child(6)::before {
+    content: attr(data-label) ': ';
+    color: var(--text-muted);
+  }
+
+  .feeds-table .action-buttons .btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
 }
 
 /* ============================================================

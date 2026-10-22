@@ -10,6 +10,25 @@ describe('Auth API (HTTP-level)', () => {
     getTestDb();
   });
 
+  test('GET /api/auth/config reports the registration flag', async () => {
+    const res = await request('GET', '/api/auth/config');
+    assert.strictEqual(res.status, 200, res.raw);
+    assert.strictEqual(typeof res.json.data.registrationEnabled, 'boolean');
+  });
+
+  test('GET /api/auth/config reflects ALLOW_REGISTRATION=false', async () => {
+    const previous = process.env.ALLOW_REGISTRATION;
+    process.env.ALLOW_REGISTRATION = 'false';
+    try {
+      const res = await request('GET', '/api/auth/config');
+      assert.strictEqual(res.status, 200, res.raw);
+      assert.strictEqual(res.json.data.registrationEnabled, false);
+    } finally {
+      if (previous === undefined) delete process.env.ALLOW_REGISTRATION;
+      else process.env.ALLOW_REGISTRATION = previous;
+    }
+  });
+
   test('POST /api/auth/register creates a user and returns tokens', async () => {
     const res = await request('POST', '/api/auth/register', {
       email: 'ana@example.com',

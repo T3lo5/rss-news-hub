@@ -27,6 +27,7 @@
   --text-primary: #e9eef4;
   --text-secondary: #8a99ab;
   --text-muted: #64748b;
+  --text-meta: #7b8a9c;
   --text-faint: #4a5766;
   --text-on-accent: #ffffff;
 
@@ -137,6 +138,7 @@
   --text-primary: #0f1c2e;
   --text-secondary: #5b6b7f;
   --text-muted: #64748b;
+  --text-meta: #64748b;
   --text-faint: #94a3b8;
 
   --accent: #0a7fe0;

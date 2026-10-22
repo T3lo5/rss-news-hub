@@ -16,6 +16,27 @@ export function LoginPage() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // O registro pode estar desligado (ALLOW_REGISTRATION=false, e/ou bloqueio
+  // no proxy). Nesse caso o link "Criar conta" some, em vez de abrir um
+  // formulario que sempre termina em 403.
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/config')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (!cancelled && body?.data) {
+          setRegistrationEnabled(body.data.registrationEnabled !== false);
+        }
+      })
+      .catch(() => {
+        // Endpoint indisponivel: mantem o comportamento anterior (link visivel).
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -106,19 +127,21 @@ export function LoginPage() {
           </button>
         </form>
 
-        <p className="switch-mode">
-          {isLogin ? t('login.noAccount') : t('login.hasAccount')}{' '}
-          <button
-            type="button"
-            className="btn-link"
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError('');
-            }}
-          >
-            {isLogin ? t('login.signUp') : t('login.signIn')}
-          </button>
-        </p>
+        {registrationEnabled && (
+          <p className="switch-mode">
+            {isLogin ? t('login.noAccount') : t('login.hasAccount')}{' '}
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
+            >
+              {isLogin ? t('login.signUp') : t('login.signIn')}
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );
