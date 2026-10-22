@@ -152,7 +152,7 @@ reconstruída do mesmo commit e re-deployada. Para reverter só a aplicação, s
 passar pelo GitHub:
 
 ```bash
-ssh -i ~/deploy-key ubuntu@163.176.141.23 "<sha-antigo>"
+ssh -i ~/.ssh/rss-news-hub-deploy ubuntu@163.176.141.23 "<sha-antigo>"
 ```
 
 O `deploy.sh` roda um backup **antes** de cada deploy porque as migrações do
