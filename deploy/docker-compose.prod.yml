@@ -1,0 +1,83 @@
+# RSS News Hub - producao na OCI (Oracle Linux / Ubuntu 22.04, ARM64 ou x86_64)
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# A imagem NAO vem do registry: ela foi construida localmente para linux/arm64
+# e carregada com `docker load`. O `build:` fica de proposito ausente.
+#
+# Seguranca:
+#   * A app fica SO na rede interna do compose. O unico caminho publico e o Caddy.
+#   * O Caddy bloqueia POST /api/auth/register (403). E' a unica rota publica
+#     que cria estado; o resto do app exige JWT.
+#   * O Caddy NAO recebe o .env.prod: so o DOMAIN. Assim as chaves de IA e o
+#     JWT_SECRET nao existem no processo do proxy.
+#   * JWT_SECRET e ADMIN_* vem do .env.prod (ver .env.prod.example).
+
+services:
+  app:
+    image: ${IMAGE_TAG:-rss-news-hub:amd64}
+    container_name: rss-news-hub
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET obrigatorio - gere com openssl rand -base64 48}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL obrigatorio}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD obrigatorio}
+    # Sintaxe curta de env_file: compativel com Compose v1 E v2.
+    # (A sintaxe longa "path:/required:" exige Compose >= 2.24.)
+    env_file:
+      - .env.prod
+    volumes:
+      - rss-data:/app/data
+      - rss-config:/app/config
+    # O healthcheck do Dockerfile (/api/health) e' o gate do Caddy.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    # Teto de memoria: se o node crescer demais, morre e o restart policy
+    # recolhe, em vez de comer a RAM da instancia e travar tudo.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - rss
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: rss-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    # O Caddy so precisa do DOMAIN. Nao recebe o .env.prod de proposito: assim
+    # as chaves de IA, o JWT_SECRET e as senhas nao existem no processo do proxy.
+    environment:
+      DOMAIN: ${DOMAIN:-}
+    ports:
+      # 5678: ja liberada na security list da OCI (funciona sem mexer no console)
+      # 80/443: liberado no console da OCI quando quiser (e/ou com dominio + TLS)
+      - "5678:5678"
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - rss
+
+volumes:
+  rss-data:
+  rss-config:
+  caddy-data:
+  caddy-config:
+
+networks:
+  rss:
+    driver: bridge

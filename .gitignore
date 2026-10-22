@@ -28,6 +28,10 @@ public/
 .env
 .env.local
 .env.*.local
+# Producao: gerado por deploy/provision.sh (JWT_SECRET, senhas, chaves de IA).
+# O template deploy/.env.prod.example PODE ser versionado.
+.env.prod
+.env.caddy
 .env.production
 .env.staging
 # SSL certificates

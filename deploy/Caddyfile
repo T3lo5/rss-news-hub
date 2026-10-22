@@ -1,0 +1,74 @@
+# Caddyfile - reverse proxy do RSS News Hub
+#
+# Historico: a primeira versao usava Basic Auth na frente de tudo. Foi trocada
+# porque o Caddy verifica o hash bcrypt a CADA requisicao (Basic Auth nao tem
+# sessao), e nesta instancia (1/8 de OCPU) um hash com custo 14 leva ~2,8s de
+# CPU por requisicao. Uma pagina com 7 requisicoes levava ~20s, o navegador
+# desistia e repetia, e as repeticoes caiam sem credencial -> popup em loop.
+#
+# Protecao atual: o app ja exige JWT (requireViewer/requireUser/requireAdmin)
+# em todas as rotas de dados, e login/refresh tem rate limit proprio. A unica
+# rota publica que cria estado e' POST /api/auth/register - bloqueada abaixo.
+#
+# Variaveis de ambiente:
+#   DOMAIN - dominio com DNS apontando para esta maquina.
+#            Com dominio, o Caddy emite e renova o certificado TLS sozinho.
+#            Sem dominio (vazio), cai em "localhost" + CA interna.
+
+{
+	# HTTP/3 desligado: a security list da OCI libera apenas TCP, e o Alt-Svc
+	# h3 faria o navegador tentar QUIC em UDP 443 e esperar timeout a cada
+	# visita. Na pratica h3 nao traz ganho aqui.
+	servers {
+		protocols h1 h2
+	}
+}
+
+(common) {
+	encode zstd gzip
+
+	# Assets tem hash no nome (index-C7p1yqxo.js): cache de 1 ano e' seguro.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	# index.html nunca em cache, para um deploy novo aparecer na hora.
+	@document path /
+	header @document Cache-Control "no-cache"
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# /api/ai/generate/stream usa SSE; o Caddy passa streaming sem bufferizar.
+	reverse_proxy app:3000 {
+		flush_interval -1
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+# Porta 5678 (ja liberada na security list da OCI): nao serve conteudo em HTTP
+# puro, so redireciona para o HTTPS.
+:5678 {
+	redir https://{$DOMAIN:localhost}{uri} permanent
+}
+
+# Bloco principal: HTTPS automatico para o dominio configurado.
+{$DOMAIN:localhost} {
+	# POST /api/auth/register: bloqueado no edge.
+	# O app aceita esse endpoint publicamente (por design, e' multi-usuario), mas
+	# aqui so existe o admin. Sem esta regra, qualquer visitante criaria conta de
+	# role 'user' e poderia gastar a cota de IA e enviar mensagens no Telegram.
+	# E' instantaneo: nao roda hash, nao consulta o banco.
+	@register path /api/auth/register /api/auth/register/*
+	respond @register 403
+
+	import common
+}

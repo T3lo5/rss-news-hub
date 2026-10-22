@@ -8,6 +8,12 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Added
+- **Deploy de produção na OCI** (`deploy/`): stack Docker Compose com Caddy
+  (TLS automático via Let's Encrypt, bloqueio de `POST /api/auth/register`,
+  cache de assets e HTTP/3 desligado) e app sem porta publicada; `provision.sh`
+  gera o `.env.prod` com segredos na própria máquina, `setup-instance.sh`
+  prepara uma instância nova, e o `README.md` traz medições, operação e as
+  armadilhas já resolvidas
 - **Seletor de idioma (PT/EN)** no cabeçalho: a escolha é salva por usuário no
   banco e aplicada na hora; infraestrutura de i18n no frontend
   (`frontend/src/i18n/`) com dicionários `pt`/`en` (≈516 chaves cada) e hook
@@ -55,6 +61,10 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   opção "enviar também por e-mail" na newsletter agendada e no digest
 
 ### Fixed
+- `.env.prod` não estava no `.gitignore`: o arquivo com `JWT_SECRET`, senhas e
+  chaves de IA poderia ser commitado por engano. Agora `.env.prod` e
+  `.env.caddy` são ignorados, e o template `.env.prod.example` continua
+  versionável
 - `PUT /api/auth/me` validava o corpo com o schema do **perfil de interesse**
   (`keywords`/`topics`), então alterar nome, e-mail ou idioma nunca funcionava
   (respondia 404); agora usa o schema correto do perfil do usuário
