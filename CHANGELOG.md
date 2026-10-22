@@ -12,6 +12,10 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   online via `.backup()` do better-sqlite3 (consistente mesmo com o app rodando
   em WAL mode), verificação com `PRAGMA integrity_check` e retenção de 7
   diários + 4 semanais; o `README.md` documenta o restore testado
+- **Backup offsite na OCI** (`deploy/setup-offsite.sh`): rclone contra o Object
+  Storage (S3 compatível) com usuário IAM dedicado e policy restrita a um
+  bucket; o upload roda depois do snapshot local (falha de rede não compromete
+  o backup local), a retenção remota é por idade, e o `.env.prod` vai cifrado
 - **Deploy de produção na OCI** (`deploy/`): stack Docker Compose com Caddy
   (TLS automático via Let's Encrypt, bloqueio de `POST /api/auth/register`,
   cache de assets e HTTP/3 desligado) e app sem porta publicada; `provision.sh`

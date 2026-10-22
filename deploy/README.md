@@ -78,8 +78,9 @@ HTTP/3 está **desligado** (`protocols h1 h2`): a security list da OCI libera s�
 | `provision.sh` | gera `.env.prod` com segredos e importa chaves de API |
 | `.env.prod.example` | template do arquivo de ambiente |
 | `setup-instance.sh` | Docker CE + Compose v2 + swap + UFW (para instância nova) |
-| `backup.sh` | snapshot SQLite consistente + retenção (diário/semanal) |
+| `backup.sh` | snapshot SQLite consistente + retenção (diário/semanal) + upload offsite |
 | `rss-backup.service` / `.timer` | agenda o `backup.sh` todo dia 03:30 UTC |
+| `setup-offsite.sh` | configura o rclone para o bucket (executar uma vez, como `ubuntu`) |
 
 ## Operação
 
@@ -216,17 +217,77 @@ Os três detalhes que quebram um restore se esquecidos:
    criar `-wal`/`-shm`; sem isso o SQLite aborta com `SQLITE_READONLY_DIRECTORY`;
 3. o volume chama `rss-news-hub_rss-data`, não `rss-data`.
 
-### Camada 2 — offsite (pendente)
+### Camada 2 — offsite (OCI Object Storage)
 
-Cópia fora da instância (Object Storage). Sem ela, uma instância perdida leva o
-banco junto. Precisa de um bucket e de uma credencial — decisão em aberto.
+Cópia fora da instância, para o caso de perder a máquina. Credencial de escopo
+mínimo: um usuário IAM só para isso, com policy restrita a **um** bucket.
 
-### Segredos que o backup não resolve
+**No console (uma vez):**
 
-O banco guarda o **hash** da senha do admin, não a senha. O `JWT_SECRET` e as
-chaves de IA ficam no `.env.prod`, fora do snapshot. Anote no gerenciador de
-senhas: a senha do admin e as chaves de OpenAI/DeepSeek/SenseNova (estas também
-são recuperáveis nos painéis dos provedores).
+1. Object Storage → Create Bucket: `rss-news-hub-backups`, private, região
+   `sa-saopaulo-1`
+2. Identity → Users → Create: `rss-backup`
+3. Identity → Groups → Create: `rss-backup`; adicione o usuário
+4. Identity → Policies → Create, no compartimento do bucket:
+
+   ```
+   Allow group rss-backup to read buckets in compartment <COMPARTIMENTO>
+   Allow group rss-backup to manage objects in compartment <COMPARTIMENTO>
+     where target.bucket.name = 'rss-news-hub-backups'
+   ```
+
+5. User `rss-backup` → Customer Secret Keys → Generate: guarde o par
+   Access Key / Secret Key (o secret aparece **uma única vez**)
+
+**Na instância:**
+
+```bash
+rclone version                 # já instalado (1.75.2)
+cd /opt/rss-news-hub
+bash setup-offsite.sh          # pergunta namespace/bucket/chaves; o secret fica oculto
+```
+
+O script grava `~/.config/rclone/rclone.conf` (600), cria `backup.env`, gera a
+senha de cifra do `.env.prod` e testa leitura **e** escrita no bucket.
+
+A partir daí cada execução do `rss-backup.service` copia o snapshot para
+`daily/` (30 dias) e, aos domingos, também para `weekly/` (60 dias). A retenção
+remota é por **idade**, não por contagem: se a máquina ficar dias desligada, os
+backups antigos não são apagados por falta de novos.
+
+`secrets/env-prod.enc` é o `.env.prod` cifrado (AES-256-CBC + PBKDF2) com a
+senha de `/opt/rss-news-hub/.backup-passphrase`, que precisa estar no seu
+gerenciador de senhas. Sem ela o arquivo não abre.
+
+```bash
+# conferir o que subiu
+rclone lsf oci:rss-news-hub-backups/daily/
+rclone lsf oci:rss-news-hub-backups/secrets/
+
+# restaurar o .env.prod
+rclone copyto oci:rss-news-hub-backups/secrets/env-prod.enc /tmp/env.enc
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+  -in /tmp/env.enc -out /tmp/.env.prod \
+  -pass file:/opt/rss-news-hub/.backup-passphrase
+
+# baixar o banco e seguir a seção "Restaurar"
+rclone copy oci:rss-news-hub-backups/daily/<arquivo>.db.gz /tmp/
+```
+
+Detalhe que morde: a OCI **não** aceita virtual-host style no S3 compatível.
+Por isso o rclone usa `force_path_style = true`, com o namespace no host
+(`https://<namespace>.compat.objectstorage.sa-saopaulo-1.oraclecloud.com`).
+
+### Segredos
+
+O banco guarda o **hash** da senha do admin, não a senha — o backup do banco
+não devolve a senha. O `.env.prod` vai cifrado para o bucket. Duas coisas
+precisam estar no seu gerenciador de senhas, fora da máquina:
+
+- a senha do admin (a que você usa para entrar)
+- a senha de cifra do `.env.prod` (`/opt/rss-news-hub/.backup-passphrase`)
+
+As chaves de IA também são recuperáveis nos painéis de cada provedor.
 
 ## Pendências
 
@@ -234,4 +295,4 @@ são recuperáveis nos painéis dos provedores).
 - [x] Domínio + TLS automático (`rssnewshub.duckdns.org`)
 - [x] Trocar Basic Auth por bloqueio do register (performance + popup)
 - [x] Backup local diário com retenção e restore testado
-- [ ] Backup offsite (Object Storage) + cópia cifrada do `.env.prod`
+- [ ] Backup offsite: `setup-offsite.sh` pronto, falta criar bucket + credencial no console

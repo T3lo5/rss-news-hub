@@ -73,4 +73,53 @@ prune "$DEST_DIR/daily" "plugins-*.yaml" "$KEEP_DAILY" || true
 prune "$DEST_DIR/weekly" "rss-news-hub-*.db.gz" "$KEEP_WEEKLY" || true
 prune "$DEST_DIR/weekly" "plugins-*.yaml" "$KEEP_WEEKLY" || true
 
-log "pronto - diarios: $(ls -1 "$DEST_DIR"/daily/rss-news-hub-*.db.gz 2>/dev/null | wc -l), semanais: $(ls -1 "$DEST_DIR"/weekly/rss-news-hub-*.db.gz 2>/dev/null | wc -l)"
+log "local pronto - diarios: $(ls -1 "$DEST_DIR"/daily/rss-news-hub-*.db.gz 2>/dev/null | wc -l), semanais: $(ls -1 "$DEST_DIR"/weekly/rss-news-hub-*.db.gz 2>/dev/null | wc -l)"
+
+# --- Camada 2: offsite (opcional) ---------------------------------------
+# Ativado por /opt/rss-news-hub/backup.env (gerado por setup-offsite.sh):
+#   OFFSITE_REMOTE="oci:rss-news-hub-backups"
+# Sem esse arquivo, o script termina aqui e o backup local segue funcionando.
+BACKUP_ENV="${BACKUP_ENV:-/opt/rss-news-hub/backup.env}"
+if [ -f "$BACKUP_ENV" ]; then
+  # shellcheck disable=SC1090
+  . "$BACKUP_ENV"
+fi
+
+if [ -n "${OFFSITE_REMOTE:-}" ]; then
+  if ! command -v rclone >/dev/null 2>&1; then
+    log "AVISO: OFFSITE_REMOTE definido mas rclone nao esta instalado; pulando"
+  else
+    export RCLONE_CONFIG="${RCLONE_CONFIG:-/home/ubuntu/.config/rclone/rclone.conf}"
+    log "offsite: enviando para $OFFSITE_REMOTE"
+
+    rclone copy "$TARGET" "$OFFSITE_REMOTE/daily/" --no-traverse
+    rclone copy "$DEST_DIR/daily/plugins-$STAMP.yaml" "$OFFSITE_REMOTE/daily/" --no-traverse
+
+    if [ "$DAY_OF_WEEK" = "7" ]; then
+      rclone copy "$TARGET" "$OFFSITE_REMOTE/weekly/" --no-traverse
+      rclone copy "$DEST_DIR/daily/plugins-$STAMP.yaml" "$OFFSITE_REMOTE/weekly/" --no-traverse
+    fi
+
+    # Copia cifrada do .env.prod. O bucket e privado, mas se alguem obtiver
+    # acesso a ele nao leva JWT_SECRET nem chaves de IA. A senha fica em
+    # .backup-passphrase (600) e precisa estar no gerenciador de senhas do dono.
+    PASSFILE="${BACKUP_PASSPHRASE_FILE:-/opt/rss-news-hub/.backup-passphrase}"
+    if [ -s "$PASSFILE" ] && [ -s /opt/rss-news-hub/.env.prod ]; then
+      ENC="/tmp/rss-env-$STAMP.enc"
+      openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+        -in /opt/rss-news-hub/.env.prod -out "$ENC" -pass "file:$PASSFILE"
+      # nome fixo: guarda sempre a versao atual, sem acumular
+      rclone copyto "$ENC" "$OFFSITE_REMOTE/secrets/env-prod.enc"
+      rm -f "$ENC"
+      log "offsite: .env.prod cifrado enviado"
+    fi
+
+    # Retencao remota por idade (nao por contagem: sobrevive a dias sem backup)
+    rclone delete "$OFFSITE_REMOTE/daily/" --min-age "${OFFSITE_KEEP_DAILY_DAYS:-30}d" --include "rss-news-hub-*.db.gz"
+    rclone delete "$OFFSITE_REMOTE/daily/" --min-age "${OFFSITE_KEEP_DAILY_DAYS:-30}d" --include "plugins-*.yaml"
+    rclone delete "$OFFSITE_REMOTE/weekly/" --min-age "${OFFSITE_KEEP_WEEKLY_DAYS:-60}d" --include "rss-news-hub-*.db.gz"
+    rclone delete "$OFFSITE_REMOTE/weekly/" --min-age "${OFFSITE_KEEP_WEEKLY_DAYS:-60}d" --include "plugins-*.yaml"
+
+    log "offsite: ok ($(rclone lsf "$OFFSITE_REMOTE/daily/" | wc -l) arquivo(s) em daily/)"
+  fi
+fi
