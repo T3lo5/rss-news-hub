@@ -65,6 +65,10 @@ import { Toolbar } from './Toolbar';
 import { UserSettingsModal } from './UserSettingsModal';
 import { UsersModal } from './UsersModal';
 
+// Quantos cards renderizar de cada vez. 48 = 16 linhas de 3 colunas; o
+// restante entra por "Carregar mais" para não montar centenas de cards.
+const PAGE_SIZE = 48;
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const { t } = useI18n();
@@ -141,6 +145,7 @@ function AppContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'relevance'>('newest');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   // filteredNews must be defined BEFORE handlers that use it
   const filteredNews = useMemo(() => {
@@ -176,6 +181,17 @@ function AppContent() {
   }, [news, searchQuery, sourceFilter, sortOrder]);
 
   const sources = useMemo(() => [...new Set(news.map((n) => n.source))], [news]);
+
+  // Volta ao topo da lista quando o filtro/busca/ordenação muda, senão o
+  // usuário fica no meio de um recorte que não existe mais.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, sourceFilter, sortOrder]);
+
+  const visibleNews = useMemo(
+    () => filteredNews.slice(0, visibleCount),
+    [filteredNews, visibleCount]
+  );
 
   const generatedIds = useMemo(() => {
     const set = new Set<string>();
@@ -384,7 +400,7 @@ function AppContent() {
       setSelectedIds((prev) => {
         const next = new Set(prev);
         if (shiftKey && lastSelectedId && lastSelectedId !== id) {
-          const ids = filteredNews.map((n) => n.id);
+          const ids = visibleNews.map((n) => n.id);
           const from = ids.indexOf(lastSelectedId);
           const to = ids.indexOf(id);
           if (from !== -1 && to !== -1) {
@@ -401,13 +417,13 @@ function AppContent() {
         return next;
       });
       setLastSelectedId(id);
-      const index = filteredNews.findIndex((n) => n.id === id);
+      const index = visibleNews.findIndex((n) => n.id === id);
       if (index !== -1) {
         setSelectedIndex(index);
-        setSelectedNews(filteredNews[index]);
+        setSelectedNews(visibleNews[index]);
       }
     },
-    [filteredNews, lastSelectedId]
+    [visibleNews, lastSelectedId]
   );
 
   const handleBookmarkToggle = useCallback(
@@ -438,8 +454,8 @@ function AppContent() {
   );
 
   const handleSelectAll = useCallback(() => {
-    setSelectedIds(new Set(filteredNews.map((n) => n.id)));
-  }, [filteredNews]);
+    setSelectedIds(new Set(visibleNews.map((n) => n.id)));
+  }, [visibleNews]);
 
   const handleClearSelection = useCallback(() => {
     setSelectedIds(new Set());
@@ -507,7 +523,7 @@ function AppContent() {
           />
         ) : (
           <NewsGrid
-            news={filteredNews}
+            news={visibleNews}
             loading={loading}
             error={error}
             onShare={handleShare}
@@ -518,6 +534,10 @@ function AppContent() {
             onBookmarkToggle={handleBookmarkToggle}
             generatedIds={generatedIds}
             sentIds={sentIds}
+            hasMore={visibleCount < filteredNews.length}
+            onLoadMore={() => setVisibleCount((count) => count + PAGE_SIZE)}
+            shown={visibleNews.length}
+            total={filteredNews.length}
           />
         )}
       </main>

@@ -1,5 +1,5 @@
 import { Check, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type {
@@ -59,6 +59,15 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [retentionDays, setRetentionDays] = useState('0');
   const [savingRetention, setSavingRetention] = useState(false);
   const [pruning, setPruning] = useState(false);
+
+  // Uma aba por área: antes era um scroll único de ~4 seções, cada uma com
+  // 3+ formulários. Trocar de aba também volta o scroll ao topo.
+  const [tab, setTab] = useState<'ai' | 'telegram' | 'email' | 'maintenance'>('ai');
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const switchTab = (next: typeof tab) => {
+    setTab(next);
+    bodyRef.current?.scrollTo({ top: 0 });
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -328,6 +337,7 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         </div>
         <div
           className="modal-body"
+          ref={bodyRef}
           style={{ padding: '20px', overflow: 'auto', maxHeight: '75vh' }}
         >
           {error && (
@@ -345,17 +355,41 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
           ) : (
             settings && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
                   {t('settings.introPre')} <code>.env</code>
                   {t('settings.introPost')}
                 </p>
 
-                {/* AI providers */}
-                <section>
-                  <h4 style={{ marginBottom: '12px' }}>{t('settings.aiSection')}</h4>
+                <div className="settings-tabs" role="tablist" aria-label={t('settings.title')}>
+                  {(
+                    [
+                      ['ai', 'settings.aiSection'],
+                      ['telegram', 'settings.telegramSection'],
+                      ['email', 'settings.emailSection'],
+                      ['maintenance', 'settings.maintenance'],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      id={`settings-tab-${id}`}
+                      type="button"
+                      role="tab"
+                      className="settings-tab"
+                      aria-selected={tab === id}
+                      aria-controls={`settings-panel-${id}`}
+                      tabIndex={tab === id ? 0 : -1}
+                      onClick={() => switchTab(id)}
+                    >
+                      {t(label)}
+                    </button>
+                  ))}
+                </div>
 
-                  <div className="form-group">
+                {/* AI providers */}
+                {tab === 'ai' && (
+                  <section id="settings-panel-ai" role="tabpanel" aria-labelledby="settings-tab-ai">
+                    <div className="form-group">
                     <label htmlFor="defaultProvider">{t('settings.defaultProvider')}</label>
                     <select
                       id="defaultProvider"
@@ -512,12 +546,16 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       {savingAi ? t('common.saving') : t('settings.saveAi')}
                     </button>
                   </div>
-                </section>
+                  </section>
+                )}
 
                 {/* Telegram */}
-                <section style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-                  <h4 style={{ marginBottom: '12px' }}>{t('settings.telegramSection')}</h4>
-
+                {tab === 'telegram' && (
+                  <section
+                    id="settings-panel-telegram"
+                    role="tabpanel"
+                    aria-labelledby="settings-tab-telegram"
+                  >
                   <div className="form-group">
                     <label htmlFor="tgChatId">{t('settings.chatId')}</label>
                     <input
@@ -579,12 +617,16 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       {savingTelegram ? t('common.saving') : t('settings.saveTelegram')}
                     </button>
                   </div>
-                </section>
+                  </section>
+                )}
 
                 {/* Email */}
-                <section style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-                  <h4 style={{ marginBottom: '12px' }}>{t('settings.emailSection')}</h4>
-
+                {tab === 'email' && (
+                  <section
+                    id="settings-panel-email"
+                    role="tabpanel"
+                    aria-labelledby="settings-tab-email"
+                  >
                   <p
                     style={{
                       fontSize: '12px',
@@ -760,11 +802,16 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       {savingEmail ? t('common.saving') : t('settings.saveEmail')}
                     </button>
                   </div>
-                </section>
+                  </section>
+                )}
 
                 {/* Maintenance / retention */}
-                <section style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-                  <h4 style={{ marginBottom: '12px' }}>{t('settings.maintenance')}</h4>
+                {tab === 'maintenance' && (
+                  <section
+                    id="settings-panel-maintenance"
+                    role="tabpanel"
+                    aria-labelledby="settings-tab-maintenance"
+                  >
                   <p
                     style={{
                       fontSize: '12px',
@@ -809,7 +856,8 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                       {savingRetention ? t('common.saving') : t('settings.saveRetention')}
                     </button>
                   </div>
-                </section>
+                  </section>
+                )}
               </div>
             )
           )}

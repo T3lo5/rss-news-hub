@@ -224,41 +224,47 @@
 /* Relevance badge */
 .relevance-badge {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: var(--weight-bold);
+  align-items: baseline;
+  font-weight: var(--weight-semibold);
   font-family: var(--font-mono);
-  border-radius: var(--radius-xs);
-  min-width: 30px;
-  height: 20px;
-  padding: 0 6px;
   font-size: var(--text-xs);
   line-height: 1;
+  /* Sem fundo/borda: a pill da fonte ao lado ja e' o unico chip do cabecalho.
+     Antes eram dois chips e o de score ficava vermelho, parecendo erro. */
+  background: transparent;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+  height: auto;
+  color: var(--text-meta);
 }
 
 .relevance-badge.sm {
-  min-width: 24px;
-  height: 18px;
-  font-size: 10px;
-  padding: 0 4px;
+  font-size: 11px;
+}
+
+.relevance-badge .relevance-max {
+  font-size: 9px;
+  font-weight: var(--weight-normal);
+  color: var(--text-faint);
 }
 
 .relevance-badge.high {
-  background: var(--success-soft);
+  background: transparent;
+  border: 0;
   color: var(--success);
-  border: 1px solid rgba(23, 182, 121, 0.45);
 }
 
 .relevance-badge.medium {
-  background: var(--accent-soft);
-  color: var(--accent);
-  border: 1px solid var(--accent-ring);
+  background: transparent;
+  border: 0;
+  color: var(--warning);
 }
 
 .relevance-badge.low {
-  background: var(--danger-soft);
-  color: var(--danger);
-  border: 1px solid rgba(242, 65, 90, 0.45);
+  background: transparent;
+  border: 0;
+  color: var(--text-meta);
 }
 
 /* ============================================================
@@ -495,6 +501,54 @@
   padding: var(--space-5);
   overflow-y: auto;
   flex: 1;
+}
+
+/* Abas do modal de Configuracoes (IA / Telegram / E-mail / Manutencao) */
+.settings-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.settings-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 10px 14px;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.settings-tab:hover {
+  color: var(--text-primary);
+}
+
+.settings-tab[aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.settings-tab:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: -2px;
+  border-radius: var(--radius-xs);
+}
+
+@media (max-width: 640px) {
+  .settings-tab {
+    padding: 10px 10px;
+    font-size: var(--text-sm);
+  }
 }
 
 .modal-footer {

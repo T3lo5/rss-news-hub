@@ -227,6 +227,8 @@ export const pt: Record<string, string> = {
   'news.shareAria': 'Compartilhar: {title}',
   'news.share': 'Compartilhar',
   'news.searchPlaceholder': 'Buscar por título ou fonte...',
+  'news.loadMore': 'Carregar mais ({remaining})',
+  'news.showing': '{shown} de {total} notícias',
 
   // digest view (grouping)
   'digestView.week': 'Semana {week}, {year}',
@@ -830,6 +832,8 @@ export const en: Record<string, string> = {
   'news.shareAria': 'Share: {title}',
   'news.share': 'Share',
   'news.searchPlaceholder': 'Search by title or source...',
+  'news.loadMore': 'Load more ({remaining})',
+  'news.showing': '{shown} of {total} news',
 
   // digest view (grouping)
   'digestView.week': 'Week {week}, {year}',

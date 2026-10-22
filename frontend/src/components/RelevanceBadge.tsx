@@ -21,6 +21,9 @@ export function RelevanceBadge({ score, size = 'md' }: RelevanceBadgeProps) {
       title={t('relevance.title', { score })}
     >
       {score}
+      <span className="relevance-max" aria-hidden="true">
+        /100
+      </span>
     </span>
   );
 }

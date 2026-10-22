@@ -232,7 +232,7 @@ export function DigestView({
                       href={item.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn btn-link btn-sm"
+                      className="btn btn-open btn-sm"
                     >
                       <ExternalLink size={14} />
                       {t('news.open')}

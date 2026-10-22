@@ -18,6 +18,10 @@ interface NewsGridProps {
   onBookmarkToggle: (id: string, isBookmarked: boolean) => void;
   generatedIds?: Set<string>;
   sentIds?: Set<string>;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  total?: number;
+  shown?: number;
 }
 
 function formatDate(iso: string, locale: string): string {
@@ -72,10 +76,16 @@ export function NewsGrid({
   onBookmarkToggle,
   generatedIds,
   sentIds,
+  hasMore = false,
+  onLoadMore,
+  total: totalProp,
+  shown: shownProp,
 }: NewsGridProps) {
   const { t, language } = useI18n();
   const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
+  const shown = shownProp ?? news.length;
+  const total = totalProp ?? news.length;
 
   useEffect(() => {
     if (selectedIndex >= 0 && selectedIndex < cardRefs.current.length) {
@@ -165,7 +175,16 @@ export function NewsGrid({
                 </time>
               </div>
             </div>
-            <h3 className="news-title">{item.title}</h3>
+            <h3 className="news-title">
+              <a
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="news-title-link"
+              >
+                {item.title}
+              </a>
+            </h3>
             <p className="news-desc">
               {item.description
                 ? truncate(cleanDescription(item.description), 220)
@@ -181,7 +200,7 @@ export function NewsGrid({
                 href={item.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-link"
+                className="btn btn-open"
               >
                 <ExternalLink size={15} />
                 {t('news.open')}
@@ -198,6 +217,17 @@ export function NewsGrid({
           </article>
         );
       })}
+
+      {total > 0 && (
+        <div className="news-more">
+          {hasMore && (
+            <button className="btn btn-secondary" onClick={onLoadMore}>
+              {t('news.loadMore', { remaining: total - shown })}
+            </button>
+          )}
+          <span className="news-more-count">{t('news.showing', { shown, total })}</span>
+        </div>
+      )}
     </div>
   );
 }
