@@ -33,6 +33,11 @@ jobs:
       - name: Biome lint
         run: npm run lint
 
+      # O teste GET / serve public/index.html; sem o build ele falha (e o
+      # job de testes passaria a validar só parte da aplicação).
+      - name: Build frontend
+        run: npm run build:frontend
+
       - name: Run tests
         run: npm test
 

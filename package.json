@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node --import tsx server.js",
     "fetch": "node scripts/fetch.js",
-    "test": "node --import tsx --test",
+    "test": "node --import tsx --test test/*.test.ts",
     "test:watch": "node --import tsx --watch --test",
     "cli": "node --import tsx src/cli/index.ts",
     "typecheck": "tsc --noEmit",

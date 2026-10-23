@@ -10,7 +10,7 @@ React/Vite frontend in `frontend/`, built to `public/`.
 ```bash
 npm install                # install deps (tsx, drizzle-orm, better-sqlite3, ...)
 npm start                  # server on PORT (default 3000) -> node --import tsx server.js
-npm test                   # full suite: node --import tsx --test (402 tests / 118 suites)
+npm test                   # full suite: node --import tsx --test test/*.test.ts
 npm run typecheck          # tsc --noEmit over src/**/*.ts (strict, 0 errors)
 npm run fetch              # pull all RSS feeds -> data/news.json (legacy JSON export)
 npm run cli -- plugin:list # plugin management CLI (list/install/enable/create/remove/status)
@@ -109,3 +109,7 @@ Copy `.env.example` to `.env` and fill in:
 - Auth routes must be dispatched **after** the JSON body parser and after
   `authenticateRequest` — both live at the top of `handleRequest` in
   `server.js`; keep that order when refactoring.
+- `npm test` runs `test/*.test.ts` explicitly (bare `node --test` also picks up
+  `test/setup.ts` and `test/helpers/*` and counts them as tests). Static-serving
+  tests read the built `public/` (`GET /`, `public/sw.js`), so CI builds the
+  frontend before running the suite.
