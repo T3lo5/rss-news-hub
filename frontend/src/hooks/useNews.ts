@@ -1,17 +1,51 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
+import { readNewsSnapshot, saveNewsSnapshot } from '../services/offlineCache';
 import type { FetchRssResponse, NewsItem } from '../types';
+import { useOnlineStatus } from './useOnlineStatus';
 
-export function useNews() {
+/**
+ * Loads the news list for the signed-in user.
+ *
+ * The last successful response is cached in IndexedDB (`offlineCache.ts`) so
+ * the PWA can show it read-only when the connection drops or the app boots
+ * offline. `fromCache`/`cachedAt` let the UI badge that state.
+ */
+export function useNews(userId?: string) {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchingRss, setFetchingRss] = useState(false);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const [fromCache, setFromCache] = useState(false);
 
   // Snapshot for rollbacks: reading `news` inside the optimistic updater would
   // be a stale closure and React may run the updater twice.
   const newsRef = useRef(news);
   newsRef.current = news;
+
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+
+  const fromCacheRef = useRef(fromCache);
+  fromCacheRef.current = fromCache;
+
+  const online = useOnlineStatus();
+
+  /** Applies the saved snapshot, if any. Returns false when there is none. */
+  const restoreSnapshot = useCallback(async () => {
+    if (!userIdRef.current) return false;
+    try {
+      const snapshot = await readNewsSnapshot(userIdRef.current);
+      if (!snapshot) return false;
+      setNews(snapshot.items);
+      setCachedAt(snapshot.savedAt);
+      setFromCache(true);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
 
   const fetchNews = useCallback(async () => {
     setLoading(true);
@@ -19,12 +53,22 @@ export function useNews() {
     try {
       const data = await api.fetchNews();
       setNews(data);
+      setFromCache(false);
+      setCachedAt(null);
+      if (userIdRef.current) {
+        // Best-effort: a quota/private-mode failure must not break the list.
+        void saveNewsSnapshot(userIdRef.current, data).catch(() => {});
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao carregar notícias');
+      if (await restoreSnapshot()) {
+        setError(null);
+      } else {
+        setError(e instanceof Error ? e.message : 'Erro ao carregar notícias');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [restoreSnapshot]);
 
   const fetchRss = useCallback(async (): Promise<FetchRssResponse> => {
     setFetchingRss(true);
@@ -41,9 +85,31 @@ export function useNews() {
     }
   }, [fetchNews]);
 
+  // Boot: offline knows there is no point waiting for a request that will
+  // time out — go straight to the snapshot.
   useEffect(() => {
-    fetchNews();
-  }, [fetchNews]);
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      void (async () => {
+        if (!(await restoreSnapshot())) {
+          setError('Sem conexão e sem notícias salvas neste dispositivo.');
+        }
+        setLoading(false);
+      })();
+      return;
+    }
+    void fetchNews();
+  }, [fetchNews, restoreSnapshot]);
+
+  // Back online: refresh a list that was being shown from the snapshot.
+  const wasOffline = useRef(!online);
+  useEffect(() => {
+    if (online && wasOffline.current) {
+      wasOffline.current = false;
+      if (fromCacheRef.current) void fetchNews();
+      return;
+    }
+    if (!online) wasOffline.current = true;
+  }, [online, fetchNews]);
 
   const addNews = useCallback(async (newItem: Omit<NewsItem, 'id' | 'pubDate' | 'content'>) => {
     const created = await api.addNews(newItem);
@@ -70,5 +136,18 @@ export function useNews() {
     }
   }, []);
 
-  return { news, loading, error, fetchNews, addNews, fetchRss, fetchingRss, setRead };
+  return {
+    news,
+    loading,
+    error,
+    fetchNews,
+    addNews,
+    fetchRss,
+    fetchingRss,
+    setRead,
+    /** True while the list comes from the offline snapshot (read-only). */
+    fromCache,
+    /** Epoch ms of the cached snapshot, when `fromCache` is true. */
+    cachedAt,
+  };
 }

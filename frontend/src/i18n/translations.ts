@@ -674,6 +674,13 @@ export const pt: Record<string, string> = {
   'pwa.updateAvailable': 'Nova versão disponível.',
   'pwa.reload': 'Recarregar',
   'pwa.offline': 'Sem conexão — os dados podem estar desatualizados.',
+  'pwa.offlineCached': 'Sem conexão — mostrando notícias salvas {since}.',
+  'pwa.offlineReadOnly':
+    'Sem conexão: leitura e favoritos ficam disponíveis quando você voltar a ficar online.',
+  'pwa.savedNow': 'agora mesmo',
+  'pwa.savedMinutes': 'há {count} min',
+  'pwa.savedHours': 'há {count} h',
+  'pwa.savedDays': 'há {count} d',
 
   // language names (kept native in both locales)
   'lang.english': 'English',
@@ -1351,6 +1358,13 @@ export const en: Record<string, string> = {
   'pwa.updateAvailable': 'New version available.',
   'pwa.reload': 'Reload',
   'pwa.offline': 'Offline — data may be out of date.',
+  'pwa.offlineCached': 'Offline — showing saved news {since}.',
+  'pwa.offlineReadOnly':
+    'Offline: reading and bookmarks are available again when you are back online.',
+  'pwa.savedNow': 'just now',
+  'pwa.savedMinutes': '{count} min ago',
+  'pwa.savedHours': '{count} h ago',
+  'pwa.savedDays': '{count} d ago',
 
   // language names (kept native in both locales)
   'lang.english': 'English',

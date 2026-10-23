@@ -36,6 +36,8 @@ interface NewsGridProps {
   emptyMessage?: string;
   total?: number;
   shown?: number;
+  /** Offline snapshot: write actions (read state, bookmarks) are disabled. */
+  readOnly?: boolean;
 }
 
 function formatDate(iso: string, locale: string): string {
@@ -97,6 +99,7 @@ export function NewsGrid({
   emptyMessage,
   total: totalProp,
   shown: shownProp,
+  readOnly = false,
 }: NewsGridProps) {
   const { t, language } = useI18n();
   const locale = language === 'en' ? 'en-US' : 'pt-BR';
@@ -224,6 +227,7 @@ export function NewsGrid({
               <button
                 className="btn btn-read"
                 onClick={() => onReadToggle(item, !isRead)}
+                disabled={readOnly}
                 aria-label={t(isRead ? 'news.markUnreadAria' : 'news.markReadAria', {
                   title: item.title,
                 })}
@@ -241,6 +245,7 @@ export function NewsGrid({
                 newsId={item.id}
                 isBookmarked={bookmarkedIds?.has(item.id) ?? false}
                 onToggle={onBookmarkToggle}
+                disabled={readOnly}
               />
               <a
                 href={item.link}

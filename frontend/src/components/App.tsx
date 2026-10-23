@@ -5,6 +5,7 @@ import { addBookmark, fetchBookmarks, removeBookmark } from '../hooks/useBookmar
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useMarkOnOpen } from '../hooks/useMarkOnOpen';
 import { useNews } from '../hooks/useNews';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { fetchProfile } from '../hooks/useRelevance';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n';
@@ -103,7 +104,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
   const { t } = useI18n();
-  const { news, loading, error, fetchNews, addNews, fetchRss, setRead } = useNews();
+  const { news, loading, error, fetchNews, addNews, fetchRss, setRead, fromCache, cachedAt } =
+    useNews(user?.id);
+  const online = useOnlineStatus();
   const [markOnOpen] = useMarkOnOpen();
   const {
     generatedContent,
@@ -426,6 +429,11 @@ function AppContent() {
   }, [send, generatedContent, contentType, selectedNews, t]);
 
   const handleRefresh = useCallback(async () => {
+    if (!online) {
+      setStatus({ message: t('pwa.offlineReadOnly'), type: 'error' });
+      setTimeout(() => setStatus(null), 3000);
+      return;
+    }
     setStatus({ message: t('app.fetchingFeeds'), type: 'success' });
     try {
       await fetchRss();
@@ -434,7 +442,7 @@ function AppContent() {
       setStatus({ message: t('app.errFetch'), type: 'error' });
     }
     setTimeout(() => setStatus(null), 3000);
-  }, [fetchRss, t]);
+  }, [fetchRss, online, t]);
 
   const handleToggleSelect = useCallback(
     (id: string, shiftKey?: boolean) => {
@@ -469,6 +477,11 @@ function AppContent() {
 
   const handleBookmarkToggle = useCallback(
     async (newsId: string, nextBookmarked?: boolean) => {
+      if (!online) {
+        setStatus({ message: t('pwa.offlineReadOnly'), type: 'error' });
+        setTimeout(() => setStatus(null), 3000);
+        return;
+      }
       const wantBookmarked =
         typeof nextBookmarked === 'boolean'
           ? nextBookmarked
@@ -491,11 +504,16 @@ function AppContent() {
         setTimeout(() => setStatus(null), 3000);
       }
     },
-    [bookmarkedIds, t]
+    [bookmarkedIds, online, t]
   );
 
   const handleReadToggle = useCallback(
     async (item: NewsItem, read: boolean) => {
+      if (!online) {
+        setStatus({ message: t('pwa.offlineReadOnly'), type: 'error' });
+        setTimeout(() => setStatus(null), 3000);
+        return;
+      }
       try {
         await setRead(item.id, read);
       } catch (err) {
@@ -504,7 +522,7 @@ function AppContent() {
         setTimeout(() => setStatus(null), 3000);
       }
     },
-    [setRead, t]
+    [online, setRead, t]
   );
 
   // Abrir a notícia marca como lida, respeitando a preferência do usuário.
@@ -606,7 +624,7 @@ function AppContent() {
 
   return (
     <div className="app">
-      <OfflineBanner />
+      <OfflineBanner cachedAt={fromCache ? cachedAt : null} />
       <Header
         onRefresh={handleRefresh}
         onAddClick={() => setShowAddModal(true)}
@@ -690,6 +708,7 @@ function AppContent() {
             onLoadMore={() => setVisibleCount((count) => count + PAGE_SIZE)}
             shown={visibleNews.length}
             total={filteredNews.length}
+            readOnly={!online}
           />
         )}
       </main>

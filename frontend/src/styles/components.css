@@ -30,6 +30,12 @@
   transform: translateY(1px);
 }
 
+.btn:disabled,
+.bookmark-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .btn-primary {
   background: var(--accent);
   color: var(--text-on-accent);
