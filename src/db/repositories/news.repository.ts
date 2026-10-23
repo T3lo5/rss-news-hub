@@ -1,5 +1,27 @@
-import { desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, sql } from 'drizzle-orm';
 import { getDb, schema } from '../index.js';
+
+export type NewsSortOrder = 'newest' | 'oldest' | 'relevance';
+export type NewsReadFilter = 'all' | 'unread' | 'read';
+
+export interface NewsPageOptions {
+  userId?: string;
+  limit: number;
+  offset: number;
+  query?: string;
+  source?: string;
+  sort?: NewsSortOrder;
+  /** Caller's read state, applied on top of `query`/`source`. */
+  read?: NewsReadFilter;
+}
+
+export interface NewsPageResult {
+  results: Array<schema.NewsItem & { readAt: Date | null }>;
+  total: number;
+  counts: { all: number; unread: number; read: number };
+  /** All sources, so the filter dropdown stays stable across pages. */
+  sources: string[];
+}
 
 export class NewsRepository {
   private get db() {
@@ -13,6 +35,103 @@ export class NewsRepository {
     if (offset) query = query.offset(offset) as typeof query;
 
     return query;
+  }
+
+  /**
+   * Paginated list for `GET /api/news`.
+   *
+   * Search/filter/sort run in SQLite instead of loading the whole history into
+   * the browser. `news_reads` is joined for the caller so every row carries
+   * `readAt`, and the same filter set produces the counters in a single extra
+   * query. `counts` ignores only the read filter (the toolbar shows all three
+   * numbers), while `total` matches the requested read state.
+   */
+  async findPage(options: NewsPageOptions): Promise<NewsPageResult> {
+    const { limit, offset, query, source, sort = 'newest', read = 'all' } = options;
+    const userId = options.userId ?? '';
+
+    const filters = [];
+    const needle = query?.trim();
+    if (needle) {
+      // Substring match like the old client-side `includes()` filter; `instr`
+      // avoids LIKE wildcards (`%`, `_`) being interpreted.
+      filters.push(sql`(
+        instr(lower(${schema.newsItems.title}), lower(${needle})) > 0 OR
+        instr(lower(${schema.newsItems.source}), lower(${needle})) > 0 OR
+        instr(lower(coalesce(${schema.newsItems.description}, '')), lower(${needle})) > 0
+      )`);
+    }
+    if (source) filters.push(eq(schema.newsItems.source, source));
+    const baseWhere = filters.length ? and(...filters) : undefined;
+
+    const readCondition =
+      read === 'read'
+        ? sql`${schema.newsReads.readAt} is not null`
+        : read === 'unread'
+          ? sql`${schema.newsReads.readAt} is null`
+          : undefined;
+    const where = readCondition
+      ? baseWhere
+        ? and(baseWhere, readCondition)
+        : readCondition
+      : baseWhere;
+
+    const orderBy =
+      sort === 'oldest'
+        ? [asc(schema.newsItems.pubDate), asc(schema.newsItems.id)]
+        : sort === 'relevance'
+          ? [
+              desc(sql`coalesce(${schema.newsItems.relevanceScore}, 0)`),
+              desc(schema.newsItems.pubDate),
+              desc(schema.newsItems.id),
+            ]
+          : [desc(schema.newsItems.pubDate), desc(schema.newsItems.id)];
+
+    const readJoin = and(
+      eq(schema.newsReads.newsId, schema.newsItems.id),
+      eq(schema.newsReads.userId, userId)
+    );
+
+    const [results, countsRow, sourceRows] = await Promise.all([
+      this.db
+        .select({
+          ...getTableColumns(schema.newsItems),
+          readAt: schema.newsReads.readAt,
+        })
+        .from(schema.newsItems)
+        .leftJoin(schema.newsReads, readJoin)
+        .where(where)
+        .orderBy(...orderBy)
+        .limit(limit)
+        .offset(offset),
+      this.db
+        .select({
+          all: sql<number>`count(*)`,
+          unread: sql<number>`coalesce(sum(case when ${schema.newsReads.readAt} is null then 1 else 0 end), 0)`,
+          read: sql<number>`coalesce(sum(case when ${schema.newsReads.readAt} is not null then 1 else 0 end), 0)`,
+        })
+        .from(schema.newsItems)
+        .leftJoin(schema.newsReads, readJoin)
+        .where(baseWhere),
+      this.db
+        .selectDistinct({ source: schema.newsItems.source })
+        .from(schema.newsItems)
+        .orderBy(asc(schema.newsItems.source)),
+    ]);
+
+    const counts = {
+      all: Number(countsRow[0]?.all ?? 0),
+      unread: Number(countsRow[0]?.unread ?? 0),
+      read: Number(countsRow[0]?.read ?? 0),
+    };
+    const total = read === 'unread' ? counts.unread : read === 'read' ? counts.read : counts.all;
+
+    return {
+      results: results.map((row) => ({ ...row, readAt: row.readAt ?? null })),
+      total,
+      counts,
+      sources: sourceRows.map((row) => row.source),
+    };
   }
 
   async findById(id: string): Promise<schema.NewsItem | undefined> {

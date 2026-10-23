@@ -32,6 +32,8 @@ interface NewsGridProps {
   sentIds?: Set<string>;
   hasMore?: boolean;
   onLoadMore?: () => void;
+  /** A next page is being fetched. */
+  loadingMore?: boolean;
   /** Overrides the default empty state (e.g. "nothing unread"). */
   emptyMessage?: string;
   total?: number;
@@ -98,6 +100,7 @@ export function NewsGrid({
   sentIds,
   hasMore = false,
   onLoadMore,
+  loadingMore = false,
   emptyMessage,
   total: totalProp,
   shown: shownProp,
@@ -288,8 +291,8 @@ export function NewsGrid({
       {total > 0 && (
         <div className="news-more">
           {hasMore && (
-            <button className="btn btn-secondary" onClick={onLoadMore}>
-              {t('news.loadMore', { remaining: total - shown })}
+            <button className="btn btn-secondary" onClick={onLoadMore} disabled={loadingMore}>
+              {loadingMore ? t('common.loading') : t('news.loadMore', { remaining: total - shown })}
             </button>
           )}
           <span className="news-more-count">{t('news.showing', { shown, total })}</span>

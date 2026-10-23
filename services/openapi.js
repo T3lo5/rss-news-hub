@@ -17,7 +17,16 @@ registry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   description: 'API Key (format: Bearer <key>)',
 });
 
-function registerPath(method, path, summary, description, requestSchema, responses, security = []) {
+function registerPath(
+  method,
+  path,
+  summary,
+  description,
+  requestSchema,
+  responses,
+  security = [],
+  parameters = []
+) {
   const pathObj = {
     [method]: {
       summary,
@@ -69,6 +78,10 @@ function registerPath(method, path, summary, description, requestSchema, respons
     },
   };
 
+  if (parameters.length > 0) {
+    pathObj[method].parameters = parameters;
+  }
+
   if (requestSchema) {
     pathObj[method].requestBody = {
       required: true,
@@ -97,11 +110,49 @@ const ErrorResponse = z.object({
 registerPath(
   'get',
   '/api/news',
-  'List all news',
-  'Retrieve all news items from the database',
+  'List news (paginated)',
+  'Retrieve one page of news items. Search, source filter, read filter and sorting run on the server. `readAt` reflects the caller state; `counts` and `sources` describe the result of q/source (counts ignore the read filter so the toolbar can show all three numbers).',
   null,
   { success: OkResponse, error: ErrorResponse },
-  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }],
+  [
+    {
+      name: 'limit',
+      in: 'query',
+      description: 'Page size (clamped to 1..100).',
+      schema: { type: 'integer', minimum: 1, maximum: 100, default: 48 },
+    },
+    {
+      name: 'offset',
+      in: 'query',
+      description: 'Number of items to skip.',
+      schema: { type: 'integer', minimum: 0, default: 0 },
+    },
+    {
+      name: 'q',
+      in: 'query',
+      description: 'Case-insensitive substring match on title, source and description.',
+      schema: { type: 'string', maxLength: 200 },
+    },
+    {
+      name: 'source',
+      in: 'query',
+      description: 'Exact source name.',
+      schema: { type: 'string' },
+    },
+    {
+      name: 'sort',
+      in: 'query',
+      description: 'Sort order (unknown values fall back to `newest`).',
+      schema: { type: 'string', enum: ['newest', 'oldest', 'relevance'], default: 'newest' },
+    },
+    {
+      name: 'read',
+      in: 'query',
+      description: "Caller's read state (unknown values fall back to `all`).",
+      schema: { type: 'string', enum: ['all', 'unread', 'read'], default: 'all' },
+    },
+  ]
 );
 registerPath(
   'post',

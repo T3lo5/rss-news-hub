@@ -25,6 +25,8 @@ import type {
   NewsItem,
   NewsletterConfig,
   NewsletterHistoryEntry,
+  NewsPage,
+  NewsQuery,
   NewsResponse,
   OPMLImportResult,
   PruneResult,
@@ -46,6 +48,31 @@ import type {
 const API_BASE = '';
 
 const TOKEN_KEY = 'auth_token';
+
+/**
+ * `/api/news` responses carry `Cache-Control: private, max-age=15`. That keeps
+ * repeated renders/refreshes off the database, but a write (read state, new
+ * item, RSS fetch) must not be masked by a page cached seconds earlier.
+ * Mutations bump this revision, which becomes a query param and therefore a
+ * fresh cache key; without a write the short cache keeps working.
+ */
+const NEWS_REVISION_KEY = 'news_cache_revision';
+
+export function bumpNewsCacheRevision() {
+  try {
+    localStorage.setItem(NEWS_REVISION_KEY, String(Date.now()));
+  } catch {
+    // Storage blocked: worst case a refresh reuses a page up to 15s old.
+  }
+}
+
+function newsCacheRevision(): string {
+  try {
+    return localStorage.getItem(NEWS_REVISION_KEY) ?? '0';
+  } catch {
+    return '0';
+  }
+}
 
 let authToken: string | null = null;
 
@@ -179,8 +206,17 @@ function normalizeTemplate(t: any): Template {
 }
 
 export const api = {
-  async fetchNews(): Promise<NewsItem[]> {
-    const res = await fetchWithAuth('/api/news');
+  async fetchNews(params: NewsQuery = {}): Promise<NewsPage> {
+    const search = new URLSearchParams();
+    if (params.limit !== undefined) search.set('limit', String(params.limit));
+    if (params.offset) search.set('offset', String(params.offset));
+    if (params.q?.trim()) search.set('q', params.q.trim());
+    if (params.source) search.set('source', params.source);
+    if (params.sort && params.sort !== 'newest') search.set('sort', params.sort);
+    if (params.read && params.read !== 'all') search.set('read', params.read);
+    search.set('_r', newsCacheRevision());
+    const query = search.toString();
+    const res = await fetchWithAuth(query ? `/api/news?${query}` : '/api/news');
     const data = await handleResponse<NewsResponse>(res);
     return data.data;
   },
@@ -254,8 +290,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(news),
     });
-    const data = await handleResponse<NewsResponse>(res);
-    return data.data[0];
+    const data = await handleResponse<{ ok: boolean; data: NewsItem }>(res);
+    return data.data;
   },
 
   async fetchRss(): Promise<FetchRssResponse> {

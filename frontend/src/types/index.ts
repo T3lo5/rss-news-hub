@@ -11,10 +11,39 @@ export interface NewsItem {
   readAt?: string | null;
 }
 
+export interface NewsCounts {
+  all: number;
+  unread: number;
+  read: number;
+}
+
+/** One page of `GET /api/news` (search/filter/sort happen on the server). */
+export interface NewsPage {
+  results: NewsItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  counts: NewsCounts;
+  /** Full source list, independent of the current filters. */
+  sources: string[];
+}
+
 export interface NewsResponse {
   ok: boolean;
-  data: NewsItem[];
+  data: NewsPage;
   error?: string;
+}
+
+export type NewsSort = 'newest' | 'oldest' | 'relevance';
+export type NewsReadFilter = 'all' | 'unread' | 'read';
+
+export interface NewsQuery {
+  limit?: number;
+  offset?: number;
+  q?: string;
+  source?: string;
+  sort?: NewsSort;
+  read?: NewsReadFilter;
 }
 
 export interface AIResponse {

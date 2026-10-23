@@ -17,6 +17,11 @@ export async function readNews(userId) {
   return items.map((item) => ({ ...item, readAt: reads.get(item.id) ?? null }));
 }
 
+/** Página filtrada para a API: busca/filtros/ordenação rodam no SQLite. */
+export async function readNewsPage(options) {
+  return newsRepository.findPage(options);
+}
+
 export async function writeNews(items) {
   // This is kept for compatibility but now uses upsert
   await newsRepository.upsertMany(items);

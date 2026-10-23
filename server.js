@@ -38,7 +38,7 @@ import { getHealth } from './services/health.service.js';
 import { fetchAndScoreFeeds } from './services/ingest.service.js';
 import { createRequestLogger } from './services/logger.js';
 import { renderEmailHtml } from './services/markdown.js';
-import { addNews, readNews, setNewsRead } from './services/news.service.js';
+import { addNews, readNews, readNewsPage, setNewsRead } from './services/news.service.js';
 import { generateOpenApiSpec } from './services/openapi.js';
 import { rateLimitMiddleware } from './services/rate-limiter.js';
 import {
@@ -341,11 +341,45 @@ export async function handleRequest(req, res) {
       return sendFile(res, './public/index.html');
     }
 
-    // GET /api/news - list all news (readAt reflects the caller's own state)
+    // GET /api/news - paginated list (readAt reflects the caller's own state).
+    // Query: limit (1..100, default 48), offset, q, source,
+    // sort=newest|oldest|relevance, read=all|unread|read.
     if (path === '/api/news' && req.method === 'GET') {
       requireViewer()(req, res, async () => {
-        const news = await readNews(req.user?.id);
-        return sendJSON(res, 200, { ok: true, data: news });
+        try {
+          const url = new URL(req.url, `http://${req.headers.host}`);
+          const intParam = (name, fallback, min, max) => {
+            const value = Number.parseInt(url.searchParams.get(name) ?? '', 10);
+            if (!Number.isFinite(value)) return fallback;
+            return Math.min(Math.max(value, min), max);
+          };
+
+          const limit = intParam('limit', 48, 1, 100);
+          const offset = intParam('offset', 0, 0, Number.MAX_SAFE_INTEGER);
+          const q = (url.searchParams.get('q') || '').trim().slice(0, 200);
+          const source = (url.searchParams.get('source') || '').trim();
+          const sortParam = url.searchParams.get('sort');
+          const sort = ['newest', 'oldest', 'relevance'].includes(sortParam) ? sortParam : 'newest';
+          const readParam = url.searchParams.get('read');
+          const read = ['all', 'unread', 'read'].includes(readParam) ? readParam : 'all';
+
+          const page = await readNewsPage({
+            userId: req.user?.id,
+            limit,
+            offset,
+            query: q || undefined,
+            source: source || undefined,
+            sort,
+            read,
+          });
+
+          // Short private cache: a refresh right after a fetch still hits the
+          // DB, but repeated loads/re-renders do not.
+          res.setHeader('Cache-Control', 'private, max-age=15');
+          return sendJSON(res, 200, { ok: true, data: { ...page, limit, offset } });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
       });
       return;
     }

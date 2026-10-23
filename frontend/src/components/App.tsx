@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAI } from '../hooks/useAI';
 import { addBookmark, fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useMarkOnOpen } from '../hooks/useMarkOnOpen';
 import { useNews } from '../hooks/useNews';
@@ -71,10 +72,6 @@ import { UpdateToast } from './UpdateToast';
 import { UserSettingsModal } from './UserSettingsModal';
 import { UsersModal } from './UsersModal';
 
-// Quantos cards renderizar de cada vez. 48 = 16 linhas de 3 colunas; o
-// restante entra por "Carregar mais" para não montar centenas de cards.
-const PAGE_SIZE = 48;
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const { t } = useI18n();
@@ -106,8 +103,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
   const { t } = useI18n();
-  const { news, loading, error, fetchNews, addNews, fetchRss, setRead, fromCache, cachedAt } =
-    useNews(user?.id);
   const online = useOnlineStatus();
   const [markOnOpen] = useMarkOnOpen();
   const [openInReader] = useOpenInReader();
@@ -167,60 +162,41 @@ function AppContent() {
     return stored === 'unread' || stored === 'read' ? stored : 'all';
   });
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  // Notícias dentro da busca/fonte atual. Serve de base para o filtro de
-  // leitura E para os contadores do toolbar: o número ao lado de "Não lidas"
-  // tem que bater com o que o filtro vai mostrar, não com o banco inteiro.
-  const scopedNews = useMemo(() => {
-    let result = [...news];
+  // O input responde na hora; o servidor só é consultado quando o usuário
+  // para de digitar.
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter(
-        (item) =>
-          item.title.toLowerCase().includes(query) ||
-          item.source.toLowerCase().includes(query) ||
-          item.description?.toLowerCase().includes(query)
-      );
-    }
+  const {
+    news,
+    loading,
+    loadingMore,
+    error,
+    total,
+    counts,
+    sources,
+    hasMore,
+    fetchMore,
+    addNews,
+    fetchRss,
+    setRead,
+    fromCache,
+    cachedAt,
+  } = useNews(user?.id, {
+    query: debouncedSearch,
+    source: sourceFilter,
+    sort: sortOrder,
+    read: readFilter,
+  });
 
-    if (sourceFilter) {
-      result = result.filter((item) => item.source === sourceFilter);
-    }
+  const unreadCount = counts.unread;
+  const readCount = counts.read;
 
-    return result;
-  }, [news, searchQuery, sourceFilter]);
-
-  const unreadCount = useMemo(() => scopedNews.filter((item) => !item.readAt).length, [scopedNews]);
-  const readCount = scopedNews.length - unreadCount;
-
-  // filteredNews must be defined BEFORE handlers that use it
-  const filteredNews = useMemo(() => {
-    let result = [...scopedNews];
-
-    if (readFilter === 'unread') {
-      result = result.filter((item) => !item.readAt);
-    } else if (readFilter === 'read') {
-      result = result.filter((item) => Boolean(item.readAt));
-    }
-
-    switch (sortOrder) {
-      case 'newest':
-        result.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-        break;
-      case 'oldest':
-        result.sort((a, b) => new Date(a.pubDate).getTime() - new Date(b.pubDate).getTime());
-        break;
-      case 'relevance':
-        result.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
-        break;
-    }
-
-    return result;
-  }, [scopedNews, sortOrder, readFilter]);
-
-  const sources = useMemo(() => [...new Set(news.map((n) => n.source))], [news]);
+  // Busca, filtro, ordenação e paginação já vêm do servidor: a lista em mãos
+  // é exatamente o recorte pedido. Os aliases mantêm os handlers abaixo com
+  // o mesmo nome de antes.
+  const filteredNews = news;
+  const visibleNews = news;
   // Remember the filter across reloads (same pattern as the digest grouping).
   useEffect(() => {
     try {
@@ -229,17 +205,6 @@ function AppContent() {
       // Best-effort: blocked storage just means the filter resets on reload.
     }
   }, [readFilter]);
-
-  // Volta ao topo da lista quando o filtro/busca/ordenação muda, senão o
-  // usuário fica no meio de um recorte que não existe mais.
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, sourceFilter, sortOrder, readFilter]);
-
-  const visibleNews = useMemo(
-    () => filteredNews.slice(0, visibleCount),
-    [filteredNews, visibleCount]
-  );
 
   const generatedIds = useMemo(() => {
     const set = new Set<string>();
@@ -258,11 +223,6 @@ function AppContent() {
   }, [generatedByNews]);
 
   const selectedHasGenerated = selectedNews ? generatedIds.has(selectedNews.id) : false;
-
-  // Fetch news immediately (public or auth-protected based on backend)
-  useEffect(() => {
-    fetchNews();
-  }, [fetchNews]);
 
   // Fetch bookmarks, templates, profile ONLY after auth is ready and user is logged in
   useEffect(() => {
@@ -288,7 +248,7 @@ function AppContent() {
           // Ignore errors
         });
     }
-  }, [authLoading, user, fetchNews]);
+  }, [authLoading, user]);
 
   // Persist generated content per news item so it survives reloads and can be
   // re-sent later.
@@ -716,10 +676,11 @@ function AppContent() {
             emptyMessage={readFilter === 'all' ? undefined : t('news.emptyFiltered')}
             generatedIds={generatedIds}
             sentIds={sentIds}
-            hasMore={visibleCount < filteredNews.length}
-            onLoadMore={() => setVisibleCount((count) => count + PAGE_SIZE)}
-            shown={visibleNews.length}
-            total={filteredNews.length}
+            hasMore={hasMore}
+            onLoadMore={fetchMore}
+            loadingMore={loadingMore}
+            shown={news.length}
+            total={total}
             readOnly={!online}
             openInReader={openInReader}
           />

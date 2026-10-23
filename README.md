@@ -276,7 +276,7 @@ curl http://localhost:3000/api/news \
 #### 📰 Notícias
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/news` | Listar todas (paginado via DB; `readAt` é do usuário autenticado) |
+| GET | `/api/news?limit=48&offset=0&q=&source=&sort=newest\|oldest\|relevance&read=all\|unread\|read` | Página de notícias: `{ results, total, limit, offset, counts, sources }`. Busca (`q` em título/fonte/descrição), filtros e ordenação rodam no SQLite; `readAt` é do usuário autenticado e `counts` ignora só o filtro de leitura. Cache `private, max-age=15`. |
 | POST | `/api/news` | Adicionar manualmente |
 | PATCH | `/api/news/:id/read` | Marcar/desmarcar como lida (`{ "read": true\|false }`, idempotente, viewer+) |
 | POST | `/api/fetch` | Disparar coleta de todos os feeds |

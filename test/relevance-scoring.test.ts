@@ -34,7 +34,7 @@ describe('Relevance scoring sentinel (NULL = unscored)', () => {
     assert.strictEqual(created.status, 200, created.raw);
 
     const list = await request('GET', '/api/news', undefined, bearer(token));
-    const item = list.json.data.find((n: any) => n.title === 'Unscored article');
+    const item = list.json.data.results.find((n: any) => n.title === 'Unscored article');
     assert.ok(item, 'item must be listed');
     assert.strictEqual(item.relevanceScore, null);
   });

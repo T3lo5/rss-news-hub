@@ -1,13 +1,13 @@
-import type { NewsItem } from '../types';
+import type { NewsCounts, NewsItem } from '../types';
 
 /**
  * Offline snapshot of the news list, keyed by user id.
  *
  * The service worker deliberately never caches `/api/*` (private data), so the
- * last successful `/api/news` response is persisted here instead: IndexedDB is
- * not evicted as aggressively as the HTTP cache and holds the whole payload,
- * including the per-user `readAt`. The snapshot is read-only — mutations still
- * require the server.
+ * last successful first page of `/api/news` is persisted here instead:
+ * IndexedDB is not evicted as aggressively as the HTTP cache and holds the
+ * whole payload, including the per-user `readAt`. The snapshot is read-only —
+ * mutations still require the server.
  */
 const DB_NAME = 'rss-news-hub';
 const DB_VERSION = 1;
@@ -18,6 +18,17 @@ export interface NewsSnapshot {
   /** Epoch ms of the last successful fetch. */
   savedAt: number;
   items: NewsItem[];
+  /** Page metadata, so counters/“x de y” stay right offline. */
+  total?: number;
+  counts?: NewsCounts;
+  sources?: string[];
+}
+
+export interface NewsSnapshotPayload {
+  items: NewsItem[];
+  total: number;
+  counts: NewsCounts;
+  sources: string[];
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -47,13 +58,16 @@ function complete(transaction: IDBTransaction): Promise<void> {
   });
 }
 
-export async function saveNewsSnapshot(userId: string, items: NewsItem[]): Promise<void> {
+export async function saveNewsSnapshot(
+  userId: string,
+  payload: NewsSnapshotPayload
+): Promise<void> {
   if (!userId) return;
 
   const db = await openDatabase();
   try {
     const transaction = db.transaction(STORE, 'readwrite');
-    transaction.objectStore(STORE).put({ userId, savedAt: Date.now(), items });
+    transaction.objectStore(STORE).put({ userId, savedAt: Date.now(), ...payload });
     await complete(transaction);
   } finally {
     db.close();

@@ -32,7 +32,7 @@ async function createNews(token: string, link: string): Promise<string> {
 async function fetchReadAt(token: string, id: string) {
   const res = await request('GET', '/api/news', undefined, bearer(token));
   assert.strictEqual(res.status, 200, res.raw);
-  const item = res.json.data.find((entry: any) => entry.id === id);
+  const item = res.json.data.results.find((entry: any) => entry.id === id);
   return item ? item.readAt : 'missing';
 }
 

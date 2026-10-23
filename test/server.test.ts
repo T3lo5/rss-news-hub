@@ -46,7 +46,10 @@ describe('Server core endpoints (HTTP-level)', () => {
     const res = await request('GET', '/api/news', undefined, bearer(token));
 
     assert.strictEqual(res.status, 200, res.raw);
-    assert.ok(Array.isArray(res.json.data));
+    assert.ok(Array.isArray(res.json.data.results));
+    assert.strictEqual(typeof res.json.data.total, 'number');
+    assert.strictEqual(res.json.data.limit, 48);
+    assert.strictEqual(res.json.data.offset, 0);
   });
 
   test('POST /api/news adds an item for an authenticated user', async () => {
@@ -66,7 +69,7 @@ describe('Server core endpoints (HTTP-level)', () => {
     assert.strictEqual(res.json.data.source, 'Manual');
 
     const list = await request('GET', '/api/news', undefined, bearer(token));
-    assert.ok(list.json.data.some((n: any) => n.title === 'Manual item'));
+    assert.ok(list.json.data.results.some((n: any) => n.title === 'Manual item'));
   });
 
   test('POST /api/news rejects an invalid payload with 400', async () => {
