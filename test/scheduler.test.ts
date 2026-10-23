@@ -37,6 +37,14 @@ describe('scheduler.service', () => {
       assert(callCount >= 2, `Expected at least 2 calls, got ${callCount}`);
     });
 
+    test('runNow triggers the first fetch without waiting for the interval', async () => {
+      start(60_000, mockFetchFn, { runNow: true });
+      await new Promise((r) => setTimeout(r, 40));
+      await stop();
+      assert.strictEqual(callCount, 1, 'Expected the initial run to happen immediately');
+      assert.strictEqual(getStatus().lastRun !== null, true);
+    });
+
     test('stops calling after stop()', async () => {
       start(50, mockFetchFn);
       await new Promise((r) => setTimeout(r, 120));

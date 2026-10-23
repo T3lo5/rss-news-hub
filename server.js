@@ -1212,7 +1212,7 @@ export async function handleRequest(req, res) {
               const { news, type, language, provider, templateId, templateVariables } = req.body;
 
               const templatePrompt = templateId
-                ? getTemplateSystemPrompt(templateId, {
+                ? await getTemplateSystemPrompt(templateId, {
                     ...news,
                     type,
                     language: language || 'en',
@@ -1247,16 +1247,21 @@ export async function handleRequest(req, res) {
           validateBody(schemas.generateContentSchema)(req, res, async () => {
             const { news, type, language, provider, templateId, templateVariables } = req.body;
 
-            const templatePrompt = templateId
-              ? getTemplateSystemPrompt(templateId, {
-                  ...news,
-                  type,
-                  language: language || 'en',
-                  ...templateVariables,
-                })
-              : buildSystemPrompt(type, language || 'en');
+            let systemPrompt;
+            try {
+              systemPrompt = templateId
+                ? await getTemplateSystemPrompt(templateId, {
+                    ...news,
+                    type,
+                    language: language || 'en',
+                    ...templateVariables,
+                  })
+                : buildSystemPrompt(type, language || 'en');
+            } catch (err) {
+              // Antes de abrir o SSE ainda dá para responder JSON normal.
+              return sendJSON(res, 400, { ok: false, error: err.message });
+            }
 
-            const systemPrompt = templatePrompt;
             const userContent = buildNewsUserContent(news);
 
             // SSE headers
@@ -1643,8 +1648,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // and apply them on top of the .env defaults before jobs start.
   await initSettings();
 
-  // Start scheduler: fetch every 30 minutes
-  startScheduler(30 * 60 * 1000, fetchAllFeeds);
+  // Start scheduler: fetch now and then every 30 minutes
+  startScheduler(30 * 60 * 1000, fetchAllFeeds, { runNow: true });
   // Start newsletter job if enabled
   startNewsletterJob(newsletterConfig, { telegram, email });
   // Start Telegram queue worker (every minute)

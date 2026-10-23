@@ -15,12 +15,22 @@ let newsletterNextRun = null;
 let newsletterLastRun = null;
 let newsletterLastResult = null;
 
-export function start(ms, fn) {
+export function start(ms, fn, { runNow = false } = {}) {
   if (running) return;
   fetchFn = fn;
   intervalMs = ms;
   running = true;
-  scheduleNext();
+  if (runNow) {
+    // Roda o primeiro ciclo já no boot. Sem isso o timer só disparava depois
+    // de `ms`, então qualquer reinício da aplicação (ou processo que fica no
+    // ar menos que o intervalo) nunca atualizava as notícias sozinho.
+    nextRun = Date.now() + intervalMs;
+    runOnce(fn).catch((err) => {
+      console.warn(`[scheduler] initial fetch failed: ${err?.message || err}`);
+    });
+  } else {
+    scheduleNext();
+  }
 }
 
 export function stop() {
@@ -138,6 +148,14 @@ async function runOnce(fn) {
 }
 
 function scheduleNext() {
+  // Cancela qualquer timer pendente antes de agendar o próximo. Sem isso,
+  // `trigger()` (ou um run manual) agendava um segundo timer e o primeiro
+  // ficava órfão — `stop()` só limpa um deles, mantendo o processo vivo e
+  // disparando fetches fora de hora.
+  if (intervalId) {
+    clearTimeout(intervalId);
+    intervalId = null;
+  }
   nextRun = Date.now() + intervalMs;
   intervalId = setTimeout(() => {
     runOnce();

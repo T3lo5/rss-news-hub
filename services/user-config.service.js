@@ -23,7 +23,10 @@ const AI_PROVIDER_IDS = ['sensenova', 'deepseek', 'openai'];
 // ─── Helpers de leitura/escrita ────────────────────────────────────────────
 
 async function readUserArea(userId, area) {
-  return userSettingsRepository.get(userId, area);
+  // O repositório devolve null quando o usuário nunca salvou nada nessa área.
+  // Sem o fallback, todo resolve*Config quebrava com "Cannot read properties
+  // of null" justamente no caso mais comum: usar só a config global/env.
+  return (await userSettingsRepository.get(userId, area)) ?? {};
 }
 
 async function readGlobalArea(area) {
