@@ -2,6 +2,7 @@ import { Check, CheckCircle2, Info, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useMarkOnOpen } from '../hooks/useMarkOnOpen';
+import { useOpenInReader } from '../hooks/useOpenInReader';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { AiProviderId } from '../types';
@@ -102,6 +103,7 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
   const [saving, setSaving] = useState(false);
   const [markOnOpen, setMarkOnOpen] = useMarkOnOpen();
+  const [openInReader, setOpenInReader] = useOpenInReader();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -720,6 +722,16 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     {t('userSettings.markOnOpen')}
                   </label>
                   <p className="field-hint">{t('userSettings.markOnOpenHint')}</p>
+
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={openInReader}
+                      onChange={(event) => setOpenInReader(event.target.checked)}
+                    />
+                    {t('userSettings.openInReader')}
+                  </label>
+                  <p className="field-hint">{t('userSettings.openInReaderHint')}</p>
                 </div>
               )}
             </div>

@@ -6,6 +6,7 @@ import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useMarkOnOpen } from '../hooks/useMarkOnOpen';
 import { useNews } from '../hooks/useNews';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useOpenInReader } from '../hooks/useOpenInReader';
 import { fetchProfile } from '../hooks/useRelevance';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n';
@@ -57,6 +58,7 @@ import { NewsGrid } from './NewsGrid';
 import { NewsletterBuilderModal } from './NewsletterBuilderModal';
 import { NewsletterConfigModal } from './NewsletterConfigModal';
 import { OfflineBanner } from './OfflineBanner';
+import { ReaderModal } from './ReaderModal';
 import { SettingsModal } from './SettingsModal';
 import { ShareModal } from './ShareModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
@@ -108,6 +110,7 @@ function AppContent() {
     useNews(user?.id);
   const online = useOnlineStatus();
   const [markOnOpen] = useMarkOnOpen();
+  const [openInReader] = useOpenInReader();
   const {
     generatedContent,
     generating,
@@ -142,6 +145,7 @@ function AppContent() {
   const [digestView, setDigestView] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  const [readerItem, setReaderItem] = useState<NewsItem | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
@@ -525,12 +529,15 @@ function AppContent() {
     [online, setRead, t]
   );
 
-  // Abrir a notícia marca como lida, respeitando a preferência do usuário.
+  // Abrir a notícia marca como lida e, se a preferência estiver ligada,
+  // abre o leitor interno em vez de uma nova aba.
   const handleOpen = useCallback(
     (item: NewsItem) => {
-      if (markOnOpen && !item.readAt) handleReadToggle(item, true);
+      // Offline a lista vem do snapshot e não há como gravar a leitura.
+      if (online && markOnOpen && !item.readAt) handleReadToggle(item, true);
+      if (openInReader) setReaderItem(item);
     },
-    [markOnOpen, handleReadToggle]
+    [markOnOpen, handleReadToggle, online, openInReader]
   );
 
   const handleSelectAll = useCallback(() => {
@@ -541,7 +548,12 @@ function AppContent() {
     setSelectedIds(new Set());
   }, []);
 
+  const readerNews = readerItem
+    ? (news.find((item) => item.id === readerItem.id) ?? readerItem)
+    : null;
+
   const modalOpen =
+    readerNews !== null ||
     showShareModal ||
     showAddModal ||
     showStatsModal ||
@@ -600,7 +612,7 @@ function AppContent() {
         handler: () => {
           if (!selectedItem) return;
           handleOpen(selectedItem);
-          window.open(selectedItem.link, '_blank', 'noopener,noreferrer');
+          if (!openInReader) window.open(selectedItem.link, '_blank', 'noopener,noreferrer');
         },
         disabledInInputs: true,
       },
@@ -709,9 +721,22 @@ function AppContent() {
             shown={visibleNews.length}
             total={filteredNews.length}
             readOnly={!online}
+            openInReader={openInReader}
           />
         )}
       </main>
+
+      {readerNews && (
+        <ReaderModal
+          item={readerNews}
+          isBookmarked={bookmarkedIds.has(readerNews.id)}
+          readOnly={!online}
+          onClose={() => setReaderItem(null)}
+          onToggleBookmark={handleBookmarkToggle}
+          onReadToggle={handleReadToggle}
+          onShare={handleShare}
+        />
+      )}
 
       {showShareModal && (
         <ShareModal

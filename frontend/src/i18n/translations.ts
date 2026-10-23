@@ -66,6 +66,9 @@ export const pt: Record<string, string> = {
   'userSettings.markOnOpen': 'Marcar como lida ao abrir a notícia',
   'userSettings.markOnOpenHint':
     'Vale para este dispositivo. Desligue para abrir sem tirar a notícia da lista de não lidas.',
+  'userSettings.openInReader': 'Abrir notícias no leitor do app',
+  'userSettings.openInReaderHint':
+    'Vale para este dispositivo. Desligado, o card abre o site em uma nova aba (comportamento padrão).',
 
   'userSettings.tabDigest': 'Digest',
   'userSettings.ownConfig': 'Usando sua própria configuração',
@@ -674,6 +677,11 @@ export const pt: Record<string, string> = {
   'pwa.updateAvailable': 'Nova versão disponível.',
   'pwa.reload': 'Recarregar',
   'pwa.offline': 'Sem conexão — os dados podem estar desatualizados.',
+
+  // Leitor interno
+  'reader.truncated': 'Este é o resumo disponível no RSS. O texto completo está na fonte.',
+  'reader.readInSource': 'Ler na fonte',
+  'reader.openOriginal': 'Abrir original',
   'pwa.offlineCached': 'Sem conexão — mostrando notícias salvas {since}.',
   'pwa.offlineReadOnly':
     'Sem conexão: leitura e favoritos ficam disponíveis quando você voltar a ficar online.',
@@ -752,6 +760,9 @@ export const en: Record<string, string> = {
   'userSettings.markOnOpen': 'Mark as read when opening an article',
   'userSettings.markOnOpenHint':
     'Applies to this device. Turn it off to open articles without removing them from the unread list.',
+  'userSettings.openInReader': 'Open articles in the in-app reader',
+  'userSettings.openInReaderHint':
+    'Applies to this device. When off, cards open the site in a new tab (default behavior).',
 
   'userSettings.tabDigest': 'Digest',
   'userSettings.ownConfig': 'Using your own configuration',
@@ -1358,6 +1369,12 @@ export const en: Record<string, string> = {
   'pwa.updateAvailable': 'New version available.',
   'pwa.reload': 'Reload',
   'pwa.offline': 'Offline — data may be out of date.',
+
+  // In-app reader
+  'reader.truncated':
+    'This is the summary available in the RSS feed. The full text is at the source.',
+  'reader.readInSource': 'Read at source',
+  'reader.openOriginal': 'Open original',
   'pwa.offlineCached': 'Offline — showing saved news {since}.',
   'pwa.offlineReadOnly':
     'Offline: reading and bookmarks are available again when you are back online.',

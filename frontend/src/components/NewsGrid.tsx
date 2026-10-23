@@ -38,6 +38,8 @@ interface NewsGridProps {
   shown?: number;
   /** Offline snapshot: write actions (read state, bookmarks) are disabled. */
   readOnly?: boolean;
+  /** Preference: card click opens the in-app reader instead of a new tab. */
+  openInReader?: boolean;
 }
 
 function formatDate(iso: string, locale: string): string {
@@ -100,6 +102,7 @@ export function NewsGrid({
   total: totalProp,
   shown: shownProp,
   readOnly = false,
+  openInReader = false,
 }: NewsGridProps) {
   const { t, language } = useI18n();
   const locale = language === 'en' ? 'en-US' : 'pt-BR';
@@ -162,11 +165,17 @@ export function NewsGrid({
             ref={(el) => {
               cardRefs.current[index] = el;
             }}
-            className={`news-card ${isRead ? 'read' : 'unread'} ${isSelected ? 'selected' : ''} ${isKeyboardSelected ? 'keyboard-selected' : ''}`}
+            className={`news-card ${isRead ? 'read' : 'unread'} ${isSelected ? 'selected' : ''} ${isKeyboardSelected ? 'keyboard-selected' : ''} ${openInReader ? 'reader-clickable' : ''}`}
             role="listitem"
             data-selected={isSelected}
             data-read={isRead}
             aria-selected={isSelected}
+            onClick={(event) => {
+              if (!openInReader) return;
+              // Links, botões e o checkbox têm ações próprias.
+              if ((event.target as HTMLElement).closest('a, button, input, label')) return;
+              onOpen?.(item);
+            }}
           >
             <div className="news-card-top">
               <input
@@ -213,7 +222,10 @@ export function NewsGrid({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="news-title-link"
-                onClick={() => onOpen?.(item)}
+                onClick={(event) => {
+                  if (openInReader) event.preventDefault();
+                  onOpen?.(item);
+                }}
               >
                 {item.title}
               </a>
@@ -252,7 +264,10 @@ export function NewsGrid({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-open"
-                onClick={() => onOpen?.(item)}
+                onClick={(event) => {
+                  if (openInReader) event.preventDefault();
+                  onOpen?.(item);
+                }}
               >
                 <ExternalLink size={15} />
                 {t('news.open')}
