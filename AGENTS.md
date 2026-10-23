@@ -113,6 +113,10 @@ Copy `.env.example` to `.env` and fill in:
 - The original n8n workflow JSON (`flux twitter...json`) is legacy — it is not
   used by this project. Ignore it.
 - `test.txt` is a leftover probe file, ignore.
+- Fresh DB: `ensureDefaultFeeds()` (services/config.service.js) persists the
+  `RSS_FEEDS` defaults at boot and before each fetch. `feed_caches`,
+  `feed_stats` and `news_items.feed_id` all reference `feeds.id`; skipping the
+  seed makes every fetch fail with `FOREIGN KEY constraint failed`.
 - RSS parsing is regex-based (no xml2js dependency). Some feeds (Atom,
   content:encoded) are handled but edge cases may silently drop items.
 - Auth routes must be dispatched **after** the JSON body parser and after

@@ -1,6 +1,32 @@
 import { RSS_FEEDS } from '../server.config.js';
 import { feedRepository } from '../src/db/repositories/index.js';
 
+/**
+ * Instalação limpa: `RSS_FEEDS` é só a semente. Materializa os feeds padrão em
+ * `feeds` antes de qualquer escrita que os referencie — `feed_caches`,
+ * `feed_stats` e `news_items.feed_id` têm FK para `feeds.id`, então a coleta
+ * morria com "FOREIGN KEY constraint failed" num banco vazio.
+ *
+ * Não faz nada quando já existe qualquer feed: uma lista personalizada (mesmo
+ * que vazia de propósito, via UI) não é re-semeada em runtime.
+ */
+export async function ensureDefaultFeeds() {
+  const existing = await feedRepository.findAll();
+  if (existing.length > 0) return existing;
+
+  await feedRepository.ensureMany(
+    RSS_FEEDS.map((feed, index) => ({
+      id: feed.id || `feed-${index}`,
+      name: feed.name,
+      url: feed.url,
+      enabled: feed.enabled !== false,
+      category: feed.category || 'General',
+    }))
+  );
+
+  return feedRepository.findAll();
+}
+
 export async function readFeedsConfig() {
   const feeds = await feedRepository.findAll();
   if (feeds.length > 0) {

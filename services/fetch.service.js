@@ -3,7 +3,7 @@ import {
   newsHashRepository,
   newsRepository,
 } from '../src/db/repositories/index.js';
-import { readFeedsConfig } from './config.service.js';
+import { ensureDefaultFeeds, readFeedsConfig } from './config.service.js';
 import { linkHash } from './deduplication.js';
 import { isTransientNetworkError, withRetry } from './net.js';
 import { recordFeedResult, recordFetchResult, recordFetchStart } from './stats.service.js';
@@ -207,6 +207,10 @@ async function fetchAllFeeds() {
   // Read existing news to track duplicates
   const existingNews = await newsRepository.findAll();
   const existingIds = new Set(existingNews.map((n) => n.id));
+
+  // Fresh installs have no `feeds` rows yet; create them before the cache and
+  // news inserts, which have FKs to feeds.id (see ensureDefaultFeeds).
+  await ensureDefaultFeeds();
 
   // Read feeds from database (falls back to RSS_FEEDS if DB is empty)
   const configuredFeeds = await readFeedsConfig();

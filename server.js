@@ -18,6 +18,7 @@ import {
   stripEditorialMeta,
 } from './services/ai.service.js';
 import {
+  ensureDefaultFeeds,
   generateFeedId,
   readFeedsConfig,
   validateFeedUrl,
@@ -1706,6 +1707,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // Load persisted admin settings (AI keys, Telegram, newsletter/digest config)
   // and apply them on top of the .env defaults before jobs start.
   await initSettings();
+
+  // Fresh database: persist the RSS_FEEDS defaults so the feed manager can
+  // edit/delete them and the first fetch satisfies its foreign keys. A seed
+  // failure must not block boot; the fetch pipeline retries it.
+  try {
+    await ensureDefaultFeeds();
+  } catch (err) {
+    console.warn(`Default feed seed failed: ${err.message}`);
+  }
 
   // Start scheduler: fetch now and then every 30 minutes
   startScheduler(30 * 60 * 1000, fetchAndScoreFeeds, { runNow: true });

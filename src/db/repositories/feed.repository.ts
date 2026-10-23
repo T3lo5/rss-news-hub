@@ -36,6 +36,12 @@ export class FeedRepository {
     return result[0];
   }
 
+  /** Insere feeds que ainda não existem, sem falhar em conflito de id/url. */
+  async ensureMany(feeds: schema.NewFeed[]): Promise<void> {
+    if (feeds.length === 0) return;
+    await this.db.insert(schema.feeds).values(feeds).onConflictDoNothing();
+  }
+
   async create(feed: schema.NewFeed): Promise<schema.Feed> {
     const result = await this.db.insert(schema.feeds).values(feed).returning();
     return result[0];
