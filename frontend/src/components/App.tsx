@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { useI18n } from '../i18n';
 import { useAI } from '../hooks/useAI';
 import { addBookmark, fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
-import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useNews } from '../hooks/useNews';
 import { fetchProfile } from '../hooks/useRelevance';
 import { useTelegram } from '../hooks/useTelegram';
+import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type {
   ContentType,
@@ -54,6 +53,7 @@ import { InterestProfileModal } from './InterestProfileModal';
 import { NewsGrid } from './NewsGrid';
 import { NewsletterBuilderModal } from './NewsletterBuilderModal';
 import { NewsletterConfigModal } from './NewsletterConfigModal';
+import { OfflineBanner } from './OfflineBanner';
 import { SettingsModal } from './SettingsModal';
 import { ShareModal } from './ShareModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
@@ -62,6 +62,7 @@ import { Status } from './Status';
 import { TelegramQueueModal } from './TelegramQueueModal';
 import { TemplatesModal } from './TemplatesModal';
 import { Toolbar } from './Toolbar';
+import { UpdateToast } from './UpdateToast';
 import { UserSettingsModal } from './UserSettingsModal';
 import { UsersModal } from './UsersModal';
 
@@ -78,7 +79,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return (
       <div
         className="app"
-        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100dvh',
+        }}
       >
         <div>{t('app.loading')}</div>
       </div>
@@ -463,6 +469,7 @@ function AppContent() {
 
   return (
     <div className="app">
+      <OfflineBanner />
       <Header
         onRefresh={handleRefresh}
         onAddClick={() => setShowAddModal(true)}
@@ -611,16 +618,19 @@ function AppContent() {
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <AppContent />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+    <>
+      <UpdateToast />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <AppContent />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </>
   );
 }

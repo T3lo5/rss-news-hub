@@ -1558,3 +1558,77 @@
 .newsletter-generate {
   margin-top: var(--space-2);
 }
+
+/* ============================================================
+   PWA — offline banner, update toast and install help
+   ============================================================ */
+.offline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: calc(8px + env(safe-area-inset-top))
+    calc(var(--space-4) + env(safe-area-inset-right)) 8px
+    calc(var(--space-4) + env(safe-area-inset-left));
+  background: var(--warning-soft);
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+  color: var(--warning);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-align: center;
+}
+
+.update-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  max-width: calc(100vw - 32px);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-md);
+}
+
+.update-toast > svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.update-toast > span {
+  min-width: 0;
+}
+
+.update-toast .close-btn {
+  width: 30px;
+  height: 30px;
+}
+
+.install-help-intro {
+  margin-bottom: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+}
+
+.install-help-steps {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: 22px;
+  color: var(--text-primary);
+  font-size: var(--text-md);
+}
+
+.install-help-steps li::marker {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
+}

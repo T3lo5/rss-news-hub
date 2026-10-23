@@ -7,6 +7,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ============================================================
@@ -21,7 +22,9 @@
   justify-content: space-between;
   gap: var(--space-4);
   min-height: var(--header-height);
-  padding: 0 var(--space-6);
+  /* Notch/landscape: the header respects the top and side safe areas. */
+  padding: env(safe-area-inset-top) calc(var(--space-6) + env(safe-area-inset-right)) 0
+    calc(var(--space-6) + env(safe-area-inset-left));
   background: color-mix(in srgb, var(--bg-tertiary) 88%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -714,6 +717,7 @@
    ============================================================ */
 .login-container {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -818,7 +822,9 @@
   .header {
     position: static;
     flex-wrap: wrap;
-    padding: var(--space-3) var(--space-4);
+    padding: calc(var(--space-3) + env(safe-area-inset-top))
+      calc(var(--space-4) + env(safe-area-inset-right)) var(--space-3)
+      calc(var(--space-4) + env(safe-area-inset-left));
     gap: var(--space-3);
     /* Sem backdrop-filter: ele cria containing block e o .menu-panel
        position:fixed (bottom sheet) passaria a se ancorar no header,

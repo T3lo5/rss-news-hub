@@ -638,6 +638,18 @@ export const pt: Record<string, string> = {
   // shortcuts
   'shortcuts.title': 'Atalhos de Teclado',
 
+  // PWA
+  'pwa.install': 'Instalar app',
+  'pwa.installHelp.title': 'Adicionar à Tela de Início',
+  'pwa.installHelp.intro': 'No iPhone e no iPad a instalação é feita pelo Safari:',
+  'pwa.installHelp.step1': 'Toque no botão Compartilhar (quadrado com a seta para cima).',
+  'pwa.installHelp.step2': 'Escolha “Adicionar à Tela de Início”.',
+  'pwa.installHelp.step3': 'Confirme em “Adicionar” — o app abre em tela cheia, com ícone próprio.',
+  'pwa.installHelp.gotIt': 'Entendi',
+  'pwa.updateAvailable': 'Nova versão disponível.',
+  'pwa.reload': 'Recarregar',
+  'pwa.offline': 'Sem conexão — os dados podem estar desatualizados.',
+
   // language names (kept native in both locales)
   'lang.english': 'English',
   'lang.portuguese': 'Português',
@@ -1277,6 +1289,18 @@ export const en: Record<string, string> = {
 
   // shortcuts
   'shortcuts.title': 'Keyboard Shortcuts',
+
+  // PWA
+  'pwa.install': 'Install app',
+  'pwa.installHelp.title': 'Add to Home Screen',
+  'pwa.installHelp.intro': 'On iPhone and iPad the install goes through Safari:',
+  'pwa.installHelp.step1': 'Tap the Share button (square with an arrow pointing up).',
+  'pwa.installHelp.step2': 'Choose “Add to Home Screen”.',
+  'pwa.installHelp.step3': 'Confirm with “Add” — the app opens full screen with its own icon.',
+  'pwa.installHelp.gotIt': 'Got it',
+  'pwa.updateAvailable': 'New version available.',
+  'pwa.reload': 'Reload',
+  'pwa.offline': 'Offline — data may be out of date.',
 
   // language names (kept native in both locales)
   'lang.english': 'English',

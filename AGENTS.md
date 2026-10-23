@@ -26,7 +26,8 @@ docker compose up --build  # full stack incl. SQLite database (named volume)
 - `middleware/auth.js` — `authenticateRequest`, `requireUser/Viewer/Admin`
   (Bearer JWT or API key; role hierarchy admin > user > viewer).
 - `services/*.js` — business logic in plain ESM JS: `ai` (SenseNova → DeepSeek
-  → OpenAI fallback), `fetch` (regex-based RSS), `telegram` (queue + worker),
+  → OpenAI fallback), `fetch` (regex-based RSS), `ingest` (fetch + relevance
+  scoring in the same cycle), `telegram` (queue + worker),
   `auth`, `jwt`, `templates`, `stats`, `scheduler`, `cron` (5-field parser used
   by newsletter/digest), `retention` (news pruning), `validation` (zod),
   `email` (SMTP via nodemailer), `markdown`, `secrets` (AES-256-GCM), `settings`.
@@ -44,7 +45,9 @@ docker compose up --build  # full stack incl. SQLite database (named volume)
 - `plugins/` — user plugins directory; `example-wordcount` (transformer) and
   `example-webhook-output` (output) serve as references.
 - `frontend/` — React + Vite; `npm run build` outputs to `public/`
-  (served by `server.js`). i18n lives in `frontend/src/i18n/` (flat-key
+  (served by `server.js`). `frontend/public/` holds the PWA sources (manifest,
+  `sw.js` template, icons) and **is committed** (unlike the root `public/`
+  build output). i18n lives in `frontend/src/i18n/` (flat-key
   dictionaries `pt`/`en` + `useI18n()`); the language is chosen per user and
   stored on `users.language`.
 - `test/*.test.ts` — node:test suites (run all: `npm test`; single file:

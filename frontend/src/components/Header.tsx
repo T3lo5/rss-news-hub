@@ -1,6 +1,7 @@
 import {
   BarChart3,
   ChevronDown,
+  Download,
   LogOut,
   Menu as MenuIcon,
   Plus,
@@ -16,8 +17,10 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { usePwaInstall } from '../hooks/usePwaInstall';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
+import { InstallHelpModal } from './InstallHelpModal';
 import { LanguageSelector } from './LanguageSelector';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -63,6 +66,8 @@ export function Header({
 }: HeaderProps) {
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const [openMenu, setOpenMenu] = useState<'more' | 'user' | null>(null);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const { canPrompt, installed, isIos, promptInstall } = usePwaInstall();
   const { user, logout } = useAuth();
   const { t } = useI18n();
 
@@ -88,143 +93,172 @@ export function Header({
     action();
   }, []);
 
+  const install = async () => {
+    if (canPrompt) {
+      try {
+        await promptInstall();
+        return;
+      } catch {
+        // Prompt unavailable (e.g. already consumed): fall back to the steps.
+      }
+    }
+    // iOS: no install prompt, so show the Share -> Add to Home Screen steps.
+    setShowInstallHelp(true);
+  };
+
   const isAdmin = user?.role === 'admin';
   const canQueue = user?.role === 'admin' || user?.role === 'user';
   const initial = user?.name?.trim()?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
 
   return (
-    <header className="header">
-      <div className="header-left">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            <Radio size={20} strokeWidth={2.2} />
-          </span>
-          <span className="brand-text">
-            <strong>RSS News Hub</strong>
-            <span className="subtitle">{t('header.subtitle')}</span>
-          </span>
-        </div>
-      </div>
-
-      <div className="header-actions">
-        <div className="scheduler-status" title={t('header.autoOn')}>
-          <span className={`scheduler-badge ${schedulerStatus?.running ? 'running' : 'stopped'}`}>
-            {schedulerStatus?.running ? t('header.autoOn') : t('header.autoOff')}
-          </span>
-          <span className="next-fetch">
-            {t('header.nextFetch')}{' '}
-            <strong>{formatCountdown(schedulerStatus?.nextRun ?? null)}</strong>
-          </span>
+    <>
+      <header className="header">
+        <div className="header-left">
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true">
+              <Radio size={20} strokeWidth={2.2} />
+            </span>
+            <span className="brand-text">
+              <strong>RSS News Hub</strong>
+              <span className="subtitle">{t('header.subtitle')}</span>
+            </span>
+          </div>
         </div>
 
-        <button className="btn btn-primary" onClick={onRefresh}>
-          <RefreshCw size={16} />
-          <span className="btn-label">{t('header.refresh')}</span>
-        </button>
-        <button className="btn btn-secondary" onClick={onAddClick}>
-          <Plus size={16} />
-          <span className="btn-label">{t('header.add')}</span>
-        </button>
+        <div className="header-actions">
+          <div className="scheduler-status" title={t('header.autoOn')}>
+            <span className={`scheduler-badge ${schedulerStatus?.running ? 'running' : 'stopped'}`}>
+              {schedulerStatus?.running ? t('header.autoOn') : t('header.autoOff')}
+            </span>
+            <span className="next-fetch">
+              {t('header.nextFetch')}{' '}
+              <strong>{formatCountdown(schedulerStatus?.nextRun ?? null)}</strong>
+            </span>
+          </div>
 
-        <div className="menu" ref={moreRef}>
-          <button
-            className="btn-icon"
-            aria-haspopup="menu"
-            aria-expanded={openMenu === 'more'}
-            aria-label={t('header.more')}
-            title={t('header.more')}
-            onClick={() => setOpenMenu((m) => (m === 'more' ? null : 'more'))}
-          >
-            <MenuIcon size={18} />
+          <button className="btn btn-primary" onClick={onRefresh}>
+            <RefreshCw size={16} />
+            <span className="btn-label">{t('header.refresh')}</span>
           </button>
-          {openMenu === 'more' && (
-            <div className="menu-panel" role="menu">
-              <button className="menu-item" role="menuitem" onClick={() => run(onFeedsClick)}>
-                <Rss size={16} />
-                {t('header.feeds')}
-              </button>
-              <button className="menu-item" role="menuitem" onClick={() => run(onStatsClick)}>
-                <BarChart3 size={16} />
-                {t('header.stats')}
-              </button>
-              {isAdmin && (
-                <button className="menu-item" role="menuitem" onClick={() => run(onDigestClick)}>
-                  <Sparkles size={16} />
-                  {t('header.digest')}
-                </button>
-              )}
-              {isAdmin && (
-                <button className="menu-item" role="menuitem" onClick={() => run(onSettingsClick)}>
-                  <Settings size={16} />
-                  {t('header.settings')}
-                </button>
-              )}
-              {isAdmin && (
-                <button className="menu-item" role="menuitem" onClick={() => run(onUsersClick)}>
-                  <Users size={16} />
-                  {t('header.users')}
-                </button>
-              )}
-              {canQueue && (
-                <button
-                  className="menu-item"
-                  role="menuitem"
-                  onClick={() => run(onTelegramQueueClick)}
-                >
-                  <Send size={16} />
-                  {t('header.queue')}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+          <button className="btn btn-secondary" onClick={onAddClick}>
+            <Plus size={16} />
+            <span className="btn-label">{t('header.add')}</span>
+          </button>
 
-        <LanguageSelector />
-        <ThemeToggle />
-
-        {user ? (
-          <div className="menu" ref={userRef}>
+          <div className="menu" ref={moreRef}>
             <button
-              className="user-chip"
+              className="btn-icon"
               aria-haspopup="menu"
-              aria-expanded={openMenu === 'user'}
-              onClick={() => setOpenMenu((m) => (m === 'user' ? null : 'user'))}
+              aria-expanded={openMenu === 'more'}
+              aria-label={t('header.more')}
+              title={t('header.more')}
+              onClick={() => setOpenMenu((m) => (m === 'more' ? null : 'more'))}
             >
-              <span className="user-avatar" aria-hidden="true">
-                {initial}
-              </span>
-              <span className="user-meta">
-                <span className="user-name">{user.name}</span>
-                <span className="user-role">{t(`role.${user.role}`)}</span>
-              </span>
-              <ChevronDown size={14} aria-hidden="true" />
+              <MenuIcon size={18} />
             </button>
-            {openMenu === 'user' && (
+            {openMenu === 'more' && (
               <div className="menu-panel" role="menu">
-                <div className="menu-label">{user.email}</div>
-                <div className="menu-sep" />
-                <button
-                  className="menu-item"
-                  role="menuitem"
-                  onClick={() => run(onUserSettingsClick)}
-                >
-                  <UserCog size={16} />
-                  {t('header.mySettings')}
+                <button className="menu-item" role="menuitem" onClick={() => run(onFeedsClick)}>
+                  <Rss size={16} />
+                  {t('header.feeds')}
                 </button>
-                <div className="menu-sep" />
-                <button className="menu-item danger" role="menuitem" onClick={logout}>
-                  <LogOut size={16} />
-                  {t('header.logout')}
+                <button className="menu-item" role="menuitem" onClick={() => run(onStatsClick)}>
+                  <BarChart3 size={16} />
+                  {t('header.stats')}
                 </button>
+                {isAdmin && (
+                  <button className="menu-item" role="menuitem" onClick={() => run(onDigestClick)}>
+                    <Sparkles size={16} />
+                    {t('header.digest')}
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    className="menu-item"
+                    role="menuitem"
+                    onClick={() => run(onSettingsClick)}
+                  >
+                    <Settings size={16} />
+                    {t('header.settings')}
+                  </button>
+                )}
+                {isAdmin && (
+                  <button className="menu-item" role="menuitem" onClick={() => run(onUsersClick)}>
+                    <Users size={16} />
+                    {t('header.users')}
+                  </button>
+                )}
+                {canQueue && (
+                  <button
+                    className="menu-item"
+                    role="menuitem"
+                    onClick={() => run(onTelegramQueueClick)}
+                  >
+                    <Send size={16} />
+                    {t('header.queue')}
+                  </button>
+                )}
               </div>
             )}
           </div>
-        ) : (
-          <button className="btn btn-primary" onClick={() => (window.location.href = '/login')}>
-            {t('header.login')}
-          </button>
-        )}
-      </div>
-    </header>
+
+          <LanguageSelector />
+          <ThemeToggle />
+
+          {user ? (
+            <div className="menu" ref={userRef}>
+              <button
+                className="user-chip"
+                aria-haspopup="menu"
+                aria-expanded={openMenu === 'user'}
+                onClick={() => setOpenMenu((m) => (m === 'user' ? null : 'user'))}
+              >
+                <span className="user-avatar" aria-hidden="true">
+                  {initial}
+                </span>
+                <span className="user-meta">
+                  <span className="user-name">{user.name}</span>
+                  <span className="user-role">{t(`role.${user.role}`)}</span>
+                </span>
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              {openMenu === 'user' && (
+                <div className="menu-panel" role="menu">
+                  <div className="menu-label">{user.email}</div>
+                  <div className="menu-sep" />
+                  {!installed && (canPrompt || isIos) && (
+                    <>
+                      <button className="menu-item" role="menuitem" onClick={() => run(install)}>
+                        <Download size={16} />
+                        {t('pwa.install')}
+                      </button>
+                      <div className="menu-sep" />
+                    </>
+                  )}
+                  <button
+                    className="menu-item"
+                    role="menuitem"
+                    onClick={() => run(onUserSettingsClick)}
+                  >
+                    <UserCog size={16} />
+                    {t('header.mySettings')}
+                  </button>
+                  <div className="menu-sep" />
+                  <button className="menu-item danger" role="menuitem" onClick={logout}>
+                    <LogOut size={16} />
+                    {t('header.logout')}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button className="btn btn-primary" onClick={() => (window.location.href = '/login')}>
+              {t('header.login')}
+            </button>
+          )}
+        </div>
+      </header>
+      {showInstallHelp && <InstallHelpModal onClose={() => setShowInstallHelp(false)} />}
+    </>
   );
 }

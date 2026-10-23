@@ -113,6 +113,17 @@ describe('PWA manifest and assets', () => {
     assert.match(template, /url\.pathname\.startsWith\('\/api\/'\)/);
   });
 
+  test('updates wait for the user instead of taking over silently', async () => {
+    const template = await readFile(join(SOURCE_PUBLIC, 'sw.js'), 'utf8');
+    const installBlock = template.slice(
+      template.indexOf("addEventListener('install'"),
+      template.indexOf("addEventListener('activate'")
+    );
+
+    assert.ok(!installBlock.includes('skipWaiting'), 'install must not activate immediately');
+    assert.match(template, /event\.data === 'SKIP_WAITING'/);
+  });
+
   test('built service worker has a real version and a complete precache list', {
     skip: !existsSync(join(BUILT_PUBLIC, 'sw.js')) && 'frontend build not present',
   }, async () => {

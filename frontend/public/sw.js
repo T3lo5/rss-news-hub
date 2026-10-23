@@ -10,6 +10,9 @@
  *     nunca entram no cache);
  *   - navegação: network-first com fallback para o shell cacheado;
  *   - /assets/* (hash no nome): cache-first, imutáveis.
+ *
+ * Atualização: o SW novo fica em "waiting" em vez de assumir na hora. A
+ * página avisa e, quando o usuário clica em recarregar, manda SKIP_WAITING.
  */
 
 const VERSION = '__BUILD_VERSION__';
@@ -21,7 +24,6 @@ self.addEventListener('install', (event) => {
     (async () => {
       const cache = await caches.open(CACHE);
       await cache.addAll(PRECACHE);
-      await self.skipWaiting();
     })()
   );
 });
