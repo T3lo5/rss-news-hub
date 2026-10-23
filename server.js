@@ -32,8 +32,9 @@ import {
 } from './services/digest.service.js';
 import { sendEmail, verifyEmailConfig } from './services/email.service.js';
 import { createError, ErrorCode } from './services/errors.js';
-import { fetchAllFeeds, fetchFeedByUrl, parseRSS } from './services/fetch.service.js';
+import { fetchFeedByUrl, parseRSS } from './services/fetch.service.js';
 import { getHealth } from './services/health.service.js';
+import { fetchAndScoreFeeds } from './services/ingest.service.js';
 import { createRequestLogger } from './services/logger.js';
 import { renderEmailHtml } from './services/markdown.js';
 import { addNews, readNews } from './services/news.service.js';
@@ -450,18 +451,10 @@ export async function handleRequest(req, res) {
     if (path === '/api/fetch' && req.method === 'POST') {
       fetchLimiter(req, res, async () => {
         try {
-          const { total, results } = await fetchAllFeeds();
-
-          // Score new articles after fetch if AI is configured
-          try {
-            const { scoreNewItems, readProfile } = await import('./services/relevance.service.js');
-            const profile = await readProfile();
-            await scoreNewItems(profile);
-          } catch (scoreErr) {
-            console.warn('Relevance scoring skipped:', scoreErr.message);
-          }
-
-          return sendJSON(res, 200, { ok: true, data: { total, results } });
+          // Fetch + score in the same cycle, otherwise items that arrive here
+          // stay unscored until the scheduler or a digest touches them.
+          const result = await fetchAndScoreFeeds();
+          return sendJSON(res, 200, { ok: true, data: result });
         } catch (err) {
           console.error('Fetch error:', err);
           return sendJSON(res, 500, { ok: false, error: err.message });
@@ -478,17 +471,7 @@ export async function handleRequest(req, res) {
     // POST /api/scheduler/trigger - manual trigger
     if (path === '/api/scheduler/trigger' && req.method === 'POST') {
       try {
-        const result = await triggerScheduler(fetchAllFeeds);
-
-        // Score new articles after scheduled fetch
-        try {
-          const { scoreNewItems, readProfile } = await import('./services/relevance.service.js');
-          const profile = await readProfile();
-          await scoreNewItems(profile);
-        } catch (scoreErr) {
-          console.warn('Relevance scoring skipped:', scoreErr.message);
-        }
-
+        const result = await triggerScheduler(fetchAndScoreFeeds);
         return sendJSON(res, 200, { ok: true, data: result });
       } catch (err) {
         return sendJSON(res, 500, { ok: false, error: err.message });
@@ -1696,7 +1679,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   await initSettings();
 
   // Start scheduler: fetch now and then every 30 minutes
-  startScheduler(30 * 60 * 1000, fetchAllFeeds, { runNow: true });
+  startScheduler(30 * 60 * 1000, fetchAndScoreFeeds, { runNow: true });
   // Start newsletter job if enabled
   startNewsletterJob(newsletterConfig, { telegram, email });
   // Start Telegram queue worker (every minute)
