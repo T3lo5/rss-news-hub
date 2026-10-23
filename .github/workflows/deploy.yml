@@ -44,7 +44,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Docker runs node:24-alpine, so CI tests the same line. Node 20 is
+          # not supported by better-sqlite3@13 (needs N-API 10) and segfaults.
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies

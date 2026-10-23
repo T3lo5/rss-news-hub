@@ -7,6 +7,10 @@ framework) plus a TypeScript layer (`src/`: SQLite/drizzle DB, plugins, CLI).
 React/Vite frontend in `frontend/`, built to `public/`.
 
 ## Commands
+Node **>= 22** is required (Docker and CI run 24). `better-sqlite3@13` needs
+N-API 10: on Node 20 the native module loads and kills the process with
+SIGSEGV, so DB-backed tests fail with "test failed" and no trace. `.npmrc` sets
+`engine-strict=true` so an unsupported Node fails at install with a clear error.
 ```bash
 npm install                # install deps (tsx, drizzle-orm, better-sqlite3, ...)
 npm start                  # server on PORT (default 3000) -> node --import tsx server.js

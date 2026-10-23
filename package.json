@@ -19,7 +19,7 @@
     "dev:parallel": "concurrently \"npm run start\" \"cd frontend && npm run dev\""
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",
