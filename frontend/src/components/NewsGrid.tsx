@@ -1,4 +1,13 @@
-import { Check, ExternalLink, Inbox, Share2, Sparkles } from 'lucide-react';
+import {
+  Check,
+  CheckCheck,
+  ExternalLink,
+  Inbox,
+  Mail,
+  MailOpen,
+  Share2,
+  Sparkles,
+} from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useI18n } from '../i18n';
 import type { NewsItem } from '../types';
@@ -16,10 +25,15 @@ interface NewsGridProps {
   selectedIndex: number;
   bookmarkedIds: Set<string>;
   onBookmarkToggle: (id: string, isBookmarked: boolean) => void;
+  /** Called when the user opens an item (title, button or card click). */
+  onOpen?: (item: NewsItem) => void;
+  onReadToggle: (item: NewsItem, read: boolean) => void;
   generatedIds?: Set<string>;
   sentIds?: Set<string>;
   hasMore?: boolean;
   onLoadMore?: () => void;
+  /** Overrides the default empty state (e.g. "nothing unread"). */
+  emptyMessage?: string;
   total?: number;
   shown?: number;
 }
@@ -74,10 +88,13 @@ export function NewsGrid({
   selectedIndex,
   bookmarkedIds,
   onBookmarkToggle,
+  onOpen,
+  onReadToggle,
   generatedIds,
   sentIds,
   hasMore = false,
   onLoadMore,
+  emptyMessage,
   total: totalProp,
   shown: shownProp,
 }: NewsGridProps) {
@@ -118,9 +135,13 @@ export function NewsGrid({
       <div className="news-grid">
         <div className="empty">
           <Inbox size={40} style={{ opacity: 0.5, marginBottom: 12 }} aria-hidden="true" />
-          <div>
-            {t('news.emptyNavigatePre')} <kbd>j</kbd>/<kbd>k</kbd> {t('news.emptyNavigatePost')}
-          </div>
+          {emptyMessage ? (
+            <div>{emptyMessage}</div>
+          ) : (
+            <div>
+              {t('news.emptyNavigatePre')} <kbd>j</kbd>/<kbd>k</kbd> {t('news.emptyNavigatePost')}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -131,15 +152,17 @@ export function NewsGrid({
       {news.map((item, index) => {
         const isSelected = selectedIds?.has(item.id) ?? false;
         const isKeyboardSelected = index === selectedIndex;
+        const isRead = Boolean(item.readAt);
         return (
           <article
             key={item.id}
             ref={(el) => {
               cardRefs.current[index] = el;
             }}
-            className={`news-card ${isSelected ? 'selected' : ''} ${isKeyboardSelected ? 'keyboard-selected' : ''}`}
+            className={`news-card ${isRead ? 'read' : 'unread'} ${isSelected ? 'selected' : ''} ${isKeyboardSelected ? 'keyboard-selected' : ''}`}
             role="listitem"
             data-selected={isSelected}
+            data-read={isRead}
             aria-selected={isSelected}
           >
             <div className="news-card-top">
@@ -170,6 +193,12 @@ export function NewsGrid({
                     {t('news.generated')}
                   </span>
                 ) : null}
+                {isRead && (
+                  <span className="read-badge" title={t('news.readTitle')}>
+                    <CheckCheck size={12} aria-hidden="true" />
+                    {t('news.read')}
+                  </span>
+                )}
                 <time className="news-date" dateTime={item.pubDate}>
                   {formatDate(item.pubDate, locale)}
                 </time>
@@ -181,6 +210,7 @@ export function NewsGrid({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="news-title-link"
+                onClick={() => onOpen?.(item)}
               >
                 {item.title}
               </a>
@@ -191,6 +221,22 @@ export function NewsGrid({
                 : t('news.noDescription')}
             </p>
             <div className="news-actions">
+              <button
+                className="btn btn-read"
+                onClick={() => onReadToggle(item, !isRead)}
+                aria-label={t(isRead ? 'news.markUnreadAria' : 'news.markReadAria', {
+                  title: item.title,
+                })}
+                title={t(isRead ? 'news.markUnread' : 'news.markRead')}
+              >
+                {/* Icon-only like the bookmark button: a text label here made
+                    the footer overflow at the 340px minimum card width. */}
+                {isRead ? (
+                  <MailOpen size={17} aria-hidden="true" />
+                ) : (
+                  <Mail size={17} aria-hidden="true" />
+                )}
+              </button>
               <BookmarkButton
                 newsId={item.id}
                 isBookmarked={bookmarkedIds?.has(item.id) ?? false}
@@ -201,6 +247,7 @@ export function NewsGrid({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-open"
+                onClick={() => onOpen?.(item)}
               >
                 <ExternalLink size={15} />
                 {t('news.open')}

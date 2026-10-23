@@ -276,8 +276,9 @@ curl http://localhost:3000/api/news \
 #### 📰 Notícias
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/news` | Listar todas (paginado via DB) |
+| GET | `/api/news` | Listar todas (paginado via DB; `readAt` é do usuário autenticado) |
 | POST | `/api/news` | Adicionar manualmente |
+| PATCH | `/api/news/:id/read` | Marcar/desmarcar como lida (`{ "read": true\|false }`, idempotente, viewer+) |
 | POST | `/api/fetch` | Disparar coleta de todos os feeds |
 | GET | `/api/news/search?q=termo&minScore=70&limit=20` | **Busca full-text (FTS5)** |
 | GET | `/api/news/search/suggestions?q=termo` | Autocomplete |
@@ -387,6 +388,9 @@ Acesse `http://localhost:3000` após login:
 |-------|------|
 | `Ctrl/Cmd + K` | Abrir busca global |
 | `Ctrl/Cmd + /` | Focar busca de notícias |
+| `j` / `k` | Selecionar a próxima / anterior |
+| `m` | Marcar/desmarcar a notícia selecionada como lida |
+| `o` | Abrir a notícia selecionada |
 | `?` | Mostrar ajuda de atalhos |
 
 ---

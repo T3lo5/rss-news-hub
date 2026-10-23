@@ -62,6 +62,11 @@ export const pt: Record<string, string> = {
   'userSettings.tabTelegram': 'Telegram',
   'userSettings.tabEmail': 'E-mail',
   'userSettings.tabNewsletter': 'Newsletter',
+  'userSettings.tabReading': 'Leitura',
+  'userSettings.markOnOpen': 'Marcar como lida ao abrir a notícia',
+  'userSettings.markOnOpenHint':
+    'Vale para este dispositivo. Desligue para abrir sem tirar a notícia da lista de não lidas.',
+
   'userSettings.tabDigest': 'Digest',
   'userSettings.ownConfig': 'Usando sua própria configuração',
   'userSettings.configured': 'configurado',
@@ -284,6 +289,11 @@ export const pt: Record<string, string> = {
   'toolbar.deselectAll': 'Desmarcar todos',
   'toolbar.selectAll': 'Selecionar todos',
   'toolbar.source': 'Fonte:',
+  'toolbar.readFilterAria': 'Filtrar por leitura',
+  'toolbar.read.all': 'Todas',
+  'toolbar.read.unread': 'Não lidas',
+  'toolbar.read.read': 'Lidas',
+
   'toolbar.sourceAria': 'Filtrar por fonte',
   'toolbar.allSources': 'Todas',
   'toolbar.sort': 'Ordenar:',
@@ -635,8 +645,23 @@ export const pt: Record<string, string> = {
   'settings.prune': 'Limpar agora',
   'settings.saveRetention': 'Salvar Retenção',
 
+  // read/unread
+  'news.read': 'Lida',
+  'news.readTitle': 'Você já abriu esta notícia',
+  'news.markRead': 'Marcar como lida',
+  'news.markUnread': 'Marcar como não lida',
+  'news.markReadAria': 'Marcar "{title}" como lida',
+  'news.markUnreadAria': 'Marcar "{title}" como não lida',
+  'news.emptyFiltered': 'Nenhuma notícia neste filtro.',
+  'app.errRead': 'Não foi possível salvar o estado de leitura.',
+
   // shortcuts
   'shortcuts.title': 'Atalhos de Teclado',
+  'shortcuts.navigate': 'Navegar entre as notícias',
+  'shortcuts.toggleRead': 'Marcar/desmarcar como lida',
+  'shortcuts.open': 'Abrir a notícia selecionada',
+  'shortcuts.help': 'Mostrar estes atalhos',
+  'shortcuts.close': 'Fechar modal / limpar seleção',
 
   // PWA
   'pwa.install': 'Instalar app',
@@ -716,6 +741,11 @@ export const en: Record<string, string> = {
   'userSettings.tabTelegram': 'Telegram',
   'userSettings.tabEmail': 'Email',
   'userSettings.tabNewsletter': 'Newsletter',
+  'userSettings.tabReading': 'Reading',
+  'userSettings.markOnOpen': 'Mark as read when opening an article',
+  'userSettings.markOnOpenHint':
+    'Applies to this device. Turn it off to open articles without removing them from the unread list.',
+
   'userSettings.tabDigest': 'Digest',
   'userSettings.ownConfig': 'Using your own configuration',
   'userSettings.configured': 'configured',
@@ -938,6 +968,11 @@ export const en: Record<string, string> = {
   'toolbar.deselectAll': 'Deselect all',
   'toolbar.selectAll': 'Select all',
   'toolbar.source': 'Source:',
+  'toolbar.readFilterAria': 'Filter by read state',
+  'toolbar.read.all': 'All',
+  'toolbar.read.unread': 'Unread',
+  'toolbar.read.read': 'Read',
+
   'toolbar.sourceAria': 'Filter by source',
   'toolbar.allSources': 'All',
   'toolbar.sort': 'Sort:',
@@ -1288,7 +1323,22 @@ export const en: Record<string, string> = {
   'settings.saveRetention': 'Save Retention',
 
   // shortcuts
+  // read/unread
+  'news.read': 'Read',
+  'news.readTitle': 'You already opened this article',
+  'news.markRead': 'Mark as read',
+  'news.markUnread': 'Mark as unread',
+  'news.markReadAria': 'Mark "{title}" as read',
+  'news.markUnreadAria': 'Mark "{title}" as unread',
+  'news.emptyFiltered': 'No articles in this filter.',
+  'app.errRead': 'Could not save the read state.',
+
   'shortcuts.title': 'Keyboard Shortcuts',
+  'shortcuts.navigate': 'Move between articles',
+  'shortcuts.toggleRead': 'Toggle read state',
+  'shortcuts.open': 'Open the selected article',
+  'shortcuts.help': 'Show these shortcuts',
+  'shortcuts.close': 'Close modal / clear selection',
 
   // PWA
   'pwa.install': 'Install app',

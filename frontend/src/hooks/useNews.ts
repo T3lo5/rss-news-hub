@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 import type { FetchRssResponse, NewsItem } from '../types';
 
@@ -7,6 +7,11 @@ export function useNews() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchingRss, setFetchingRss] = useState(false);
+
+  // Snapshot for rollbacks: reading `news` inside the optimistic updater would
+  // be a stale closure and React may run the updater twice.
+  const newsRef = useRef(news);
+  newsRef.current = news;
 
   const fetchNews = useCallback(async () => {
     setLoading(true);
@@ -46,5 +51,24 @@ export function useNews() {
     return created;
   }, []);
 
-  return { news, loading, error, fetchNews, addNews, fetchRss, fetchingRss };
+  /**
+   * Marca/desmarca como lida com atualização otimista: a lista responde na
+   * hora e volta ao estado anterior se o servidor recusar.
+   */
+  const setRead = useCallback(async (id: string, read: boolean) => {
+    const previous = newsRef.current.find((item) => item.id === id)?.readAt ?? null;
+    const apply = (readAt: string | null) =>
+      setNews((prev) => prev.map((item) => (item.id === id ? { ...item, readAt } : item)));
+
+    apply(read ? new Date().toISOString() : null);
+    try {
+      const result = await api.setNewsRead(id, read);
+      apply(result.readAt); // canonical timestamp from the server
+    } catch (e) {
+      apply(previous);
+      throw e;
+    }
+  }, []);
+
+  return { news, loading, error, fetchNews, addNews, fetchRss, fetchingRss, setRead };
 }

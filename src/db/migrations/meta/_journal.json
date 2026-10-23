@@ -85,6 +85,13 @@
       "when": 1792088000000,
       "tag": "0011_user_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": 6,
+      "when": 1792089000000,
+      "tag": "0012_news_reads",
+      "breakpoints": true
     }
   ]
 }

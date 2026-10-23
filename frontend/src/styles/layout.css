@@ -940,6 +940,10 @@
   }
   .toolbar-spacer {
     margin-left: 0;
+    /* Without wrapping the action row (bookmark, view, profile, newsletter...)
+       is ~30px wider than a 375px screen and pushes a horizontal scrollbar. */
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .news-grid {
     grid-template-columns: 1fr;

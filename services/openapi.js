@@ -113,6 +113,15 @@ registerPath(
   [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
 );
 registerPath(
+  'patch',
+  '/api/news/{id}/read',
+  'Mark news as read/unread',
+  "Set the caller's read state for one news item (idempotent). The id is URL-encoded.",
+  schemas.markNewsReadSchema,
+  { success: OkResponse, error: ErrorResponse },
+  [{ BearerAuth: [] }, { ApiKeyAuth: [] }]
+);
+registerPath(
   'post',
   '/api/fetch',
   'Trigger RSS fetch',

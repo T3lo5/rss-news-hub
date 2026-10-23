@@ -1,6 +1,7 @@
 import { Check, CheckCircle2, Info, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useMarkOnOpen } from '../hooks/useMarkOnOpen';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { AiProviderId } from '../types';
@@ -49,7 +50,7 @@ interface UserSettingsOverview {
   };
 }
 
-type Tab = 'ai' | 'telegram' | 'email' | 'newsletter' | 'digest';
+type Tab = 'ai' | 'telegram' | 'email' | 'newsletter' | 'digest' | 'reading';
 
 const PROVIDER_LABELS: Record<AiProviderId, string> = {
   sensenova: 'SenseNova',
@@ -100,6 +101,7 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
   const [nlLookback, setNlLookback] = useState('7');
 
   const [saving, setSaving] = useState(false);
+  const [markOnOpen, setMarkOnOpen] = useMarkOnOpen();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -307,6 +309,7 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
     { key: 'email', label: t('userSettings.tabEmail') },
     { key: 'newsletter', label: t('userSettings.tabNewsletter') },
     { key: 'digest', label: t('userSettings.tabDigest') },
+    { key: 'reading', label: t('userSettings.tabReading') },
   ];
 
   return (
@@ -353,7 +356,7 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   className="settings-tab"
                 >
                   {tab.label}
-                  {settings[tab.key].hasUserOverride && (
+                  {tab.key !== 'reading' && settings[tab.key].hasUserOverride && (
                     <span
                       className="settings-tab-dot"
                       title={t('userSettings.ownConfig')}
@@ -371,7 +374,7 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
               aria-labelledby={`user-settings-tab-${activeTab}`}
             >
               {/* Fallback badge */}
-              {!settings[activeTab].hasUserOverride && (
+              {activeTab !== 'reading' && !settings[activeTab].hasUserOverride && (
                 <div className="notice info">
                   <Info size={15} />
                   <span>
@@ -381,7 +384,7 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 </div>
               )}
 
-              {settings[activeTab].hasUserOverride && (
+              {activeTab !== 'reading' && settings[activeTab].hasUserOverride && (
                 <div className="notice success">
                   <CheckCircle2 size={15} />
                   <span>{t('userSettings.usingOwn') || 'Using your own configuration'}</span>
@@ -703,6 +706,21 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 <p className="field-hint">
                   {t('userSettings.digestComingSoon') || 'Digest configuration coming soon.'}
                 </p>
+              )}
+
+              {/* ── READING TAB ── */}
+              {activeTab === 'reading' && (
+                <div>
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={markOnOpen}
+                      onChange={(event) => setMarkOnOpen(event.target.checked)}
+                    />
+                    {t('userSettings.markOnOpen')}
+                  </label>
+                  <p className="field-hint">{t('userSettings.markOnOpenHint')}</p>
+                </div>
               )}
             </div>
           </div>

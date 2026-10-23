@@ -80,6 +80,11 @@ Copy `.env.example` to `.env` and fill in:
 - SQLite is the source of truth: `/api/news` reads the DB through
   repositories (`src/db/repositories/`). `npm run fetch` still writes the
   legacy `data/news.json` as an export only.
+- Read state is **per user**, not a column on `news_items`: a row in
+  `news_reads` means "read" (unmarking deletes it). `GET /api/news` merges the
+  caller's `readAt` and `PATCH /api/news/:id/read` toggles it (idempotent,
+  viewer+); ids can be URLs, so the route slices the path instead of using a
+  segment regex.
 - Auth: roles `admin`/`user`/`viewer`; protected routes return 401 JSON when
   anonymous. Write new auth-sensitive endpoints with the `requireX()` wrappers.
   The refresh token lives in an HttpOnly cookie (`refresh_token`, path

@@ -14,10 +14,12 @@ export type {
   NewNewsHash,
   NewNewsItem,
   NewNewsletterHistory,
+  NewNewsRead,
   NewNewsSearch,
   NewsHash,
   NewsItem,
   NewsletterHistory,
+  NewsRead,
   NewsSearch,
   NewTelegramQueue,
   NewTemplate,
@@ -35,6 +37,7 @@ export { feedStatsRepository } from './feed-stats.repository.js';
 export { globalStatsRepository } from './global-stats.repository.js';
 export { newsRepository } from './news.repository.js';
 export { newsHashRepository } from './news-hash.repository.js';
+export { newsReadRepository } from './news-read.repository.js';
 export { newsletterHistoryRepository } from './newsletter-history.repository.js';
 export { searchRepository } from './search.repository.js';
 export { settingsRepository } from './settings.repository.js';

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAI } from '../hooks/useAI';
 import { addBookmark, fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useMarkOnOpen } from '../hooks/useMarkOnOpen';
 import { useNews } from '../hooks/useNews';
 import { fetchProfile } from '../hooks/useRelevance';
 import { useTelegram } from '../hooks/useTelegram';
@@ -61,7 +63,7 @@ import { StatsModal } from './StatsModal';
 import { Status } from './Status';
 import { TelegramQueueModal } from './TelegramQueueModal';
 import { TemplatesModal } from './TemplatesModal';
-import { Toolbar } from './Toolbar';
+import { type ReadFilter, Toolbar } from './Toolbar';
 import { UpdateToast } from './UpdateToast';
 import { UserSettingsModal } from './UserSettingsModal';
 import { UsersModal } from './UsersModal';
@@ -101,7 +103,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
   const { t } = useI18n();
-  const { news, loading, error, fetchNews, addNews, fetchRss, fetchingRss } = useNews();
+  const { news, loading, error, fetchNews, addNews, fetchRss, setRead } = useNews();
+  const [markOnOpen] = useMarkOnOpen();
   const {
     generatedContent,
     generating,
@@ -151,10 +154,18 @@ function AppContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'relevance'>('newest');
+  const [readFilter, setReadFilter] = useState<ReadFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const stored = localStorage.getItem('readFilter');
+    return stored === 'unread' || stored === 'read' ? stored : 'all';
+  });
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  // filteredNews must be defined BEFORE handlers that use it
-  const filteredNews = useMemo(() => {
+  // Notícias dentro da busca/fonte atual. Serve de base para o filtro de
+  // leitura E para os contadores do toolbar: o número ao lado de "Não lidas"
+  // tem que bater com o que o filtro vai mostrar, não com o banco inteiro.
+  const scopedNews = useMemo(() => {
     let result = [...news];
 
     if (searchQuery.trim()) {
@@ -171,6 +182,22 @@ function AppContent() {
       result = result.filter((item) => item.source === sourceFilter);
     }
 
+    return result;
+  }, [news, searchQuery, sourceFilter]);
+
+  const unreadCount = useMemo(() => scopedNews.filter((item) => !item.readAt).length, [scopedNews]);
+  const readCount = scopedNews.length - unreadCount;
+
+  // filteredNews must be defined BEFORE handlers that use it
+  const filteredNews = useMemo(() => {
+    let result = [...scopedNews];
+
+    if (readFilter === 'unread') {
+      result = result.filter((item) => !item.readAt);
+    } else if (readFilter === 'read') {
+      result = result.filter((item) => Boolean(item.readAt));
+    }
+
     switch (sortOrder) {
       case 'newest':
         result.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
@@ -184,15 +211,23 @@ function AppContent() {
     }
 
     return result;
-  }, [news, searchQuery, sourceFilter, sortOrder]);
+  }, [scopedNews, sortOrder, readFilter]);
 
   const sources = useMemo(() => [...new Set(news.map((n) => n.source))], [news]);
+  // Remember the filter across reloads (same pattern as the digest grouping).
+  useEffect(() => {
+    try {
+      localStorage.setItem('readFilter', readFilter);
+    } catch {
+      // Best-effort: blocked storage just means the filter resets on reload.
+    }
+  }, [readFilter]);
 
   // Volta ao topo da lista quando o filtro/busca/ordenação muda, senão o
   // usuário fica no meio de um recorte que não existe mais.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, sourceFilter, sortOrder]);
+  }, [searchQuery, sourceFilter, sortOrder, readFilter]);
 
   const visibleNews = useMemo(
     () => filteredNews.slice(0, visibleCount),
@@ -395,7 +430,7 @@ function AppContent() {
     try {
       await fetchRss();
       setStatus({ message: t('app.feedsUpdated'), type: 'success' });
-    } catch (err) {
+    } catch {
       setStatus({ message: t('app.errFetch'), type: 'error' });
     }
     setTimeout(() => setStatus(null), 3000);
@@ -459,6 +494,27 @@ function AppContent() {
     [bookmarkedIds, t]
   );
 
+  const handleReadToggle = useCallback(
+    async (item: NewsItem, read: boolean) => {
+      try {
+        await setRead(item.id, read);
+      } catch (err) {
+        console.error(err);
+        setStatus({ message: t('app.errRead'), type: 'error' });
+        setTimeout(() => setStatus(null), 3000);
+      }
+    },
+    [setRead, t]
+  );
+
+  // Abrir a notícia marca como lida, respeitando a preferência do usuário.
+  const handleOpen = useCallback(
+    (item: NewsItem) => {
+      if (markOnOpen && !item.readAt) handleReadToggle(item, true);
+    },
+    [markOnOpen, handleReadToggle]
+  );
+
   const handleSelectAll = useCallback(() => {
     setSelectedIds(new Set(visibleNews.map((n) => n.id)));
   }, [visibleNews]);
@@ -466,6 +522,87 @@ function AppContent() {
   const handleClearSelection = useCallback(() => {
     setSelectedIds(new Set());
   }, []);
+
+  const modalOpen =
+    showShareModal ||
+    showAddModal ||
+    showStatsModal ||
+    showFeedManager ||
+    showNewsletterConfig ||
+    showNewsletterBuilder ||
+    showSettings ||
+    showDigestConfig ||
+    showUsers ||
+    showTelegramQueue ||
+    showBookmarks ||
+    showProfileModal ||
+    showTemplatesModal ||
+    showUserSettings ||
+    showShortcuts;
+
+  const moveSelection = useCallback(
+    (delta: number) => {
+      if (!visibleNews.length) return;
+      const next = Math.min(Math.max(selectedIndex + delta, 0), visibleNews.length - 1);
+      setSelectedIndex(next);
+      setSelectedNews(visibleNews[next]);
+    },
+    [visibleNews, selectedIndex]
+  );
+
+  const selectedItem = selectedIndex >= 0 ? visibleNews[selectedIndex] : undefined;
+
+  const shortcutHints = useMemo(
+    () => [
+      { key: 'j / k', description: t('shortcuts.navigate') },
+      { key: 'm', description: t('shortcuts.toggleRead') },
+      { key: 'o', description: t('shortcuts.open') },
+      { key: '?', description: t('shortcuts.help') },
+      { key: 'Esc', description: t('shortcuts.close') },
+    ],
+    [t]
+  );
+
+  useKeyboardShortcuts({
+    enabled: !modalOpen,
+    shortcuts: [
+      { key: 'j', description: '', handler: () => moveSelection(1), disabledInInputs: true },
+      { key: 'k', description: '', handler: () => moveSelection(-1), disabledInInputs: true },
+      {
+        key: 'm',
+        description: '',
+        handler: () => {
+          if (selectedItem) handleReadToggle(selectedItem, !selectedItem.readAt);
+        },
+        disabledInInputs: true,
+      },
+      {
+        key: 'o',
+        description: '',
+        handler: () => {
+          if (!selectedItem) return;
+          handleOpen(selectedItem);
+          window.open(selectedItem.link, '_blank', 'noopener,noreferrer');
+        },
+        disabledInInputs: true,
+      },
+      {
+        key: '?',
+        description: '',
+        handler: () => setShowShortcuts(true),
+        disabledInInputs: true,
+      },
+      {
+        key: 'Escape',
+        description: '',
+        handler: () => {
+          setSelectedIds(new Set());
+          setSelectedIndex(-1);
+          setSelectedNews(null);
+        },
+      },
+    ],
+  });
 
   return (
     <div className="app">
@@ -506,6 +643,10 @@ function AppContent() {
             selectedCount={selectedIds.size}
             onSelectAll={handleSelectAll}
             onClearSelection={handleClearSelection}
+            readFilter={readFilter}
+            onReadFilterChange={setReadFilter}
+            unreadCount={unreadCount}
+            readCount={readCount}
           />
         </div>
 
@@ -525,6 +666,7 @@ function AppContent() {
             selectedIndex={selectedIndex}
             bookmarkedIds={bookmarkedIds}
             onBookmarkToggle={handleBookmarkToggle}
+            onOpen={handleOpen}
             generatedIds={generatedIds}
             sentIds={sentIds}
           />
@@ -539,6 +681,9 @@ function AppContent() {
             selectedIndex={selectedIndex}
             bookmarkedIds={bookmarkedIds}
             onBookmarkToggle={handleBookmarkToggle}
+            onOpen={handleOpen}
+            onReadToggle={handleReadToggle}
+            emptyMessage={readFilter === 'all' ? undefined : t('news.emptyFiltered')}
             generatedIds={generatedIds}
             sentIds={sentIds}
             hasMore={visibleCount < filteredNews.length}
@@ -611,7 +756,11 @@ function AppContent() {
 
       <TemplatesModal isOpen={showTemplatesModal} onClose={() => setShowTemplatesModal(false)} />
 
-      <ShortcutsHelp />
+      <ShortcutsHelp
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+        shortcuts={shortcutHints}
+      />
     </div>
   );
 }

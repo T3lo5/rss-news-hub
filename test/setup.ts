@@ -34,6 +34,8 @@ export function resetTestDb() {
     const tables = [
       'app_settings',
       'news_hashes',
+      'news_reads',
+      'user_settings',
       'news_items',
       'feed_cache',
       'feed_stats',

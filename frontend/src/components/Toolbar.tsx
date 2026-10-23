@@ -34,7 +34,13 @@ interface ToolbarProps {
   onChangeDigestGrouping: (value: 'none' | 'daily' | 'weekly') => void;
   onProfileClick: () => void;
   onNewsletterBuilderClick?: () => void;
+  readFilter: ReadFilter;
+  onReadFilterChange: (value: ReadFilter) => void;
+  unreadCount: number;
+  readCount: number;
 }
+
+export type ReadFilter = 'all' | 'unread' | 'read';
 
 export function Toolbar({
   searchQuery = '',
@@ -57,6 +63,10 @@ export function Toolbar({
   onChangeDigestGrouping,
   onProfileClick,
   onNewsletterBuilderClick,
+  readFilter,
+  onReadFilterChange,
+  unreadCount,
+  readCount,
 }: ToolbarProps) {
   const { t } = useI18n();
 
@@ -92,6 +102,25 @@ export function Toolbar({
           </button>
         </div>
       )}
+
+      <div className="read-filter" role="group" aria-label={t('toolbar.readFilterAria')}>
+        {(['all', 'unread', 'read'] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            className="read-filter-btn"
+            aria-pressed={readFilter === option}
+            onClick={() => onReadFilterChange(option)}
+          >
+            {t(`toolbar.read.${option}`)}
+            {option !== 'all' && (
+              <span className="read-filter-count">
+                {option === 'unread' ? unreadCount : readCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
       <div className="filter-group">
         <label htmlFor="sourceFilter">

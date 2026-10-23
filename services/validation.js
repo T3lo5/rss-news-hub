@@ -22,6 +22,11 @@ export const addNewsSchema = z.object({
   id: z.string().optional(),
 });
 
+// PATCH /api/news/:id/read — booleano explícito (true marca, false desmarca).
+export const markNewsReadSchema = z.object({
+  read: z.boolean(),
+});
+
 export const generateContentSchema = z.object({
   news: z.union([NewsItemSchema, z.array(NewsItemSchema)]),
   type: z.enum(['thread', 'summary', 'linkedin', 'blog', 'newsletter']),
@@ -276,6 +281,7 @@ export const updateUserSchema = z.object({
 
 export const schemas = {
   addNewsSchema,
+  markNewsReadSchema,
   generateContentSchema,
   telegramSendSchema,
   telegramScheduleSchema,

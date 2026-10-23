@@ -185,6 +185,16 @@ export const api = {
     return data.data;
   },
 
+  /** Marks/unmarks a news item for the current user (idempotent). */
+  async setNewsRead(id: string, read: boolean): Promise<{ readAt: string | null }> {
+    const res = await fetchWithAuth(`/api/news/${encodeURIComponent(id)}/read`, {
+      method: 'PATCH',
+      body: JSON.stringify({ read }),
+    });
+    const data = await handleResponse<{ ok: boolean; data: { readAt: string | null } }>(res);
+    return data.data;
+  },
+
   async getMe(): Promise<{ id: string; email: string; name: string; role: string }> {
     const res = await fetchWithAuth('/api/auth/me');
     const data = await handleResponse<{

@@ -37,7 +37,7 @@ import { getHealth } from './services/health.service.js';
 import { fetchAndScoreFeeds } from './services/ingest.service.js';
 import { createRequestLogger } from './services/logger.js';
 import { renderEmailHtml } from './services/markdown.js';
-import { addNews, readNews } from './services/news.service.js';
+import { addNews, readNews, setNewsRead } from './services/news.service.js';
 import { generateOpenApiSpec } from './services/openapi.js';
 import { rateLimitMiddleware } from './services/rate-limiter.js';
 import {
@@ -291,7 +291,7 @@ export async function handleRequest(req, res) {
   // Multipart (OPML import) is left untouched: whoever handles it reads the
   // stream itself. Sem essa excecao o corpo e consumido aqui e o import
   // responde sempre "No file uploaded".
-  if (['POST', 'PUT'].includes(req.method)) {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
     const contentType = req.headers['content-type'] || '';
     if (contentType.includes('multipart/form-data')) {
       req.body = {};
@@ -340,11 +340,40 @@ export async function handleRequest(req, res) {
       return sendFile(res, './public/index.html');
     }
 
-    // GET /api/news - list all news
+    // GET /api/news - list all news (readAt reflects the caller's own state)
     if (path === '/api/news' && req.method === 'GET') {
       requireViewer()(req, res, async () => {
-        const news = await readNews();
+        const news = await readNews(req.user?.id);
         return sendJSON(res, 200, { ok: true, data: news });
+      });
+      return;
+    }
+
+    // PATCH /api/news/:id/read - mark/unmark as read (idempotent)
+    // News ids can be URLs, so the id is sliced out instead of matched with a
+    // path segment regex; clients URL-encode it.
+    if (path.startsWith('/api/news/') && path.endsWith('/read') && req.method === 'PATCH') {
+      requireViewer()(req, res, () => {
+        validateBody(schemas.markNewsReadSchema)(req, res, async () => {
+          // A malformed escape (e.g. /api/news/%E0%A4%A/read) makes
+          // decodeURIComponent throw; without this guard the request hangs
+          // and the rejection goes unhandled.
+          let newsId;
+          try {
+            newsId = decodeURIComponent(path.slice('/api/news/'.length, -'/read'.length));
+          } catch {
+            return sendJSON(res, 400, { ok: false, error: 'Invalid news id' });
+          }
+          try {
+            const result = await setNewsRead(req.user.id, newsId, req.body.read);
+            if (!result) {
+              return sendJSON(res, 404, { ok: false, error: 'News item not found' });
+            }
+            return sendJSON(res, 200, { ok: true, data: result });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        });
       });
       return;
     }

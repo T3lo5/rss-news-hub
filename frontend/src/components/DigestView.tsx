@@ -13,6 +13,8 @@ interface DigestViewProps {
   grouping: DigestGrouping;
   onShare: (item: NewsItem) => void;
   onBookmarkToggle: (id: string, isBookmarked: boolean) => void;
+  /** Marks the item as read when it is opened from the digest. */
+  onOpen?: (item: NewsItem) => void;
   bookmarkedIds: Set<string>;
   selectedIds: Set<string>;
   onSelect: (id: string, shiftKey?: boolean) => void;
@@ -100,6 +102,7 @@ export function DigestView({
   grouping,
   onShare,
   onBookmarkToggle,
+  onOpen,
   bookmarkedIds,
   selectedIds,
   onSelect,
@@ -233,6 +236,7 @@ export function DigestView({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-open btn-sm"
+                      onClick={() => onOpen?.(item)}
                     >
                       <ExternalLink size={14} />
                       {t('news.open')}

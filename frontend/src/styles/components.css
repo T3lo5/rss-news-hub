@@ -1632,3 +1632,112 @@
   color: var(--accent);
   font-weight: var(--weight-semibold);
 }
+
+/* ============================================================
+   Read / unread triage
+   ============================================================ */
+.news-card.unread {
+  border-left: 3px solid var(--accent);
+  padding-left: calc(var(--space-4) - 2px);
+}
+
+/* Read cards stay in the list — just dimmed, so re-reading is still easy. */
+.news-card.read .news-title,
+.news-card.read .news-desc {
+  opacity: 0.58;
+}
+
+.news-card.read .news-title {
+  font-weight: var(--weight-medium);
+}
+
+.read-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.news-actions .btn-read {
+  flex: 0 0 auto;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  padding: 8px;
+  line-height: 1;
+}
+
+.news-actions .btn-read:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+/* Toolbar: All / Unread / Read */
+.read-filter {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+}
+
+.read-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.read-filter-btn:hover {
+  color: var(--text-primary);
+}
+
+.read-filter-btn[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.read-filter-count {
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  color: inherit;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.read-filter-btn[aria-pressed='true'] .read-filter-count {
+  background: var(--accent-ring);
+}
+
+@media (max-width: 640px) {
+  .read-filter {
+    order: -1;
+    width: 100%;
+  }
+
+  .read-filter-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

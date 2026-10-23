@@ -7,6 +7,8 @@ export interface NewsItem {
   description: string;
   content: string;
   relevanceScore?: number;
+  /** ISO date when the current user read it; null/absent = unread. */
+  readAt?: string | null;
 }
 
 export interface NewsResponse {
@@ -369,4 +371,3 @@ export interface HealthStatus {
   };
   providers: { configured: string[] };
 }
-

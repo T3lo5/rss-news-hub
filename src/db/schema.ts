@@ -1,5 +1,12 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 export const feeds = sqliteTable(
   'feeds',
@@ -120,6 +127,29 @@ export const userProfiles = sqliteTable('user_profiles', {
     .notNull()
     .default(sql`(strftime('%s', 'now') * 1000)`),
 });
+
+// Per-user read state. A row exists only while the item is read: unmarking
+// deletes it, so "unread" needs no storage and the table stays proportional to
+// the items someone actually opened. Cascades with both the user and the news
+// item (retention deletes news regularly).
+export const newsReads = sqliteTable(
+  'news_reads',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    newsId: text('news_id')
+      .notNull()
+      .references(() => newsItems.id, { onDelete: 'cascade' }),
+    readAt: integer('read_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(strftime('%s', 'now') * 1000)`),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.newsId] }),
+    newsIdx: index('news_reads_news_idx').on(table.newsId),
+  })
+);
 
 export const bookmarks = sqliteTable(
   'bookmarks',
@@ -320,6 +350,8 @@ export type FeedStat = typeof feedStats.$inferSelect;
 export type NewFeedStat = typeof feedStats.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
+export type NewsRead = typeof newsReads.$inferSelect;
+export type NewNewsRead = typeof newsReads.$inferInsert;
 export type Bookmark = typeof bookmarks.$inferSelect;
 export type NewBookmark = typeof bookmarks.$inferInsert;
 export type NewsletterHistory = typeof newsletterHistory.$inferSelect;
