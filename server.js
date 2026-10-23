@@ -1,7 +1,7 @@
 import { setDefaultResultOrder } from 'node:dns';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 import {
   authenticateRequest,
   requireAdmin,
@@ -88,8 +88,15 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
 };
+
+// Raiz do build do frontend (Vite escreve em public/). O override por env
+// existe para os testes apontarem para um diretório temporário.
+const PUBLIC_DIR = resolve(process.env.RSS_PUBLIC_DIR || './public');
 
 // Rate limiters
 const aiGenerateLimiter = rateLimitMiddleware({
@@ -114,16 +121,55 @@ function sendJSON(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
-async function sendFile(res, path) {
+async function sendFile(res, path, headers = {}) {
   try {
     const ext = path.split('.').pop() || '';
     const content = await readFile(path);
-    res.writeHead(200, { 'Content-Type': MIME[`.` + ext] || 'application/octet-stream' });
+    res.writeHead(200, {
+      'Content-Type': MIME[`.` + ext] || 'application/octet-stream',
+      ...headers,
+    });
     res.end(content);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not found');
   }
+}
+
+// Serve um arquivo de public/ se ele existir. Devolve false para o chamador
+// cair no SPA fallback (rotas do React Router, por exemplo).
+async function tryServePublicFile(res, pathname) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return false;
+  }
+  if (decoded.includes('\0')) return false;
+
+  // `.` + pathname mantém o caminho relativo; o startsWith impede que
+  // `..`/`%2e%2e` escapem da raiz pública e leiam .env ou o banco.
+  const filePath = resolve(PUBLIC_DIR, `.${decoded}`);
+  if (filePath !== PUBLIC_DIR && !filePath.startsWith(PUBLIC_DIR + sep)) return false;
+
+  try {
+    const info = await stat(filePath);
+    if (!info.isFile()) return false;
+  } catch {
+    return false;
+  }
+
+  const headers = {};
+  if (decoded === '/sw.js' || decoded === '/manifest.webmanifest' || decoded === '/index.html') {
+    // O service worker e o manifest precisam ser revalidados a cada deploy.
+    headers['Cache-Control'] = 'no-cache';
+  } else if (decoded.startsWith('/assets/')) {
+    // Nomes com hash: cache de 1 ano é seguro.
+    headers['Cache-Control'] = 'public, max-age=31536000, immutable';
+  }
+
+  await sendFile(res, filePath, headers);
+  return true;
 }
 
 async function handleHealthCheck(req, res, log) {
@@ -1617,14 +1663,15 @@ export async function handleRequest(req, res) {
       return;
     }
 
-    // Static files - serve from public directory (Vite build output)
-    if (path.startsWith('/assets/') || path.startsWith('/favicon')) {
-      return sendFile(res, './public' + path);
+    // Static files do build (assets hasheados, manifest, service worker,
+    // ícones). Se o caminho não existir em public/, cai no SPA fallback.
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      if (await tryServePublicFile(res, path)) return;
     }
 
     // SPA fallback - serve index.html for non-API routes
     if (!path.startsWith('/api/')) {
-      return sendFile(res, './public/index.html');
+      return sendFile(res, resolve(PUBLIC_DIR, 'index.html'), { 'Cache-Control': 'no-cache' });
     }
 
     sendJSON(res, 404, { ok: false, error: 'Not found' });

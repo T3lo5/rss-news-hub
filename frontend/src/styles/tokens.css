@@ -7,6 +7,9 @@
  */
 
 :root {
+  /* Dark is the default theme; native controls/scrollbars follow it. */
+  color-scheme: dark;
+
   /* ---- Surfaces (dark, default) ---- */
   --bg-app: #0a0e13;
   --bg-primary: #0f151c;
@@ -122,6 +125,8 @@
 }
 
 [data-theme='light'] {
+  color-scheme: light;
+
   --bg-app: #eef2f7;
   --bg-primary: #f4f7fa;
   --bg-secondary: #ffffff;
