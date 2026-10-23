@@ -1,5 +1,6 @@
 import { Download, Plus, RefreshCw, Search, Upload, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { addFeed, deleteFeed, fetchFeeds, updateFeed } from '../hooks/useFeeds';
 import { exportOPML, importOPML } from '../hooks/useOPML';
 import { useI18n } from '../i18n';
@@ -9,6 +10,7 @@ import { FeedTable } from './FeedTable';
 
 export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t } = useI18n();
+  useEscapeKey(isOpen && !showForm, onClose);
   const [feeds, setFeeds] = useState<FeedConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

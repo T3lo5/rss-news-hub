@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { TelegramQueueItem, TelegramWorkerStatus } from '../types';
@@ -20,6 +21,7 @@ function formatWhen(value?: number | string): string {
 export function TelegramQueueModal({ isOpen, onClose }: TelegramQueueModalProps) {
   const { user } = useAuth();
   const { t } = useI18n();
+  useEscapeKey(isOpen, onClose);
   const isAdmin = user?.role === 'admin';
 
   const [queue, setQueue] = useState<TelegramQueueItem[]>([]);

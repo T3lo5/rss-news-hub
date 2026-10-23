@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { User, UserRole } from '../types';
@@ -15,6 +16,7 @@ const ROLES: UserRole[] = ['admin', 'user', 'viewer'];
 export function UsersModal({ isOpen, onClose }: UsersModalProps) {
   const { user: currentUser } = useAuth();
   const { t } = useI18n();
+  useEscapeKey(isOpen, onClose);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

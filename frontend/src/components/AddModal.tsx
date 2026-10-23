@@ -1,5 +1,6 @@
 import { Save, X } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 
 interface AddModalProps {
@@ -9,6 +10,7 @@ interface AddModalProps {
 
 export function AddModal({ onSubmit, onClose }: AddModalProps) {
   const { t } = useI18n();
+  useEscapeKey(true, onClose);
   const [title, setTitle] = useState('');
   const [link, setLink] = useState('');
   const [source, setSource] = useState('');

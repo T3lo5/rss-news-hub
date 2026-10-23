@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 
 interface Shortcut {
@@ -15,25 +15,7 @@ interface ShortcutsHelpProps {
 
 export function ShortcutsHelp({ isOpen, onClose, shortcuts }: ShortcutsHelpProps) {
   const { t } = useI18n();
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, handleKeyDown]);
+  useEscapeKey(isOpen, onClose);
 
   if (!isOpen) return null;
 

@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { fetchProfile, updateProfile } from '../hooks/useRelevance';
 import { useI18n } from '../i18n';
 import type { InterestProfile } from '../types';
@@ -12,6 +13,7 @@ export function InterestProfileModal({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  useEscapeKey(isOpen, onClose);
   const [profile, setProfile] = useState<InterestProfile>({
     keywords: [],
     topics: [],

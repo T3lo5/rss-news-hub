@@ -1,4 +1,5 @@
 import { Copy, ExternalLink, Globe, Loader2, Send, Sparkles, X } from 'lucide-react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import type { ContentType, Language, NewsItem, Provider, Template } from '../types';
 import { formatGeneratedContent } from '../utils/content';
@@ -62,6 +63,7 @@ export function ShareModal({
   onClose,
 }: ShareModalProps) {
   const { t, language: uiLanguage } = useI18n();
+  useEscapeKey(true, onClose);
   const locale = uiLanguage === 'en' ? 'en-US' : 'pt-BR';
   const formatDate = (iso: string) => {
     try {

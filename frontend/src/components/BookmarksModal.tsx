@@ -1,12 +1,14 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import type { Bookmark } from '../types';
 
 export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t, language } = useI18n();
   const locale = language === 'en' ? 'en-US' : 'pt-BR';
+  useEscapeKey(isOpen, onClose);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

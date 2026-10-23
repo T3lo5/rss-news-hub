@@ -1,5 +1,6 @@
 import { Save, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { DigestConfig, DigestPreview, DigestStatus } from '../types';
@@ -26,6 +27,7 @@ const DEFAULT_CONFIG: DigestConfig = {
 
 export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t, language } = useI18n();
+  useEscapeKey(isOpen, onClose);
   const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const [config, setConfig] = useState<DigestConfig>(DEFAULT_CONFIG);
   const [status, setStatus] = useState<DigestStatus | null>(null);

@@ -1,5 +1,6 @@
 import { Check, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type {
@@ -25,6 +26,7 @@ const PROVIDER_HINTS: Record<AiProviderId, string> = {
 
 export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t } = useI18n();
+  useEscapeKey(isOpen, onClose);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

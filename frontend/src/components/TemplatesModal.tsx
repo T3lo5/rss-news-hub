@@ -1,5 +1,6 @@
 import { Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { Template } from '../types';
@@ -11,6 +12,7 @@ interface TemplatesModalProps {
 
 export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
   const { t } = useI18n();
+  useEscapeKey(isOpen, onClose);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

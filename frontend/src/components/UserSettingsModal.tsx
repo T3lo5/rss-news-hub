@@ -1,5 +1,6 @@
 import { Check, CheckCircle2, Info, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { AiProviderId } from '../types';
@@ -64,6 +65,7 @@ const PROVIDER_HINT_KEYS: Record<AiProviderId, string> = {
 
 export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t } = useI18n();
+  useEscapeKey(isOpen, onClose);
   const [settings, setSettings] = useState<UserSettingsOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -274,9 +276,9 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
       const data = await api.getUserSettings();
       setSettings(data);
-      flashSuccess('Newsletter settings saved');
+      flashSuccess(t('userSettings.savedNewsletter'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save newsletter settings');
+      setError(err instanceof Error ? err.message : t('userSettings.errSaveNewsletter'));
     } finally {
       setSaving(false);
     }
@@ -289,9 +291,9 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
       await api.deleteUserSetting(area);
       const data = await api.getUserSettings();
       setSettings(data);
-      flashSuccess(`Override removed — now using global fallback`);
+      flashSuccess(t('userSettings.overrideRemoved'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove override');
+      setError(err instanceof Error ? err.message : t('userSettings.errRemoveOverride'));
     } finally {
       setSaving(false);
     }
@@ -300,492 +302,409 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
   if (!isOpen) return null;
 
   const tabs: Array<{ key: Tab; label: string }> = [
-    { key: 'ai', label: t('nav.ai') || 'AI' },
-    { key: 'telegram', label: t('nav.telegram') || 'Telegram' },
-    { key: 'email', label: t('nav.email') || 'Email' },
-    { key: 'newsletter', label: t('nav.newsletter') || 'Newsletter' },
-    { key: 'digest', label: t('nav.digest') || 'Digest' },
+    { key: 'ai', label: t('userSettings.tabAi') },
+    { key: 'telegram', label: t('userSettings.tabTelegram') },
+    { key: 'email', label: t('userSettings.tabEmail') },
+    { key: 'newsletter', label: t('userSettings.tabNewsletter') },
+    { key: 'digest', label: t('userSettings.tabDigest') },
   ];
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-content"
-        style={{ maxWidth: '720px' }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="user-settings-title"
+    >
+      <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{t('userSettings.title') || 'My Settings'}</h2>
-          <button className="modal-close" onClick={onClose}>
+          <h3 id="user-settings-title">{t('userSettings.title') || 'My Settings'}</h3>
+          <button className="close-btn" onClick={onClose} aria-label={t('common.close') || 'Close'}>
             <X size={18} />
           </button>
         </div>
 
         {loading && <div className="modal-body">{t('app.loading') || 'Loading...'}</div>}
 
-        {error && (
-          <div className="error-message" style={{ padding: '8px 16px' }}>
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="success-message" style={{ padding: '8px 16px' }}>
-            {success}
-          </div>
-        )}
+        {error && <div className="status error modal-status">{error}</div>}
+        {success && <div className="status success modal-status">{success}</div>}
 
         {settings && !loading && (
           <div className="modal-body">
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <div
+              className="settings-tabs"
+              role="tablist"
+              aria-label={t('userSettings.title') || 'My Settings'}
+            >
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
+                  id={`user-settings-tab-${tab.key}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab.key}
+                  aria-controls={
+                    activeTab === tab.key ? `user-settings-panel-${tab.key}` : undefined
+                  }
+                  tabIndex={activeTab === tab.key ? 0 : -1}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`btn ${activeTab === tab.key ? 'btn-primary' : ''}`}
-                  style={{ fontSize: '13px' }}
+                  className="settings-tab"
                 >
                   {tab.label}
                   {settings[tab.key].hasUserOverride && (
-                    <span style={{ marginLeft: '4px' }} title="Using your own config">
-                      ●
-                    </span>
+                    <span
+                      className="settings-tab-dot"
+                      title={t('userSettings.ownConfig')}
+                      aria-label={t('userSettings.ownConfig')}
+                    />
                   )}
                 </button>
               ))}
             </div>
 
-            {/* Fallback badge */}
-            {!settings[activeTab].hasUserOverride && (
-              <div className="notice info">
-                <Info size={15} />
-                <span>
-                  {t('userSettings.usingFallback') ||
-                    'Using global configuration (set your own below)'}
-                </span>
-              </div>
-            )}
-
-            {settings[activeTab].hasUserOverride && (
-              <div className="notice success">
-                <CheckCircle2 size={15} />
-                <span>{t('userSettings.usingOwn') || 'Using your own configuration'}</span>
-                <button
-                  className="btn btn-sm btn-secondary spacer"
-                  onClick={() => handleDeleteOverride(activeTab)}
-                  disabled={saving}
-                >
-                  {t('userSettings.resetToFallback') || 'Reset to global'}
-                </button>
-              </div>
-            )}
-
-            {/* ── AI TAB ── */}
-            {activeTab === 'ai' && (
-              <div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>
-                    {t('settings.defaultProvider') || 'Default provider'}
-                  </label>
-                  <select
-                    value={defaultProvider}
-                    onChange={(e) => setDefaultProvider(e.target.value as 'auto' | AiProviderId)}
-                    style={{ width: '100%', padding: '6px' }}
-                  >
-                    <option value="auto">Auto (fallback chain)</option>
-                    <option value="sensenova">SenseNova</option>
-                    <option value="deepseek">DeepSeek</option>
-                    <option value="openai">OpenAI</option>
-                  </select>
+            <div
+              className="settings-panel"
+              role="tabpanel"
+              id={`user-settings-panel-${activeTab}`}
+              aria-labelledby={`user-settings-tab-${activeTab}`}
+            >
+              {/* Fallback badge */}
+              {!settings[activeTab].hasUserOverride && (
+                <div className="notice info">
+                  <Info size={15} />
+                  <span>
+                    {t('userSettings.usingFallback') ||
+                      'Using global configuration (set your own below)'}
+                  </span>
                 </div>
+              )}
 
-                {settings.ai.providers.map((provider) => {
-                  const form = providerForms[provider.id];
-                  if (!form) return null;
-                  return (
-                    <div
-                      key={provider.id}
-                      style={{
-                        border: '1px solid var(--border)',
-                        borderRadius: '6px',
-                        padding: '12px',
-                        marginBottom: '12px',
-                      }}
+              {settings[activeTab].hasUserOverride && (
+                <div className="notice success">
+                  <CheckCircle2 size={15} />
+                  <span>{t('userSettings.usingOwn') || 'Using your own configuration'}</span>
+                  <button
+                    className="btn btn-sm btn-secondary spacer"
+                    onClick={() => handleDeleteOverride(activeTab)}
+                    disabled={saving}
+                  >
+                    {t('userSettings.resetToFallback') || 'Reset to global'}
+                  </button>
+                </div>
+              )}
+
+              {/* ── AI TAB ── */}
+              {activeTab === 'ai' && (
+                <div>
+                  <div className="form-group">
+                    <label htmlFor="user-default-provider">
+                      {t('settings.defaultProvider') || 'Default provider'}
+                    </label>
+                    <select
+                      id="user-default-provider"
+                      value={defaultProvider}
+                      onChange={(e) => setDefaultProvider(e.target.value as 'auto' | AiProviderId)}
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        <strong>{PROVIDER_LABELS[provider.id]}</strong>
-                        <span className={`key-status ${provider.configured ? 'set' : 'unset'}`}>
-                          {provider.configured ? <Check size={12} /> : null}
-                          {provider.configured ? 'configured' : 'not configured'}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          fontSize: '12px',
-                          color: 'var(--text-secondary)',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        {t(PROVIDER_HINT_KEYS[provider.id]) || provider.baseUrl}
-                      </div>
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridColumns: '1fr 1fr',
-                          gap: '8px',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        <input
-                          type="text"
-                          placeholder="Base URL"
-                          value={form.baseUrl}
-                          onChange={(e) =>
-                            setProviderForms((prev) => ({
-                              ...prev,
-                              [provider.id]: { ...prev[provider.id], baseUrl: e.target.value },
-                            }))
-                          }
-                        />
-                        <input
-                          type="text"
-                          placeholder="Model"
-                          value={form.model}
-                          onChange={(e) =>
-                            setProviderForms((prev) => ({
-                              ...prev,
-                              [provider.id]: { ...prev[provider.id], model: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <input
-                        type="password"
-                        placeholder={
-                          provider.configured ? 'API key (leave blank to keep current)' : 'API key'
-                        }
-                        value={form.apiKey}
-                        onChange={(e) =>
-                          setProviderForms((prev) => ({
-                            ...prev,
-                            [provider.id]: { ...prev[provider.id], apiKey: e.target.value },
-                          }))
-                        }
-                        style={{ width: '100%', marginBottom: '8px' }}
-                      />
-                      {provider.configured && (
-                        <label
-                          style={{
-                            fontSize: '12px',
-                            color: 'var(--text-secondary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
+                      <option value="auto">{t('userSettings.autoChain')}</option>
+                      <option value="sensenova">SenseNova</option>
+                      <option value="deepseek">DeepSeek</option>
+                      <option value="openai">OpenAI</option>
+                    </select>
+                  </div>
+
+                  {settings.ai.providers.map((provider) => {
+                    const form = providerForms[provider.id];
+                    if (!form) return null;
+                    return (
+                      <div key={provider.id} className="provider-card">
+                        <div className="provider-card-head">
+                          <strong>{PROVIDER_LABELS[provider.id]}</strong>
+                          <span className={`key-status ${provider.configured ? 'set' : 'unset'}`}>
+                            {provider.configured ? <Check size={12} /> : null}
+                            {provider.configured
+                              ? t('userSettings.configured')
+                              : t('userSettings.notConfigured')}
+                          </span>
+                        </div>
+                        <p className="field-hint">
+                          {t(PROVIDER_HINT_KEYS[provider.id]) || provider.baseUrl}
+                        </p>
+                        <div className="form-row">
                           <input
-                            type="checkbox"
-                            checked={form.clear}
+                            type="text"
+                            placeholder={t('userSettings.baseUrlPlaceholder')}
+                            aria-label={`${PROVIDER_LABELS[provider.id]} ${t('userSettings.baseUrlPlaceholder')}`}
+                            value={form.baseUrl}
                             onChange={(e) =>
                               setProviderForms((prev) => ({
                                 ...prev,
-                                [provider.id]: { ...prev[provider.id], clear: e.target.checked },
+                                [provider.id]: { ...prev[provider.id], baseUrl: e.target.value },
                               }))
                             }
                           />
-                          Clear API key
-                        </label>
-                      )}
+                          <input
+                            type="text"
+                            placeholder={t('userSettings.modelPlaceholder')}
+                            aria-label={`${PROVIDER_LABELS[provider.id]} ${t('userSettings.modelPlaceholder')}`}
+                            value={form.model}
+                            onChange={(e) =>
+                              setProviderForms((prev) => ({
+                                ...prev,
+                                [provider.id]: { ...prev[provider.id], model: e.target.value },
+                              }))
+                            }
+                          />
+                        </div>
+                        <input
+                          type="password"
+                          placeholder={
+                            provider.configured
+                              ? t('userSettings.apiKeyKeepPlaceholder')
+                              : t('userSettings.apiKeyPlaceholder')
+                          }
+                          aria-label={`${PROVIDER_LABELS[provider.id]} ${t('userSettings.apiKeyPlaceholder')}`}
+                          value={form.apiKey}
+                          onChange={(e) =>
+                            setProviderForms((prev) => ({
+                              ...prev,
+                              [provider.id]: { ...prev[provider.id], apiKey: e.target.value },
+                            }))
+                          }
+                        />
+                        {provider.configured && (
+                          <label className="checkbox-field">
+                            <input
+                              type="checkbox"
+                              checked={form.clear}
+                              onChange={(e) =>
+                                setProviderForms((prev) => ({
+                                  ...prev,
+                                  [provider.id]: { ...prev[provider.id], clear: e.target.checked },
+                                }))
+                              }
+                            />
+                            {t('userSettings.clearApiKey')}
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <div className="form-actions">
+                    <button className="btn btn-primary" onClick={handleSaveAi} disabled={saving}>
+                      {saving ? t('common.saving') : t('settings.saveAi')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── TELEGRAM TAB ── */}
+              {activeTab === 'telegram' && (
+                <div>
+                  <div className="form-group">
+                    <label htmlFor="user-telegram-token">{t('settings.botToken')}</label>
+                    <input
+                      id="user-telegram-token"
+                      type="password"
+                      placeholder={
+                        settings.telegram.botTokenSet
+                          ? t('userSettings.botTokenKeepPlaceholder')
+                          : t('userSettings.botTokenPlaceholder')
+                      }
+                      value={botToken}
+                      onChange={(e) => setBotToken(e.target.value)}
+                    />
+                    {settings.telegram.botTokenSet && (
+                      <label className="checkbox-field form-hint">
+                        <input
+                          type="checkbox"
+                          checked={clearToken}
+                          onChange={(e) => setClearToken(e.target.checked)}
+                        />
+                        {t('userSettings.clearBotToken')}
+                      </label>
+                    )}
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="user-telegram-chat">{t('userSettings.chatId')}</label>
+                    <input
+                      id="user-telegram-chat"
+                      type="text"
+                      value={chatId}
+                      onChange={(e) => setChatId(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-actions">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveTelegram}
+                      disabled={saving}
+                    >
+                      {saving ? t('common.saving') : t('settings.saveTelegram')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── EMAIL TAB ── */}
+              {activeTab === 'email' && (
+                <div>
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={emailEnabled}
+                      onChange={(e) => setEmailEnabled(e.target.checked)}
+                    />
+                    {t('userSettings.enableEmail')}
+                  </label>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="user-email-host">{t('userSettings.smtpHost')}</label>
+                      <input
+                        id="user-email-host"
+                        type="text"
+                        value={emailHost}
+                        onChange={(e) => setEmailHost(e.target.value)}
+                      />
                     </div>
-                  );
-                })}
-
-                <button className="btn btn-primary" onClick={handleSaveAi} disabled={saving}>
-                  {saving ? 'Saving...' : t('settings.saveAi') || 'Save AI settings'}
-                </button>
-              </div>
-            )}
-
-            {/* ── TELEGRAM TAB ── */}
-            {activeTab === 'telegram' && (
-              <div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>
-                    Bot Token
-                  </label>
-                  <input
-                    type="password"
-                    placeholder={
-                      settings.telegram.botTokenSet
-                        ? 'Bot token (leave blank to keep current)'
-                        : 'Bot token'
-                    }
-                    value={botToken}
-                    onChange={(e) => setBotToken(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                  {settings.telegram.botTokenSet && (
-                    <label
-                      style={{
-                        fontSize: '12px',
-                        color: 'var(--text-secondary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        marginTop: '4px',
-                      }}
-                    >
+                    <div className="form-group">
+                      <label htmlFor="user-email-port">{t('userSettings.port')}</label>
                       <input
-                        type="checkbox"
-                        checked={clearToken}
-                        onChange={(e) => setClearToken(e.target.checked)}
+                        id="user-email-port"
+                        type="text"
+                        value={emailPort}
+                        onChange={(e) => setEmailPort(e.target.value)}
                       />
-                      Clear bot token
-                    </label>
-                  )}
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>
-                    Chat ID
+                    </div>
+                  </div>
+
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={emailSecure}
+                      onChange={(e) => setEmailSecure(e.target.checked)}
+                    />
+                    {t('userSettings.useTls')}
                   </label>
-                  <input
-                    type="text"
-                    value={chatId}
-                    onChange={(e) => setChatId(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <button className="btn btn-primary" onClick={handleSaveTelegram} disabled={saving}>
-                  {saving ? 'Saving...' : t('settings.saveTelegram') || 'Save Telegram settings'}
-                </button>
-              </div>
-            )}
 
-            {/* ── EMAIL TAB ── */}
-            {activeTab === 'email' && (
-              <div>
-                <label
-                  style={{
-                    fontSize: '13px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '12px',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={emailEnabled}
-                    onChange={(e) => setEmailEnabled(e.target.checked)}
-                  />
-                  Enable email delivery
-                </label>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridColumns: '1fr 1fr',
-                    gap: '8px',
-                    marginBottom: '8px',
-                  }}
-                >
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
-                      SMTP Host
-                    </label>
-                    <input
-                      type="text"
-                      value={emailHost}
-                      onChange={(e) => setEmailHost(e.target.value)}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
-                      Port
-                    </label>
-                    <input
-                      type="text"
-                      value={emailPort}
-                      onChange={(e) => setEmailPort(e.target.value)}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <label
-                  style={{
-                    fontSize: '13px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '8px',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={emailSecure}
-                    onChange={(e) => setEmailSecure(e.target.checked)}
-                  />
-                  Use TLS/SSL
-                </label>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridColumns: '1fr 1fr',
-                    gap: '8px',
-                    marginBottom: '8px',
-                  }}
-                >
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
-                      SMTP User
-                    </label>
-                    <input
-                      type="text"
-                      value={emailUser}
-                      onChange={(e) => setEmailUser(e.target.value)}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
-                      From
-                    </label>
-                    <input
-                      type="text"
-                      value={emailFrom}
-                      onChange={(e) => setEmailFrom(e.target.value)}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
-                    SMTP Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder={
-                      settings.email.passwordSet
-                        ? 'Password (leave blank to keep current)'
-                        : 'Password'
-                    }
-                    value={emailPass}
-                    onChange={(e) => setEmailPass(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                  {settings.email.passwordSet && (
-                    <label
-                      style={{
-                        fontSize: '12px',
-                        color: 'var(--text-secondary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        marginTop: '4px',
-                      }}
-                    >
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="user-email-user">{t('userSettings.smtpUser')}</label>
                       <input
-                        type="checkbox"
-                        checked={clearEmailPass}
-                        onChange={(e) => setClearEmailPass(e.target.checked)}
+                        id="user-email-user"
+                        type="text"
+                        value={emailUser}
+                        onChange={(e) => setEmailUser(e.target.value)}
                       />
-                      Clear password
-                    </label>
-                  )}
-                </div>
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="user-email-from">{t('userSettings.from')}</label>
+                      <input
+                        id="user-email-from"
+                        type="text"
+                        value={emailFrom}
+                        onChange={(e) => setEmailFrom(e.target.value)}
+                      />
+                    </div>
+                  </div>
 
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
-                    Recipients (comma-separated)
+                  <div className="form-group">
+                    <label htmlFor="user-email-pass">{t('userSettings.smtpPassword')}</label>
+                    <input
+                      id="user-email-pass"
+                      type="password"
+                      placeholder={
+                        settings.email.passwordSet
+                          ? t('userSettings.passwordKeepPlaceholder')
+                          : t('userSettings.passwordPlaceholder')
+                      }
+                      value={emailPass}
+                      onChange={(e) => setEmailPass(e.target.value)}
+                    />
+                    {settings.email.passwordSet && (
+                      <label className="checkbox-field form-hint">
+                        <input
+                          type="checkbox"
+                          checked={clearEmailPass}
+                          onChange={(e) => setClearEmailPass(e.target.checked)}
+                        />
+                        {t('userSettings.clearPassword')}
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="user-email-recipients">{t('userSettings.recipients')}</label>
+                    <input
+                      id="user-email-recipients"
+                      type="text"
+                      value={emailRecipients}
+                      onChange={(e) => setEmailRecipients(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-actions">
+                    <button className="btn btn-primary" onClick={handleSaveEmail} disabled={saving}>
+                      {saving ? t('common.saving') : t('settings.saveEmail')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── NEWSLETTER TAB ── */}
+              {activeTab === 'newsletter' && (
+                <div>
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={nlEnabled}
+                      onChange={(e) => setNlEnabled(e.target.checked)}
+                    />
+                    {t('userSettings.enableNewsletter')}
                   </label>
-                  <input
-                    type="text"
-                    value={emailRecipients}
-                    onChange={(e) => setEmailRecipients(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
+
+                  <div className="form-group">
+                    <label htmlFor="user-nl-cron">{t('userSettings.cronLabel')}</label>
+                    <input
+                      id="user-nl-cron"
+                      type="text"
+                      value={nlCron}
+                      onChange={(e) => setNlCron(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="user-nl-lookback">{t('userSettings.lookback')}</label>
+                    <input
+                      id="user-nl-lookback"
+                      type="number"
+                      value={nlLookback}
+                      onChange={(e) => setNlLookback(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-actions">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveNewsletter}
+                      disabled={saving}
+                    >
+                      {saving ? t('common.saving') : t('userSettings.saveNewsletter')}
+                    </button>
+                  </div>
                 </div>
+              )}
 
-                <button className="btn btn-primary" onClick={handleSaveEmail} disabled={saving}>
-                  {saving ? 'Saving...' : t('settings.saveEmail') || 'Save email settings'}
-                </button>
-              </div>
-            )}
-
-            {/* ── NEWSLETTER TAB ── */}
-            {activeTab === 'newsletter' && (
-              <div>
-                <label
-                  style={{
-                    fontSize: '13px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '12px',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={nlEnabled}
-                    onChange={(e) => setNlEnabled(e.target.checked)}
-                  />
-                  Enable my newsletter
-                </label>
-
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
-                    Cron schedule (5-field: min hour day month weekday)
-                  </label>
-                  <input
-                    type="text"
-                    value={nlCron}
-                    onChange={(e) => setNlCron(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>
-                    Lookback days
-                  </label>
-                  <input
-                    type="number"
-                    value={nlLookback}
-                    onChange={(e) => setNlLookback(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <button
-                  className="btn btn-primary"
-                  onClick={handleSaveNewsletter}
-                  disabled={saving}
-                >
-                  {saving ? 'Saving...' : 'Save newsletter settings'}
-                </button>
-              </div>
-            )}
-
-            {/* ── DIGEST TAB ── */}
-            {activeTab === 'digest' && (
-              <div>
-                <p
-                  style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}
-                >
+              {/* ── DIGEST TAB ── */}
+              {activeTab === 'digest' && (
+                <p className="field-hint">
                   {t('userSettings.digestComingSoon') || 'Digest configuration coming soon.'}
                 </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>

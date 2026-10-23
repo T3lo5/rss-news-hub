@@ -1,5 +1,6 @@
 import { Check, Clock, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { FeedStat, HealthStatus, StatsResponse } from '../types';
@@ -41,6 +42,7 @@ interface StatsModalProps {
 
 export function StatsModal({ onClose }: StatsModalProps) {
   const { t, language } = useI18n();
+  useEscapeKey(true, onClose);
   const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [health, setHealth] = useState<HealthStatus | null>(null);

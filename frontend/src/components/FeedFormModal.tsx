@@ -1,5 +1,6 @@
 import { Check, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { testFeed } from '../hooks/useFeeds';
 import { useI18n } from '../i18n';
 import type { FeedConfig } from '../types';
@@ -12,6 +13,7 @@ interface FeedFormModalProps {
 
 export function FeedFormModal({ feed, onSubmit, onClose }: FeedFormModalProps) {
   const { t } = useI18n();
+  useEscapeKey(true, onClose);
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [enabled, setEnabled] = useState(true);

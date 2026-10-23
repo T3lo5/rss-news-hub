@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { fetchFeeds } from '../hooks/useFeeds';
 import {
   fetchNewsletterConfig,
@@ -26,6 +27,7 @@ export function NewsletterConfigModal({
   onClose: () => void;
 }) {
   const { t, language } = useI18n();
+  useEscapeKey(isOpen, onClose);
   const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const [config, setConfig] = useState<NewsletterConfig>({
     enabled: false,
@@ -139,7 +141,8 @@ export function NewsletterConfigModal({
     }
   };
 
-  const allSources = [...new Set(feeds.map((f) => f.source).filter(Boolean))];
+  // As notícias guardam em `source` o nome do feed, não o id/categoria.
+  const allSources = [...new Set(feeds.map((f) => f.name).filter(Boolean))];
   const allCategories = [...new Set(feeds.map((f) => f.category).filter(Boolean))];
 
   if (!isOpen) return null;
