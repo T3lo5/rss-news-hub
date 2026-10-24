@@ -1,0 +1,203 @@
+# fonte: server.js
+# copiado de: server.js
+
+    1 | import { setDefaultResultOrder } from 'node:dns';
+    2 | import { readFile, stat } from 'node:fs/promises';
+    3 | import { createServer } from 'node:http';
+    4 | import { resolve, sep } from 'node:path';
+    5 | import {
+    6 |   authenticateRequest,
+    7 |   requireAdmin,
+    8 |   requireUser,
+    9 |   requireViewer,
+   10 | } from './middleware/auth.js';
+   11 | import { handleAuthRoutes } from './routes/auth.routes.js';
+   12 | import { email, newsletterConfig, PORT, telegram } from './server.config.js';
+   13 | import {
+   14 |   buildNewsUserContent,
+   15 |   buildSystemPrompt,
+   16 |   chat,
+   17 |   chatStream,
+   18 |   stripEditorialMeta,
+   19 | } from './services/ai.service.js';
+   20 | import {
+   21 |   ensureDefaultFeeds,
+   22 |   generateFeedId,
+   23 |   readFeedsConfig,
+   24 |   validateFeedUrl,
+   25 |   writeFeedsConfig,
+   26 | } from './services/config.service.js';
+   27 | import {
+   28 |   generateAndSendDigest,
+   29 |   generateDigestPreview,
+   30 |   getDigestConfig,
+   31 |   getDigestStatus,
+   32 |   updateDigestConfig,
+   33 | } from './services/digest.service.js';
+   34 | import { sendEmail, verifyEmailConfig } from './services/email.service.js';
+   35 | import { createError, ErrorCode } from './services/errors.js';
+   36 | import { fetchFeedByUrl, parseRSS } from './services/fetch.service.js';
+   37 | import { getHealth } from './services/health.service.js';
+   38 | import { fetchAndScoreFeeds } from './services/ingest.service.js';
+   39 | import { createRequestLogger } from './services/logger.js';
+   40 | import { renderEmailHtml } from './services/markdown.js';
+   41 | import { addNews, readNews, readNewsPage, setNewsRead } from './services/news.service.js';
+   42 | import { generateOpenApiSpec } from './services/openapi.js';
+   43 | import { rateLimitMiddleware } from './services/rate-limiter.js';
+   44 | import {
+   45 |   getRetentionStatus,
+   46 |   runRetentionCleanup,
+   47 |   startRetentionJob,
+   48 | } from './services/retention.service.js';
+   49 | import {
+   50 |   getStatus as getSchedulerStatus,
+   51 |   setIntervalMs as setSchedulerInterval,
+   52 |   startNewsletterJob,
+   53 |   start as startScheduler,
+   54 |   stopNewsletterJob,
+   55 |   stop as stopScheduler,
+   56 |   trigger as triggerScheduler,
+   57 | } from './services/scheduler.service.js';
+   58 | import {
+   59 |   getProviderList,
+   60 |   getPublicSettings,
+   61 |   initSettings,
+   62 |   persistDigestSettings,
+   63 |   persistNewsletterSettings,
+   64 |   updateAiSettings,
+   65 |   updateEmailSettings,
+   66 |   updateRetentionSettings,
+   67 |   updateTelegramSettings,
+   68 | } from './services/settings.service.js';
+   69 | import { getFeedHealth, getStatsAsync } from './services/stats.service.js';
+   70 | import { telegramSend } from './services/telegram.service.js';
+   71 | import {
+   72 |   getTelegramQueueWorkerStatus,
+   73 |   startTelegramQueueWorker,
+   74 |   stopTelegramQueueWorker,
+   75 | } from './services/telegram-worker.js';
+   76 | import { getTemplateSystemPrompt } from './services/templates.js';
+   77 | import {
+   78 |   deleteUserSetting,
+   79 |   getUserSettingsOverview,
+   80 |   resolveTelegramConfig,
+   81 |   saveUserSetting,
+   82 | } from './services/user-config.service.js';
+   83 | import { schemas, validateBody } from './services/validation.js';
+   84 | import { createConfigWatcher } from './src/plugins/config-watcher.js';
+   85 | 
+   86 | setDefaultResultOrder('ipv4first');
+   87 | 
+   88 | const MIME = {
+   89 |   '.html': 'text/html; charset=utf-8',
+   90 |   '.js': 'text/javascript; charset=utf-8',
+   91 |   '.css': 'text/css; charset=utf-8',
+   92 |   '.json': 'application/json; charset=utf-8',
+   93 |   '.webmanifest': 'application/manifest+json; charset=utf-8',
+   94 |   '.png': 'image/png',
+   95 |   '.svg': 'image/svg+xml',
+   96 |   '.ico': 'image/x-icon',
+   97 | };
+   98 | 
+   99 | // Raiz do build do frontend (Vite escreve em public/). O override por env
+  100 | // existe para os testes apontarem para um diretório temporário.
+  101 | const PUBLIC_DIR = resolve(process.env.RSS_PUBLIC_DIR || './public');
+  102 | 
+  103 | // Rate limiters
+  104 | const aiGenerateLimiter = rateLimitMiddleware({
+  105 |   maxRequests: 10,
+  106 |   windowMs: 60000,
+  107 |   keyPrefix: 'ai:generate:',
+  108 | });
+  109 | const telegramSendLimiter = rateLimitMiddleware({
+  110 |   maxRequests: 5,
+  111 |   windowMs: 60000,
+  112 |   keyPrefix: 'tg:send:',
+  113 | });
+  114 | const emailSendLimiter = rateLimitMiddleware({
+  115 |   maxRequests: 5,
+  116 |   windowMs: 60000,
+  117 |   keyPrefix: 'email:send:',
+  118 | });
+  119 | const fetchLimiter = rateLimitMiddleware({ maxRequests: 2, windowMs: 60000, keyPrefix: 'fetch:' });
+  120 | 
+  121 | function sendJSON(res, status, data) {
+  122 |   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  123 |   res.end(JSON.stringify(data));
+  124 | }
+  125 | 
+  126 | async function sendFile(res, path, headers = {}) {
+  127 |   try {
+  128 |     const ext = path.split('.').pop() || '';
+  129 |     const content = await readFile(path);
+  130 |     res.writeHead(200, {
+  131 |       'Content-Type': MIME[`.` + ext] || 'application/octet-stream',
+  132 |       ...headers,
+  133 |     });
+  134 |     res.end(content);
+  135 |   } catch {
+  136 |     res.writeHead(404, { 'Content-Type': 'text/plain' });
+  137 |     res.end('Not found');
+  138 |   }
+  139 | }
+  140 | 
+  141 | // Serve um arquivo de public/ se ele existir. Devolve false para o chamador
+  142 | // cair no SPA fallback (rotas do React Router, por exemplo).
+  143 | async function tryServePublicFile(res, pathname) {
+  144 |   let decoded;
+  145 |   try {
+  146 |     decoded = decodeURIComponent(pathname);
+  147 |   } catch {
+  148 |     return false;
+  149 |   }
+  150 |   if (decoded.includes('\0')) return false;
+  151 | 
+  152 |   // `.` + pathname mantém o caminho relativo; o startsWith impede que
+  153 |   // `..`/`%2e%2e` escapem da raiz pública e leiam .env ou o banco.
+  154 |   const filePath = resolve(PUBLIC_DIR, `.${decoded}`);
+  155 |   if (filePath !== PUBLIC_DIR && !filePath.startsWith(PUBLIC_DIR + sep)) return false;
+  156 | 
+  157 |   try {
+  158 |     const info = await stat(filePath);
+  159 |     if (!info.isFile()) return false;
+  160 |   } catch {
+  161 |     return false;
+  162 |   }
+  163 | 
+  164 |   const headers = {};
+  165 |   if (decoded === '/sw.js' || decoded === '/manifest.webmanifest' || decoded === '/index.html') {
+  166 |     // O service worker e o manifest precisam ser revalidados a cada deploy.
+  167 |     headers['Cache-Control'] = 'no-cache';
+  168 |   } else if (decoded.startsWith('/assets/')) {
+  169 |     // Nomes com hash: cache de 1 ano é seguro.
+  170 |     headers['Cache-Control'] = 'public, max-age=31536000, immutable';
+  171 |   }
+  172 | 
+  173 |   await sendFile(res, filePath, headers);
+  174 |   return true;
+  175 | }
+  176 | 
+  177 | async function handleHealthCheck(req, res, log) {
+  178 |   const _startTime = Date.now();
+  179 | 
+  180 |   // Check data/news.json readable
+  181 |   let dbStatus = 'ok';
+  182 |   try {
+  183 |     await readNews();
+  184 |   } catch {
+  185 |     dbStatus = 'error';
+  186 |   }
+  187 | 
+  188 |   // Check Telegram configured
+  189 |   const telegramStatus = telegram?.botToken && telegram?.chatId ? 'ok' : 'not_configured';
+  190 | 
+  191 |   // Check AI provider configured
+  192 |   const { ai } = await import('./server.config.js');
+  193 |   const aiProviders = Object.values(ai).filter((p) => p.apiKey).length;
+  194 |   const aiStatus = aiProviders > 0 ? 'ok' : 'not_configured';
+  195 | 
+  196 |   // Check scheduler
+  197 |   const { getStatus: getSchedulerStatus } = await import('./services/scheduler.service.js');
+  198 |   const schedulerStatus = getSchedulerStatus();
+  199 |   const schedulerState = schedulerStatus.running ? 'running' : 'stopped';
+  200 | 

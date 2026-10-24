@@ -1,0 +1,203 @@
+# fonte: frontend/src/components/ShareModal.tsx
+# copiado de: frontend/src/components/ShareModal.tsx
+
+    1 | import { Copy, ExternalLink, Globe, Loader2, Send, Sparkles, X } from 'lucide-react';
+    2 | import { useEscapeKey } from '../hooks/useEscapeKey';
+    3 | import { useI18n } from '../i18n';
+    4 | import type { ContentType, Language, NewsItem, Provider, Template } from '../types';
+    5 | import { formatGeneratedContent } from '../utils/content';
+    6 | import { ProviderSelect } from './ProviderSelect';
+    7 | 
+    8 | interface ShareModalProps {
+    9 |   news: NewsItem | null;
+   10 |   selectedNews: NewsItem[];
+   11 |   contentType: ContentType;
+   12 |   language: Language;
+   13 |   provider: Provider;
+   14 |   templateId: string;
+   15 |   templateVariables: Record<string, string>;
+   16 |   templates: Template[];
+   17 |   generatedContent: string;
+   18 |   generating: boolean;
+   19 |   aiError: string | null;
+   20 |   hasGenerated?: boolean;
+   21 |   sending: boolean;
+   22 |   tgError: string | null;
+   23 |   tgSuccess: boolean;
+   24 |   onContentTypeChange: (value: ContentType) => void;
+   25 |   onLanguageChange: (value: Language) => void;
+   26 |   onProviderChange: (value: Provider) => void;
+   27 |   onTemplateIdChange: (value: string) => void;
+   28 |   onTemplateVariablesChange: (variables: Record<string, string>) => void;
+   29 |   onGenerate: () => void;
+   30 |   onSendTelegram: () => void;
+   31 |   onCopy: () => void;
+   32 |   onCopyHtml: () => void;
+   33 |   onCopyMarkdown: () => void;
+   34 |   onClose: () => void;
+   35 | }
+   36 | 
+   37 | export function ShareModal({
+   38 |   news,
+   39 |   selectedNews,
+   40 |   contentType,
+   41 |   language,
+   42 |   provider,
+   43 |   templateId,
+   44 |   templateVariables = {},
+   45 |   templates = [],
+   46 |   generatedContent,
+   47 |   generating,
+   48 |   aiError,
+   49 |   hasGenerated,
+   50 |   sending,
+   51 |   tgError,
+   52 |   tgSuccess,
+   53 |   onContentTypeChange,
+   54 |   onLanguageChange,
+   55 |   onProviderChange,
+   56 |   onTemplateIdChange,
+   57 |   onTemplateVariablesChange,
+   58 |   onGenerate,
+   59 |   onSendTelegram,
+   60 |   onCopy,
+   61 |   onCopyHtml,
+   62 |   onCopyMarkdown,
+   63 |   onClose,
+   64 | }: ShareModalProps) {
+   65 |   const { t, language: uiLanguage } = useI18n();
+   66 |   useEscapeKey(true, onClose);
+   67 |   const locale = uiLanguage === 'en' ? 'en-US' : 'pt-BR';
+   68 |   const formatDate = (iso: string) => {
+   69 |     try {
+   70 |       return new Date(iso).toLocaleString(locale, {
+   71 |         day: '2-digit',
+   72 |         month: '2-digit',
+   73 |         hour: '2-digit',
+   74 |         minute: '2-digit',
+   75 |       });
+   76 |     } catch {
+   77 |       return iso;
+   78 |     }
+   79 |   };
+   80 | 
+   81 |   const isNewsletter = contentType === 'newsletter';
+   82 | 
+   83 |   const typeTemplates = templates.filter((tpl) => tpl.type === contentType);
+   84 |   const defaultTemplate = templates.find((tpl) => tpl.id === templateId) || typeTemplates[0];
+   85 |   const templateVars = defaultTemplate?.variables || [];
+   86 | 
+   87 |   const renderVariableInputs = () => {
+   88 |     if (templateVars.length === 0) return null;
+   89 |     return (
+   90 |       <div className="form-group">
+   91 |         <label>{t('content.templateVars')}</label>
+   92 |         <div className="template-vars">
+   93 |           {templateVars.map((varName) => (
+   94 |             <div key={varName} className="template-var-row">
+   95 |               <label className="template-var-name" htmlFor={`var-${varName}`}>
+   96 |                 {varName}
+   97 |               </label>
+   98 |               <input
+   99 |                 id={`var-${varName}`}
+  100 |                 type="text"
+  101 |                 value={templateVariables[varName] || ''}
+  102 |                 onChange={(e) =>
+  103 |                   onTemplateVariablesChange({ ...templateVariables, [varName]: e.target.value })
+  104 |                 }
+  105 |                 placeholder={t('content.varPlaceholder', { name: varName })}
+  106 |               />
+  107 |             </div>
+  108 |           ))}
+  109 |         </div>
+  110 |       </div>
+  111 |     );
+  112 |   };
+  113 | 
+  114 |   return (
+  115 |     <div
+  116 |       className="modal-overlay"
+  117 |       onClick={onClose}
+  118 |       role="dialog"
+  119 |       aria-modal="true"
+  120 |       aria-labelledby="modal-title"
+  121 |     >
+  122 |       <div className="modal" onClick={(e) => e.stopPropagation()}>
+  123 |         <div className="modal-header">
+  124 |           <h3 id="modal-title">{isNewsletter ? t('share.newsletterTitle') : t('share.title')}</h3>
+  125 |           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
+  126 |             <X size={18} />
+  127 |           </button>
+  128 |         </div>
+  129 |         <div className="modal-body">
+  130 |           <div className="news-preview">
+  131 |             {isNewsletter ? (
+  132 |               <div>
+  133 |                 <h4>{t('share.newsletterItems', { count: selectedNews.length })}</h4>
+  134 |                 <ul className="share-news-list">
+  135 |                   {selectedNews.map((item) => (
+  136 |                     <li key={item.id}>
+  137 |                       <a href={item.link} target="_blank" rel="noopener noreferrer">
+  138 |                         {item.title}
+  139 |                       </a>
+  140 |                       <span className="muted"> • {item.source}</span>
+  141 |                     </li>
+  142 |                   ))}
+  143 |                 </ul>
+  144 |               </div>
+  145 |             ) : news ? (
+  146 |               <>
+  147 |                 <h4>{news.title}</h4>
+  148 |                 <a href={news.link} target="_blank" rel="noopener noreferrer">
+  149 |                   <ExternalLink size={13} style={{ verticalAlign: '-2px' }} /> {news.link}
+  150 |                 </a>
+  151 |                 <p>{t('share.source', { source: news.source, date: formatDate(news.pubDate) })}</p>
+  152 |               </>
+  153 |             ) : (
+  154 |               <p className="muted">{t('share.selectPrompt')}</p>
+  155 |             )}
+  156 |           </div>
+  157 | 
+  158 |           <div className="form-group">
+  159 |             <label htmlFor="contentType">{t('share.contentType')}</label>
+  160 |             <select
+  161 |               id="contentType"
+  162 |               value={contentType}
+  163 |               onChange={(e) => onContentTypeChange(e.target.value as ContentType)}
+  164 |             >
+  165 |               <option value="thread">{t('share.optThread')}</option>
+  166 |               <option value="summary">{t('share.optSummary')}</option>
+  167 |               <option value="linkedin">{t('share.optLinkedin')}</option>
+  168 |               <option value="blog">{t('share.optBlog')}</option>
+  169 |               <option value="newsletter">{t('share.optNewsletter')}</option>
+  170 |             </select>
+  171 |           </div>
+  172 | 
+  173 |           <div className="form-group">
+  174 |             <label htmlFor="templateSelector">{t('share.template')}</label>
+  175 |             <select
+  176 |               id="templateSelector"
+  177 |               value={templateId}
+  178 |               onChange={(e) => onTemplateIdChange(e.target.value)}
+  179 |             >
+  180 |               <option value="">{t('share.defaultTemplate')}</option>
+  181 |               {typeTemplates.map((tpl) => (
+  182 |                 <option key={tpl.id} value={tpl.id}>
+  183 |                   {tpl.name}
+  184 |                   {tpl.builtin ? t('content.builtin') : ''}
+  185 |                 </option>
+  186 |               ))}
+  187 |             </select>
+  188 |           </div>
+  189 | 
+  190 |           {renderVariableInputs()}
+  191 | 
+  192 |           <div className="form-group">
+  193 |             <label htmlFor="contentLanguage">{t('content.language')}</label>
+  194 |             <select
+  195 |               id="contentLanguage"
+  196 |               value={language}
+  197 |               onChange={(e) => onLanguageChange(e.target.value as Language)}
+  198 |             >
+  199 |               <option value="en">{t('lang.english')}</option>
+  200 |               <option value="pt">{t('lang.portuguese')}</option>

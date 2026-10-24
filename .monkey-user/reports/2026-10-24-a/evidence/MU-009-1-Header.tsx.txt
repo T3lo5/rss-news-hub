@@ -1,0 +1,203 @@
+# fonte: frontend/src/components/Header.tsx
+# copiado de: frontend/src/components/Header.tsx
+
+    1 | import {
+    2 |   BarChart3,
+    3 |   ChevronDown,
+    4 |   Download,
+    5 |   LogOut,
+    6 |   Menu as MenuIcon,
+    7 |   Plus,
+    8 |   Radio,
+    9 |   RefreshCw,
+   10 |   Rss,
+   11 |   Send,
+   12 |   Settings,
+   13 |   Sparkles,
+   14 |   UserCog,
+   15 |   Users,
+   16 | } from 'lucide-react';
+   17 | import { useCallback, useEffect, useState } from 'react';
+   18 | import { useAuth } from '../contexts/AuthContext';
+   19 | import { useClickOutside } from '../hooks/useClickOutside';
+   20 | import { usePwaInstall } from '../hooks/usePwaInstall';
+   21 | import { useI18n } from '../i18n';
+   22 | import { api } from '../services/api';
+   23 | import { InstallHelpModal } from './InstallHelpModal';
+   24 | import { LanguageSelector } from './LanguageSelector';
+   25 | import { ThemeToggle } from './ThemeToggle';
+   26 | 
+   27 | interface SchedulerStatus {
+   28 |   running: boolean;
+   29 |   intervalMs: number;
+   30 |   lastRun: number | null;
+   31 |   nextRun: number | null;
+   32 |   lastResult: unknown;
+   33 | }
+   34 | 
+   35 | interface HeaderProps {
+   36 |   onRefresh: () => void;
+   37 |   onAddClick: () => void;
+   38 |   onStatsClick: () => void;
+   39 |   onFeedsClick: () => void;
+   40 |   onSettingsClick: () => void;
+   41 |   onDigestClick: () => void;
+   42 |   onUsersClick: () => void;
+   43 |   onTelegramQueueClick: () => void;
+   44 |   onUserSettingsClick: () => void;
+   45 | }
+   46 | 
+   47 | function formatCountdown(nextRun: number | null): string {
+   48 |   if (!nextRun) return '--:--';
+   49 |   const diff = nextRun - Date.now();
+   50 |   if (diff <= 0) return 'now';
+   51 |   const mins = Math.floor(diff / 60000);
+   52 |   const secs = Math.floor((diff % 60000) / 1000);
+   53 |   return `${mins}m ${secs}s`;
+   54 | }
+   55 | 
+   56 | export function Header({
+   57 |   onRefresh,
+   58 |   onAddClick,
+   59 |   onStatsClick,
+   60 |   onFeedsClick,
+   61 |   onSettingsClick,
+   62 |   onDigestClick,
+   63 |   onUsersClick,
+   64 |   onTelegramQueueClick,
+   65 |   onUserSettingsClick,
+   66 | }: HeaderProps) {
+   67 |   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
+   68 |   const [openMenu, setOpenMenu] = useState<'more' | 'user' | null>(null);
+   69 |   const [showInstallHelp, setShowInstallHelp] = useState(false);
+   70 |   const { canPrompt, installed, isIos, promptInstall } = usePwaInstall();
+   71 |   const { user, logout } = useAuth();
+   72 |   const { t } = useI18n();
+   73 | 
+   74 |   const moreRef = useClickOutside<HTMLDivElement>(openMenu === 'more', () => setOpenMenu(null));
+   75 |   const userRef = useClickOutside<HTMLDivElement>(openMenu === 'user', () => setOpenMenu(null));
+   76 | 
+   77 |   useEffect(() => {
+   78 |     const fetchStatus = async () => {
+   79 |       try {
+   80 |         setSchedulerStatus(await api.getSchedulerStatus());
+   81 |       } catch {
+   82 |         // ignore — status is best-effort
+   83 |       }
+   84 |     };
+   85 | 
+   86 |     fetchStatus();
+   87 |     const interval = setInterval(fetchStatus, 5000);
+   88 |     return () => clearInterval(interval);
+   89 |   }, []);
+   90 | 
+   91 |   const run = useCallback((action: () => void) => {
+   92 |     setOpenMenu(null);
+   93 |     action();
+   94 |   }, []);
+   95 | 
+   96 |   const install = async () => {
+   97 |     if (canPrompt) {
+   98 |       try {
+   99 |         await promptInstall();
+  100 |         return;
+  101 |       } catch {
+  102 |         // Prompt unavailable (e.g. already consumed): fall back to the steps.
+  103 |       }
+  104 |     }
+  105 |     // iOS: no install prompt, so show the Share -> Add to Home Screen steps.
+  106 |     setShowInstallHelp(true);
+  107 |   };
+  108 | 
+  109 |   const isAdmin = user?.role === 'admin';
+  110 |   const canQueue = user?.role === 'admin' || user?.role === 'user';
+  111 |   const initial = user?.name?.trim()?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
+  112 | 
+  113 |   return (
+  114 |     <>
+  115 |       <header className="header">
+  116 |         <div className="header-left">
+  117 |           <div className="brand">
+  118 |             <span className="brand-mark" aria-hidden="true">
+  119 |               <Radio size={20} strokeWidth={2.2} />
+  120 |             </span>
+  121 |             <span className="brand-text">
+  122 |               <strong>RSS News Hub</strong>
+  123 |               <span className="subtitle">{t('header.subtitle')}</span>
+  124 |             </span>
+  125 |           </div>
+  126 |         </div>
+  127 | 
+  128 |         <div className="header-actions">
+  129 |           <div className="scheduler-status" title={t('header.autoOn')}>
+  130 |             <span className={`scheduler-badge ${schedulerStatus?.running ? 'running' : 'stopped'}`}>
+  131 |               {schedulerStatus?.running ? t('header.autoOn') : t('header.autoOff')}
+  132 |             </span>
+  133 |             <span className="next-fetch">
+  134 |               {t('header.nextFetch')}{' '}
+  135 |               <strong>{formatCountdown(schedulerStatus?.nextRun ?? null)}</strong>
+  136 |             </span>
+  137 |           </div>
+  138 | 
+  139 |           <button className="btn btn-primary" onClick={onRefresh}>
+  140 |             <RefreshCw size={16} />
+  141 |             <span className="btn-label">{t('header.refresh')}</span>
+  142 |           </button>
+  143 |           <button className="btn btn-secondary" onClick={onAddClick}>
+  144 |             <Plus size={16} />
+  145 |             <span className="btn-label">{t('header.add')}</span>
+  146 |           </button>
+  147 | 
+  148 |           <div className="menu" ref={moreRef}>
+  149 |             <button
+  150 |               className="btn-icon"
+  151 |               aria-haspopup="menu"
+  152 |               aria-expanded={openMenu === 'more'}
+  153 |               aria-label={t('header.more')}
+  154 |               title={t('header.more')}
+  155 |               onClick={() => setOpenMenu((m) => (m === 'more' ? null : 'more'))}
+  156 |             >
+  157 |               <MenuIcon size={18} />
+  158 |             </button>
+  159 |             {openMenu === 'more' && (
+  160 |               <div className="menu-panel" role="menu">
+  161 |                 <button className="menu-item" role="menuitem" onClick={() => run(onFeedsClick)}>
+  162 |                   <Rss size={16} />
+  163 |                   {t('header.feeds')}
+  164 |                 </button>
+  165 |                 <button className="menu-item" role="menuitem" onClick={() => run(onStatsClick)}>
+  166 |                   <BarChart3 size={16} />
+  167 |                   {t('header.stats')}
+  168 |                 </button>
+  169 |                 {isAdmin && (
+  170 |                   <button className="menu-item" role="menuitem" onClick={() => run(onDigestClick)}>
+  171 |                     <Sparkles size={16} />
+  172 |                     {t('header.digest')}
+  173 |                   </button>
+  174 |                 )}
+  175 |                 {isAdmin && (
+  176 |                   <button
+  177 |                     className="menu-item"
+  178 |                     role="menuitem"
+  179 |                     onClick={() => run(onSettingsClick)}
+  180 |                   >
+  181 |                     <Settings size={16} />
+  182 |                     {t('header.settings')}
+  183 |                   </button>
+  184 |                 )}
+  185 |                 {isAdmin && (
+  186 |                   <button className="menu-item" role="menuitem" onClick={() => run(onUsersClick)}>
+  187 |                     <Users size={16} />
+  188 |                     {t('header.users')}
+  189 |                   </button>
+  190 |                 )}
+  191 |                 {canQueue && (
+  192 |                   <button
+  193 |                     className="menu-item"
+  194 |                     role="menuitem"
+  195 |                     onClick={() => run(onTelegramQueueClick)}
+  196 |                   >
+  197 |                     <Send size={16} />
+  198 |                     {t('header.queue')}
+  199 |                   </button>
+  200 |                 )}

@@ -125,6 +125,9 @@ export const pt: Record<string, string> = {
   'login.noAccount': 'Não tem conta?',
   'login.hasAccount': 'Já tem conta?',
   'login.unknownError': 'Erro desconhecido',
+  'login.invalidCredentials': 'Credenciais inválidas',
+  'login.emailTaken': 'Já existe uma conta com este e-mail',
+  'login.registrationDisabled': 'Cadastro desativado neste servidor',
 
   // users
   'users.title': 'Usuários',
@@ -665,6 +668,8 @@ export const pt: Record<string, string> = {
   'shortcuts.open': 'Abrir a notícia selecionada',
   'shortcuts.help': 'Mostrar estes atalhos',
   'shortcuts.close': 'Fechar modal / limpar seleção',
+  'shortcuts.digest': 'Alternar visualização de digest',
+  'shortcuts.profile': 'Abrir perfil de interesse',
 
   // PWA
   'pwa.install': 'Instalar app',
@@ -819,6 +824,9 @@ export const en: Record<string, string> = {
   'login.noAccount': "Don't have an account?",
   'login.hasAccount': 'Already have an account?',
   'login.unknownError': 'Unknown error',
+  'login.invalidCredentials': 'Invalid credentials',
+  'login.emailTaken': 'An account with this email already exists',
+  'login.registrationDisabled': 'Registration is disabled on this server',
 
   // users
   'users.title': 'Users',
@@ -1357,6 +1365,8 @@ export const en: Record<string, string> = {
   'shortcuts.open': 'Open the selected article',
   'shortcuts.help': 'Show these shortcuts',
   'shortcuts.close': 'Close modal / clear selection',
+  'shortcuts.digest': 'Toggle digest view',
+  'shortcuts.profile': 'Open interest profile',
 
   // PWA
   'pwa.install': 'Install app',

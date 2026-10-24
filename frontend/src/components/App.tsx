@@ -547,6 +547,8 @@ function AppContent() {
       { key: 'j / k', description: t('shortcuts.navigate') },
       { key: 'm', description: t('shortcuts.toggleRead') },
       { key: 'o', description: t('shortcuts.open') },
+      { key: 'D', description: t('shortcuts.digest') },
+      { key: 'Shift+R', description: t('shortcuts.profile') },
       { key: '?', description: t('shortcuts.help') },
       { key: 'Esc', description: t('shortcuts.close') },
     ],
@@ -574,6 +576,22 @@ function AppContent() {
           handleOpen(selectedItem);
           if (!openInReader) window.open(selectedItem.link, '_blank', 'noopener,noreferrer');
         },
+        disabledInInputs: true,
+      },
+      // Os tooltips da toolbar já anunciavam (D) e (Shift+R); antes não havia
+      // handler nenhum para eles (MU-018).
+      {
+        key: 'd',
+        description: '',
+        handler: () => setDigestView((current) => !current),
+        preventDefault: true,
+        disabledInInputs: true,
+      },
+      {
+        key: 'shift+r',
+        description: '',
+        handler: () => setShowProfileModal(true),
+        preventDefault: true,
         disabledInInputs: true,
       },
       {
@@ -631,6 +649,7 @@ function AppContent() {
             onToggleDigest={() => setDigestView(!digestView)}
             digestView={digestView}
             selectedCount={selectedIds.size}
+            loadedCount={visibleNews.length}
             onSelectAll={handleSelectAll}
             onClearSelection={handleClearSelection}
             readFilter={readFilter}

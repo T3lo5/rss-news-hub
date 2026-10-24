@@ -101,6 +101,12 @@ export async function handleAuthRoutes(req, res, path) {
 
   // POST /api/auth/register
   if (path === '/api/auth/register' && req.method === 'POST') {
+    // ALLOW_REGISTRATION=false fecha o endpoint por inteiro, nao so a UI:
+    // sem isso qualquer um cria conta via API e consome as keys/bot do dono.
+    if (process.env.ALLOW_REGISTRATION === 'false') {
+      sendJSON(res, 403, { ok: false, error: 'Registration disabled' });
+      return true;
+    }
     if (!applyLimiter(registerLimiter, req, res)) return true;
     validateBody(schemas.registerSchema)(req, res, async () => {
       try {

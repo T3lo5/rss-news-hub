@@ -1,0 +1,203 @@
+# fonte: frontend/src/components/NewsGrid.tsx
+# copiado de: frontend/src/components/NewsGrid.tsx
+
+    1 | import {
+    2 |   Check,
+    3 |   CheckCheck,
+    4 |   ExternalLink,
+    5 |   Inbox,
+    6 |   Mail,
+    7 |   MailOpen,
+    8 |   Share2,
+    9 |   Sparkles,
+   10 | } from 'lucide-react';
+   11 | import { useEffect, useRef } from 'react';
+   12 | import { useI18n } from '../i18n';
+   13 | import type { NewsItem } from '../types';
+   14 | import { cleanDescription, truncate } from '../utils/content';
+   15 | import { BookmarkButton } from './BookmarkButton';
+   16 | import { RelevanceBadge } from './RelevanceBadge';
+   17 | 
+   18 | interface NewsGridProps {
+   19 |   news: NewsItem[];
+   20 |   loading: boolean;
+   21 |   error: string | null;
+   22 |   onShare: (item: NewsItem) => void;
+   23 |   onSelect: (id: string, shiftKey?: boolean) => void;
+   24 |   selectedIds: Set<string>;
+   25 |   selectedIndex: number;
+   26 |   bookmarkedIds: Set<string>;
+   27 |   onBookmarkToggle: (id: string, isBookmarked: boolean) => void;
+   28 |   /** Called when the user opens an item (title, button or card click). */
+   29 |   onOpen?: (item: NewsItem) => void;
+   30 |   onReadToggle: (item: NewsItem, read: boolean) => void;
+   31 |   generatedIds?: Set<string>;
+   32 |   sentIds?: Set<string>;
+   33 |   hasMore?: boolean;
+   34 |   onLoadMore?: () => void;
+   35 |   /** A next page is being fetched. */
+   36 |   loadingMore?: boolean;
+   37 |   /** Overrides the default empty state (e.g. "nothing unread"). */
+   38 |   emptyMessage?: string;
+   39 |   total?: number;
+   40 |   shown?: number;
+   41 |   /** Offline snapshot: write actions (read state, bookmarks) are disabled. */
+   42 |   readOnly?: boolean;
+   43 |   /** Preference: card click opens the in-app reader instead of a new tab. */
+   44 |   openInReader?: boolean;
+   45 | }
+   46 | 
+   47 | function formatDate(iso: string, locale: string): string {
+   48 |   try {
+   49 |     return new Date(iso).toLocaleString(locale, {
+   50 |       day: '2-digit',
+   51 |       month: '2-digit',
+   52 |       hour: '2-digit',
+   53 |       minute: '2-digit',
+   54 |     });
+   55 |   } catch {
+   56 |     return iso;
+   57 |   }
+   58 | }
+   59 | 
+   60 | function SkeletonCard() {
+   61 |   return (
+   62 |     <article className="news-card" aria-hidden="true">
+   63 |       <div className="news-card-top">
+   64 |         <div className="skeleton" style={{ width: '42%', height: 20, borderRadius: 999 }} />
+   65 |         <div className="skeleton" style={{ width: 54, height: 20, marginLeft: 'auto' }} />
+   66 |       </div>
+   67 |       <div className="skeleton" style={{ width: '92%', height: 18, marginBottom: 8 }} />
+   68 |       <div className="skeleton" style={{ width: '70%', height: 18, marginBottom: 16 }} />
+   69 |       <div className="skeleton" style={{ width: '100%', height: 12, marginBottom: 6 }} />
+   70 |       <div className="skeleton" style={{ width: '85%', height: 12, marginBottom: 20 }} />
+   71 |       <div
+   72 |         style={{
+   73 |           display: 'flex',
+   74 |           gap: 8,
+   75 |           paddingTop: 12,
+   76 |           borderTop: '1px solid var(--border-subtle)',
+   77 |         }}
+   78 |       >
+   79 |         <div className="skeleton" style={{ width: 38, height: 38 }} />
+   80 |         <div className="skeleton" style={{ flex: 1, height: 38 }} />
+   81 |         <div className="skeleton" style={{ flex: 1, height: 38 }} />
+   82 |       </div>
+   83 |     </article>
+   84 |   );
+   85 | }
+   86 | 
+   87 | export function NewsGrid({
+   88 |   news,
+   89 |   loading,
+   90 |   error,
+   91 |   onShare,
+   92 |   onSelect,
+   93 |   selectedIds,
+   94 |   selectedIndex,
+   95 |   bookmarkedIds,
+   96 |   onBookmarkToggle,
+   97 |   onOpen,
+   98 |   onReadToggle,
+   99 |   generatedIds,
+  100 |   sentIds,
+  101 |   hasMore = false,
+  102 |   onLoadMore,
+  103 |   loadingMore = false,
+  104 |   emptyMessage,
+  105 |   total: totalProp,
+  106 |   shown: shownProp,
+  107 |   readOnly = false,
+  108 |   openInReader = false,
+  109 | }: NewsGridProps) {
+  110 |   const { t, language } = useI18n();
+  111 |   const locale = language === 'en' ? 'en-US' : 'pt-BR';
+  112 |   const cardRefs = useRef<(HTMLElement | null)[]>([]);
+  113 |   const shown = shownProp ?? news.length;
+  114 |   const total = totalProp ?? news.length;
+  115 | 
+  116 |   useEffect(() => {
+  117 |     if (selectedIndex >= 0 && selectedIndex < cardRefs.current.length) {
+  118 |       cardRefs.current[selectedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  119 |     }
+  120 |   }, [selectedIndex]);
+  121 | 
+  122 |   if (loading) {
+  123 |     return (
+  124 |       <div className="news-grid" aria-busy="true" aria-label={t('news.loading')}>
+  125 |         {Array.from({ length: 6 }).map((_, i) => (
+  126 |           <SkeletonCard key={i} />
+  127 |         ))}
+  128 |       </div>
+  129 |     );
+  130 |   }
+  131 | 
+  132 |   if (error) {
+  133 |     return (
+  134 |       <div className="news-grid">
+  135 |         <div className="empty" style={{ color: 'var(--danger)' }}>
+  136 |           {t('news.errLoad', { error })}
+  137 |         </div>
+  138 |       </div>
+  139 |     );
+  140 |   }
+  141 | 
+  142 |   if (!news.length) {
+  143 |     return (
+  144 |       <div className="news-grid">
+  145 |         <div className="empty">
+  146 |           <Inbox size={40} style={{ opacity: 0.5, marginBottom: 12 }} aria-hidden="true" />
+  147 |           {emptyMessage ? (
+  148 |             <div>{emptyMessage}</div>
+  149 |           ) : (
+  150 |             <div>
+  151 |               {t('news.emptyNavigatePre')} <kbd>j</kbd>/<kbd>k</kbd> {t('news.emptyNavigatePost')}
+  152 |             </div>
+  153 |           )}
+  154 |         </div>
+  155 |       </div>
+  156 |     );
+  157 |   }
+  158 | 
+  159 |   return (
+  160 |     <div className="news-grid" role="list" aria-label={t('news.listAria')}>
+  161 |       {news.map((item, index) => {
+  162 |         const isSelected = selectedIds?.has(item.id) ?? false;
+  163 |         const isKeyboardSelected = index === selectedIndex;
+  164 |         const isRead = Boolean(item.readAt);
+  165 |         return (
+  166 |           <article
+  167 |             key={item.id}
+  168 |             ref={(el) => {
+  169 |               cardRefs.current[index] = el;
+  170 |             }}
+  171 |             className={`news-card ${isRead ? 'read' : 'unread'} ${isSelected ? 'selected' : ''} ${isKeyboardSelected ? 'keyboard-selected' : ''} ${openInReader ? 'reader-clickable' : ''}`}
+  172 |             role="listitem"
+  173 |             data-selected={isSelected}
+  174 |             data-read={isRead}
+  175 |             aria-selected={isSelected}
+  176 |             onClick={(event) => {
+  177 |               if (!openInReader) return;
+  178 |               // Links, botões e o checkbox têm ações próprias.
+  179 |               if ((event.target as HTMLElement).closest('a, button, input, label')) return;
+  180 |               onOpen?.(item);
+  181 |             }}
+  182 |           >
+  183 |             <div className="news-card-top">
+  184 |               <input
+  185 |                 type="checkbox"
+  186 |                 className="news-checkbox"
+  187 |                 checked={isSelected}
+  188 |                 onChange={() => onSelect(item.id)}
+  189 |                 onKeyDown={(e) => {
+  190 |                   if (e.shiftKey) {
+  191 |                     onSelect(item.id, true);
+  192 |                     e.preventDefault();
+  193 |                   }
+  194 |                 }}
+  195 |                 aria-label={t('news.selectAria', { title: item.title })}
+  196 |               />
+  197 |               <div className="news-header">
+  198 |                 <span className="news-source">{item.source || t('news.unknownSource')}</span>
+  199 |                 <RelevanceBadge score={item.relevanceScore} size="sm" />
+  200 |                 {sentIds?.has(item.id) ? (

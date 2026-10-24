@@ -1,0 +1,28 @@
+# fonte: frontend/src/i18n/translations.ts (linha 292)
+# copiado de: frontend/src/i18n/translations.ts
+
+  280 |   'digestView.all': 'Todas',
+  281 |   'digestView.articleOne': '{count} artigo',
+  282 |   'digestView.articleMany': '{count} artigos',
+  283 |   'digestView.aria': 'Visualização do digest',
+  284 | 
+  285 |   // relevance
+  286 |   'relevance.title': 'Relevância: {score}/100',
+  287 | 
+  288 |   // toolbar
+  289 |   'toolbar.searchAria': 'Buscar notícias',
+  290 |   'toolbar.selectedOne': '{count} selecionado',
+  291 |   'toolbar.selectedMany': '{count} selecionados',
+  292 |   'toolbar.deselectAll': 'Desmarcar todos',
+  293 |   'toolbar.selectAll': 'Selecionar todos',
+  294 |   'toolbar.source': 'Fonte:',
+  295 |   'toolbar.readFilterAria': 'Filtrar por leitura',
+  296 |   'toolbar.read.all': 'Todas',
+  297 |   'toolbar.read.unread': 'Não lidas',
+  298 |   'toolbar.read.read': 'Lidas',
+  299 | 
+  300 |   'toolbar.sourceAria': 'Filtrar por fonte',
+  301 |   'toolbar.allSources': 'Todas',
+  302 |   'toolbar.sort': 'Ordenar:',
+  303 |   'toolbar.sortAria': 'Ordenar notícias',
+  304 |   'toolbar.newest': 'Mais recentes',

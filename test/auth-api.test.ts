@@ -29,6 +29,32 @@ describe('Auth API (HTTP-level)', () => {
     }
   });
 
+  test('POST /api/auth/register is rejected with 403 when ALLOW_REGISTRATION=false', async () => {
+    const previous = process.env.ALLOW_REGISTRATION;
+    process.env.ALLOW_REGISTRATION = 'false';
+    try {
+      const res = await request('POST', '/api/auth/register', {
+        email: 'blocked@example.com',
+        password: 'senha12345',
+        name: 'Blocked',
+      });
+      assert.strictEqual(res.status, 403, res.raw);
+      assert.strictEqual(res.json.error, 'Registration disabled');
+
+      // E' o endpoint inteiro: nem o config mente nem o usuario e criado.
+      const config = await request('GET', '/api/auth/config');
+      assert.strictEqual(config.json.data.registrationEnabled, false);
+      const login = await request('POST', '/api/auth/login', {
+        email: 'blocked@example.com',
+        password: 'senha12345',
+      });
+      assert.strictEqual(login.status, 401, login.raw);
+    } finally {
+      if (previous === undefined) delete process.env.ALLOW_REGISTRATION;
+      else process.env.ALLOW_REGISTRATION = previous;
+    }
+  });
+
   test('POST /api/auth/register creates a user and returns tokens', async () => {
     const res = await request('POST', '/api/auth/register', {
       email: 'ana@example.com',

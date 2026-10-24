@@ -187,9 +187,12 @@ export function NewsGrid({
                 checked={isSelected}
                 onChange={() => onSelect(item.id)}
                 onKeyDown={(e) => {
-                  if (e.shiftKey) {
-                    onSelect(item.id, true);
+                  // Só Shift+Espaço faz seleção em range. Antes qualquer tecla
+                  // com Shift caía aqui: Shift+Tab era bloqueado (o foco não
+                  // saía do checkbox) e a seleção era desfeita sem querer (MU-004).
+                  if (e.shiftKey && (e.key === ' ' || e.key === 'Spacebar')) {
                     e.preventDefault();
+                    onSelect(item.id, true);
                   }
                 }}
                 aria-label={t('news.selectAria', { title: item.title })}

@@ -1,0 +1,114 @@
+# fonte: frontend/src/components/AddModal.tsx
+# copiado de: frontend/src/components/AddModal.tsx
+
+    1 | import { Save, X } from 'lucide-react';
+    2 | import { type FormEvent, useState } from 'react';
+    3 | import { useEscapeKey } from '../hooks/useEscapeKey';
+    4 | import { useI18n } from '../i18n';
+    5 | 
+    6 | interface AddModalProps {
+    7 |   onSubmit: (data: { title: string; link: string; source?: string; description?: string }) => void;
+    8 |   onClose: () => void;
+    9 | }
+   10 | 
+   11 | export function AddModal({ onSubmit, onClose }: AddModalProps) {
+   12 |   const { t } = useI18n();
+   13 |   useEscapeKey(true, onClose);
+   14 |   const [title, setTitle] = useState('');
+   15 |   const [link, setLink] = useState('');
+   16 |   const [source, setSource] = useState('');
+   17 |   const [description, setDescription] = useState('');
+   18 |   const [submitting, setSubmitting] = useState(false);
+   19 | 
+   20 |   const handleSubmit = async (e: FormEvent) => {
+   21 |     e.preventDefault();
+   22 |     if (!(title.trim() && link.trim())) return;
+   23 | 
+   24 |     setSubmitting(true);
+   25 |     try {
+   26 |       await onSubmit({
+   27 |         title: title.trim(),
+   28 |         link: link.trim(),
+   29 |         source: source.trim() || 'Manual',
+   30 |         description: description.trim(),
+   31 |       });
+   32 |     } finally {
+   33 |       setSubmitting(false);
+   34 |     }
+   35 |   };
+   36 | 
+   37 |   return (
+   38 |     <div
+   39 |       className="modal-overlay"
+   40 |       onClick={onClose}
+   41 |       role="dialog"
+   42 |       aria-modal="true"
+   43 |       aria-labelledby="add-modal-title"
+   44 |     >
+   45 |       <div className="modal" onClick={(e) => e.stopPropagation()}>
+   46 |         <div className="modal-header">
+   47 |           <h3 id="add-modal-title">{t('add.title')}</h3>
+   48 |           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>
+   49 |             <X size={18} />
+   50 |           </button>
+   51 |         </div>
+   52 |         <form onSubmit={handleSubmit} className="add-modal-form">
+   53 |           <div className="modal-body">
+   54 |             <div className="form-group">
+   55 |               <label htmlFor="addTitle">{t('add.labelTitle')}</label>
+   56 |               <input
+   57 |                 id="addTitle"
+   58 |                 type="text"
+   59 |                 placeholder={t('add.titlePlaceholder')}
+   60 |                 value={title}
+   61 |                 onChange={(e) => setTitle(e.target.value)}
+   62 |                 required
+   63 |               />
+   64 |             </div>
+   65 |             <div className="form-group">
+   66 |               <label htmlFor="addLink">{t('add.labelLink')}</label>
+   67 |               <input
+   68 |                 id="addLink"
+   69 |                 type="url"
+   70 |                 placeholder={t('add.linkPlaceholder')}
+   71 |                 value={link}
+   72 |                 onChange={(e) => setLink(e.target.value)}
+   73 |                 required
+   74 |               />
+   75 |             </div>
+   76 |             <div className="form-group">
+   77 |               <label htmlFor="addSource">{t('add.labelSource')}</label>
+   78 |               <input
+   79 |                 id="addSource"
+   80 |                 type="text"
+   81 |                 placeholder={t('add.sourcePlaceholder')}
+   82 |                 value={source}
+   83 |                 onChange={(e) => setSource(e.target.value)}
+   84 |               />
+   85 |             </div>
+   86 |             <div className="form-group">
+   87 |               <label htmlFor="addDesc">{t('add.labelDescription')}</label>
+   88 |               <textarea
+   89 |                 id="addDesc"
+   90 |                 placeholder={t('add.descriptionPlaceholder')}
+   91 |                 value={description}
+   92 |                 onChange={(e) => setDescription(e.target.value)}
+   93 |                 rows={4}
+   94 |               />
+   95 |             </div>
+   96 |           </div>
+   97 |           <div className="modal-footer">
+   98 |             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>
+   99 |               {t('common.cancel')}
+  100 |             </button>
+  101 |             <button type="submit" className="btn btn-primary" disabled={submitting}>
+  102 |               <Save size={15} />
+  103 |               {submitting ? t('common.saving') : t('common.save')}
+  104 |             </button>
+  105 |           </div>
+  106 |         </form>
+  107 |       </div>
+  108 |     </div>
+  109 |   );
+  110 | }
+  111 | 

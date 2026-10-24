@@ -1,0 +1,152 @@
+# fonte: frontend/src/pages/LoginPage.tsx
+# copiado de: frontend/src/pages/LoginPage.tsx
+
+    1 | import { LogIn, Radio } from 'lucide-react';
+    2 | import { useEffect, useState } from 'react';
+    3 | import { useNavigate } from 'react-router-dom';
+    4 | import { LanguageSelector } from '../components/LanguageSelector';
+    5 | import { ThemeToggle } from '../components/ThemeToggle';
+    6 | import { useAuth } from '../contexts/AuthContext';
+    7 | import { useI18n } from '../i18n';
+    8 | 
+    9 | export function LoginPage() {
+   10 |   const { login, register, user } = useAuth();
+   11 |   const { t } = useI18n();
+   12 |   const navigate = useNavigate();
+   13 |   const [isLogin, setIsLogin] = useState(true);
+   14 |   const [email, setEmail] = useState('');
+   15 |   const [password, setPassword] = useState('');
+   16 |   const [name, setName] = useState('');
+   17 |   const [error, setError] = useState('');
+   18 |   const [loading, setLoading] = useState(false);
+   19 |   // O registro pode estar desligado (ALLOW_REGISTRATION=false, e/ou bloqueio
+   20 |   // no proxy). Nesse caso o link "Criar conta" some, em vez de abrir um
+   21 |   // formulario que sempre termina em 403.
+   22 |   const [registrationEnabled, setRegistrationEnabled] = useState(true);
+   23 | 
+   24 |   useEffect(() => {
+   25 |     let cancelled = false;
+   26 |     fetch('/api/auth/config')
+   27 |       .then((r) => (r.ok ? r.json() : null))
+   28 |       .then((body) => {
+   29 |         if (!cancelled && body?.data) {
+   30 |           setRegistrationEnabled(body.data.registrationEnabled !== false);
+   31 |         }
+   32 |       })
+   33 |       .catch(() => {
+   34 |         // Endpoint indisponivel: mantem o comportamento anterior (link visivel).
+   35 |       });
+   36 |     return () => {
+   37 |       cancelled = true;
+   38 |     };
+   39 |   }, []);
+   40 | 
+   41 |   useEffect(() => {
+   42 |     if (user) {
+   43 |       navigate('/', { replace: true });
+   44 |     }
+   45 |   }, [user, navigate]);
+   46 | 
+   47 |   const handleSubmit = async (e: React.FormEvent) => {
+   48 |     e.preventDefault();
+   49 |     setError('');
+   50 |     setLoading(true);
+   51 |     try {
+   52 |       if (isLogin) {
+   53 |         await login(email, password);
+   54 |       } else {
+   55 |         await register(email, password, name);
+   56 |       }
+   57 |     } catch (err: unknown) {
+   58 |       setError(err instanceof Error ? err.message : t('login.unknownError'));
+   59 |     } finally {
+   60 |       setLoading(false);
+   61 |     }
+   62 |   };
+   63 | 
+   64 |   return (
+   65 |     <div className="login-container">
+   66 |       <div className="login-topbar">
+   67 |         <LanguageSelector />
+   68 |         <ThemeToggle />
+   69 |       </div>
+   70 | 
+   71 |       <div className="login-card">
+   72 |         <div className="login-brand">
+   73 |           <span className="brand-mark" aria-hidden="true">
+   74 |             <Radio size={22} strokeWidth={2.2} />
+   75 |           </span>
+   76 |           <h2>RSS News Hub</h2>
+   77 |           <p className="subtitle">{t('header.subtitle')}</p>
+   78 |         </div>
+   79 | 
+   80 |         {error && <div className="error-message">{error}</div>}
+   81 | 
+   82 |         <form onSubmit={handleSubmit}>
+   83 |           {!isLogin && (
+   84 |             <div className="form-group">
+   85 |               <label htmlFor="name">{t('login.name')}</label>
+   86 |               <input
+   87 |                 id="name"
+   88 |                 type="text"
+   89 |                 value={name}
+   90 |                 onChange={(e) => setName(e.target.value)}
+   91 |                 required={!isLogin}
+   92 |                 autoComplete="name"
+   93 |                 disabled={loading}
+   94 |               />
+   95 |             </div>
+   96 |           )}
+   97 | 
+   98 |           <div className="form-group">
+   99 |             <label htmlFor="email">{t('login.email')}</label>
+  100 |             <input
+  101 |               id="email"
+  102 |               type="email"
+  103 |               value={email}
+  104 |               onChange={(e) => setEmail(e.target.value)}
+  105 |               required
+  106 |               autoComplete="email"
+  107 |               disabled={loading}
+  108 |             />
+  109 |           </div>
+  110 | 
+  111 |           <div className="form-group">
+  112 |             <label htmlFor="password">{t('login.password')}</label>
+  113 |             <input
+  114 |               id="password"
+  115 |               type="password"
+  116 |               value={password}
+  117 |               onChange={(e) => setPassword(e.target.value)}
+  118 |               required
+  119 |               autoComplete={isLogin ? 'current-password' : 'new-password'}
+  120 |               disabled={loading}
+  121 |             />
+  122 |           </div>
+  123 | 
+  124 |           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+  125 |             <LogIn size={16} />
+  126 |             {loading ? t('login.submitting') : isLogin ? t('login.signIn') : t('login.signUp')}
+  127 |           </button>
+  128 |         </form>
+  129 | 
+  130 |         {registrationEnabled && (
+  131 |           <p className="switch-mode">
+  132 |             {isLogin ? t('login.noAccount') : t('login.hasAccount')}{' '}
+  133 |             <button
+  134 |               type="button"
+  135 |               className="btn-link"
+  136 |               onClick={() => {
+  137 |                 setIsLogin(!isLogin);
+  138 |                 setError('');
+  139 |               }}
+  140 |             >
+  141 |               {isLogin ? t('login.signUp') : t('login.signIn')}
+  142 |             </button>
+  143 |           </p>
+  144 |         )}
+  145 |       </div>
+  146 |     </div>
+  147 |   );
+  148 | }
+  149 | 

@@ -1,6 +1,7 @@
 import { Save, X } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useModalFocus } from '../hooks/useModalFocus';
 import { useI18n } from '../i18n';
 
 interface AddModalProps {
@@ -11,6 +12,7 @@ interface AddModalProps {
 export function AddModal({ onSubmit, onClose }: AddModalProps) {
   const { t } = useI18n();
   useEscapeKey(true, onClose);
+  const dialogRef = useModalFocus<HTMLDivElement>(true);
   const [title, setTitle] = useState('');
   const [link, setLink] = useState('');
   const [source, setSource] = useState('');
@@ -42,7 +44,7 @@ export function AddModal({ onSubmit, onClose }: AddModalProps) {
       aria-modal="true"
       aria-labelledby="add-modal-title"
     >
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" ref={dialogRef} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3 id="add-modal-title">{t('add.title')}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>

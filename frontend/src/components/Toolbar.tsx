@@ -22,6 +22,8 @@ interface ToolbarProps {
   currentSourceFilter: string;
   currentSortOrder: 'newest' | 'oldest' | 'relevance';
   selectedCount: number;
+  /** Itens atualmente carregados na lista — é o que "Selecionar todos" marca. */
+  loadedCount: number;
   onSelectAll: () => void;
   onClearSelection: () => void;
   onNewsletterClick: () => void;
@@ -51,6 +53,7 @@ export function Toolbar({
   currentSourceFilter,
   currentSortOrder,
   selectedCount,
+  loadedCount,
   onSelectAll,
   onClearSelection,
   onNewsletterClick,
@@ -69,6 +72,9 @@ export function Toolbar({
   readCount,
 }: ToolbarProps) {
   const { t } = useI18n();
+
+  // Toda a lista carregada está marcada → o botão passa a desmarcar.
+  const allSelected = loadedCount > 0 && selectedCount >= loadedCount;
 
   return (
     <div className="toolbar">
@@ -90,8 +96,15 @@ export function Toolbar({
               count: selectedCount,
             })}
           </span>
-          <button className="btn btn-ghost btn-sm" onClick={onSelectAll}>
-            {selectedCount === sources.length ? t('toolbar.deselectAll') : t('toolbar.selectAll')}
+          {/* O rótulo tem que descrever a ação do clique: "Desmarcar todos" só
+              aparece quando a seleção cobre a lista carregada, e aí o clique
+              limpa. Antes a comparação era com `sources.length`, o que fazia o
+              botão dizer "Desmarcar" enquanto seguia selecionando (MU-001). */}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={allSelected ? onClearSelection : onSelectAll}
+          >
+            {allSelected ? t('toolbar.deselectAll') : t('toolbar.selectAll')}
           </button>
           <button
             className="btn btn-ghost btn-sm"

@@ -1,5 +1,6 @@
 import { Copy, ExternalLink, Globe, Loader2, Send, Sparkles, X } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useModalFocus } from '../hooks/useModalFocus';
 import { useI18n } from '../i18n';
 import type { ContentType, Language, NewsItem, Provider, Template } from '../types';
 import { formatGeneratedContent } from '../utils/content';
@@ -64,6 +65,7 @@ export function ShareModal({
 }: ShareModalProps) {
   const { t, language: uiLanguage } = useI18n();
   useEscapeKey(true, onClose);
+  const dialogRef = useModalFocus<HTMLDivElement>(true);
   const locale = uiLanguage === 'en' ? 'en-US' : 'pt-BR';
   const formatDate = (iso: string) => {
     try {
@@ -119,7 +121,7 @@ export function ShareModal({
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" ref={dialogRef} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3 id="modal-title">{isNewsletter ? t('share.newsletterTitle') : t('share.title')}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>

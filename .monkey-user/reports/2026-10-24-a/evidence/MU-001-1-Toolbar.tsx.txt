@@ -1,0 +1,203 @@
+# fonte: frontend/src/components/Toolbar.tsx
+# copiado de: frontend/src/components/Toolbar.tsx
+
+    1 | import {
+    2 |   ArrowUpDown,
+    3 |   Bookmark,
+    4 |   FileText,
+    5 |   Filter,
+    6 |   LayoutGrid,
+    7 |   List,
+    8 |   Newspaper,
+    9 |   PenLine,
+   10 |   Search,
+   11 |   Target,
+   12 |   X,
+   13 | } from 'lucide-react';
+   14 | import { useI18n } from '../i18n';
+   15 | 
+   16 | interface ToolbarProps {
+   17 |   searchQuery?: string;
+   18 |   onSearchChange: (value: string) => void;
+   19 |   onSourceFilterChange: (source: string) => void;
+   20 |   onSortChange: (order: 'newest' | 'oldest' | 'relevance') => void;
+   21 |   sources: string[];
+   22 |   currentSourceFilter: string;
+   23 |   currentSortOrder: 'newest' | 'oldest' | 'relevance';
+   24 |   selectedCount: number;
+   25 |   onSelectAll: () => void;
+   26 |   onClearSelection: () => void;
+   27 |   onNewsletterClick: () => void;
+   28 |   onTemplatesClick: () => void;
+   29 |   bookmarkCount: number;
+   30 |   onBookmarksClick: () => void;
+   31 |   digestView: boolean;
+   32 |   onToggleDigest: () => void;
+   33 |   digestGrouping: 'none' | 'daily' | 'weekly';
+   34 |   onChangeDigestGrouping: (value: 'none' | 'daily' | 'weekly') => void;
+   35 |   onProfileClick: () => void;
+   36 |   onNewsletterBuilderClick?: () => void;
+   37 |   readFilter: ReadFilter;
+   38 |   onReadFilterChange: (value: ReadFilter) => void;
+   39 |   unreadCount: number;
+   40 |   readCount: number;
+   41 | }
+   42 | 
+   43 | export type ReadFilter = 'all' | 'unread' | 'read';
+   44 | 
+   45 | export function Toolbar({
+   46 |   searchQuery = '',
+   47 |   onSearchChange,
+   48 |   onSourceFilterChange,
+   49 |   onSortChange,
+   50 |   sources,
+   51 |   currentSourceFilter,
+   52 |   currentSortOrder,
+   53 |   selectedCount,
+   54 |   onSelectAll,
+   55 |   onClearSelection,
+   56 |   onNewsletterClick,
+   57 |   onTemplatesClick,
+   58 |   bookmarkCount,
+   59 |   onBookmarksClick,
+   60 |   digestView,
+   61 |   onToggleDigest,
+   62 |   digestGrouping,
+   63 |   onChangeDigestGrouping,
+   64 |   onProfileClick,
+   65 |   onNewsletterBuilderClick,
+   66 |   readFilter,
+   67 |   onReadFilterChange,
+   68 |   unreadCount,
+   69 |   readCount,
+   70 | }: ToolbarProps) {
+   71 |   const { t } = useI18n();
+   72 | 
+   73 |   return (
+   74 |     <div className="toolbar">
+   75 |       <div className="search-box">
+   76 |         <Search className="search-icon" size={16} aria-hidden="true" />
+   77 |         <input
+   78 |           type="search"
+   79 |           placeholder={t('news.searchPlaceholder')}
+   80 |           value={searchQuery}
+   81 |           onChange={(e) => onSearchChange(e.target.value)}
+   82 |           aria-label={t('toolbar.searchAria')}
+   83 |         />
+   84 |       </div>
+   85 | 
+   86 |       {selectedCount > 0 && (
+   87 |         <div className="selection-bar">
+   88 |           <span className="selection-count">
+   89 |             {t(selectedCount === 1 ? 'toolbar.selectedOne' : 'toolbar.selectedMany', {
+   90 |               count: selectedCount,
+   91 |             })}
+   92 |           </span>
+   93 |           <button className="btn btn-ghost btn-sm" onClick={onSelectAll}>
+   94 |             {selectedCount === sources.length ? t('toolbar.deselectAll') : t('toolbar.selectAll')}
+   95 |           </button>
+   96 |           <button
+   97 |             className="btn btn-ghost btn-sm"
+   98 |             onClick={onClearSelection}
+   99 |             aria-label={t('common.clear')}
+  100 |           >
+  101 |             <X size={14} />
+  102 |           </button>
+  103 |         </div>
+  104 |       )}
+  105 | 
+  106 |       <div className="read-filter" role="group" aria-label={t('toolbar.readFilterAria')}>
+  107 |         {(['all', 'unread', 'read'] as const).map((option) => (
+  108 |           <button
+  109 |             key={option}
+  110 |             type="button"
+  111 |             className="read-filter-btn"
+  112 |             aria-pressed={readFilter === option}
+  113 |             onClick={() => onReadFilterChange(option)}
+  114 |           >
+  115 |             {t(`toolbar.read.${option}`)}
+  116 |             {option !== 'all' && (
+  117 |               <span className="read-filter-count">
+  118 |                 {option === 'unread' ? unreadCount : readCount}
+  119 |               </span>
+  120 |             )}
+  121 |           </button>
+  122 |         ))}
+  123 |       </div>
+  124 | 
+  125 |       <div className="filter-group">
+  126 |         <label htmlFor="sourceFilter">
+  127 |           <Filter size={13} aria-hidden="true" />
+  128 |           {t('toolbar.source')}
+  129 |         </label>
+  130 |         <select
+  131 |           id="sourceFilter"
+  132 |           value={currentSourceFilter}
+  133 |           onChange={(e) => onSourceFilterChange(e.target.value)}
+  134 |           aria-label={t('toolbar.sourceAria')}
+  135 |         >
+  136 |           <option value="">{t('toolbar.allSources')}</option>
+  137 |           {sources.map((source) => (
+  138 |             <option key={source} value={source}>
+  139 |               {source}
+  140 |             </option>
+  141 |           ))}
+  142 |         </select>
+  143 |       </div>
+  144 | 
+  145 |       <div className="filter-group">
+  146 |         <label htmlFor="sortFilter">
+  147 |           <ArrowUpDown size={13} aria-hidden="true" />
+  148 |           {t('toolbar.sort')}
+  149 |         </label>
+  150 |         <select
+  151 |           id="sortFilter"
+  152 |           value={currentSortOrder}
+  153 |           onChange={(e) => onSortChange(e.target.value as 'newest' | 'oldest' | 'relevance')}
+  154 |           aria-label={t('toolbar.sortAria')}
+  155 |         >
+  156 |           <option value="newest">{t('toolbar.newest')}</option>
+  157 |           <option value="oldest">{t('toolbar.oldest')}</option>
+  158 |           <option value="relevance">{t('toolbar.relevance')}</option>
+  159 |         </select>
+  160 |       </div>
+  161 | 
+  162 |       <div className="filter-group toolbar-spacer">
+  163 |         {bookmarkCount > 0 && (
+  164 |           <button
+  165 |             className="btn btn-ghost btn-sm"
+  166 |             onClick={onBookmarksClick}
+  167 |             title={t('toolbar.bookmarksTitle', { count: bookmarkCount })}
+  168 |           >
+  169 |             <Bookmark size={15} />
+  170 |             <span className="badge">{bookmarkCount}</span>
+  171 |           </button>
+  172 |         )}
+  173 | 
+  174 |         <div className="digest-controls">
+  175 |           <button
+  176 |             className={`btn btn-icon btn-sm ${digestView ? 'active' : ''}`}
+  177 |             onClick={onToggleDigest}
+  178 |             title={t('toolbar.digestToggle')}
+  179 |             aria-pressed={digestView}
+  180 |           >
+  181 |             {digestView ? <LayoutGrid size={16} /> : <List size={16} />}
+  182 |           </button>
+  183 |           {digestView && (
+  184 |             <select
+  185 |               value={digestGrouping}
+  186 |               onChange={(e) =>
+  187 |                 onChangeDigestGrouping(e.target.value as 'none' | 'daily' | 'weekly')
+  188 |               }
+  189 |               aria-label={t('toolbar.digestGroupingAria')}
+  190 |             >
+  191 |               <option value="none">{t('toolbar.groupAll')}</option>
+  192 |               <option value="daily">{t('toolbar.groupDaily')}</option>
+  193 |               <option value="weekly">{t('toolbar.groupWeekly')}</option>
+  194 |             </select>
+  195 |           )}
+  196 |         </div>
+  197 | 
+  198 |         <button
+  199 |           className="btn btn-icon btn-sm"
+  200 |           onClick={onProfileClick}

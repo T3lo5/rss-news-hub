@@ -1,0 +1,28 @@
+# fonte: frontend/src/i18n/translations.ts (linha 308)
+# copiado de: frontend/src/i18n/translations.ts
+
+  296 |   'toolbar.read.all': 'Todas',
+  297 |   'toolbar.read.unread': 'Não lidas',
+  298 |   'toolbar.read.read': 'Lidas',
+  299 | 
+  300 |   'toolbar.sourceAria': 'Filtrar por fonte',
+  301 |   'toolbar.allSources': 'Todas',
+  302 |   'toolbar.sort': 'Ordenar:',
+  303 |   'toolbar.sortAria': 'Ordenar notícias',
+  304 |   'toolbar.newest': 'Mais recentes',
+  305 |   'toolbar.oldest': 'Mais antigos',
+  306 |   'toolbar.relevance': 'Relevância',
+  307 |   'toolbar.bookmarksTitle': '{count} salvos para depois',
+  308 |   'toolbar.digestToggle': 'Alternar visualização de digest (D)',
+  309 |   'toolbar.digestGroupingAria': 'Agrupamento do digest',
+  310 |   'toolbar.groupAll': 'Todas',
+  311 |   'toolbar.groupDaily': 'Diário',
+  312 |   'toolbar.groupWeekly': 'Semanal',
+  313 |   'toolbar.profileTitle': 'Perfil de Interesse (Shift+R)',
+  314 |   'toolbar.templatesTitle': 'Gerenciar Templates',
+  315 |   'toolbar.builderTitle': 'Montar newsletter manual',
+  316 |   'toolbar.newsletter': 'Newsletter',
+  317 | 
+  318 |   // feed form
+  319 |   'feedForm.errName': 'O nome é obrigatório',
+  320 |   'feedForm.errUrl': 'A URL é obrigatória',

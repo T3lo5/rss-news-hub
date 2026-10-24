@@ -1,0 +1,203 @@
+# fonte: frontend/src/components/App.tsx
+# copiado de: frontend/src/components/App.tsx
+
+    1 | import { useCallback, useEffect, useMemo, useState } from 'react';
+    2 | import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+    3 | import { useAI } from '../hooks/useAI';
+    4 | import { addBookmark, fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
+    5 | import { useDebouncedValue } from '../hooks/useDebouncedValue';
+    6 | import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+    7 | import { useMarkOnOpen } from '../hooks/useMarkOnOpen';
+    8 | import { useNews } from '../hooks/useNews';
+    9 | import { useOnlineStatus } from '../hooks/useOnlineStatus';
+   10 | import { useOpenInReader } from '../hooks/useOpenInReader';
+   11 | import { fetchProfile } from '../hooks/useRelevance';
+   12 | import { useTelegram } from '../hooks/useTelegram';
+   13 | import { useI18n } from '../i18n';
+   14 | import { api } from '../services/api';
+   15 | import type {
+   16 |   ContentType,
+   17 |   DigestGrouping,
+   18 |   InterestProfile,
+   19 |   Language,
+   20 |   NewsItem,
+   21 |   Provider,
+   22 |   Template,
+   23 | } from '../types';
+   24 | import { formatGeneratedContent } from '../utils/content';
+   25 | 
+   26 | // Persisted map of newsId -> generated content, so a post that was already
+   27 | // generated can be reopened and re-sent (e.g. after a failed Telegram send)
+   28 | // without regenerating it.
+   29 | const GENERATED_STORE_KEY = 'generated_content_by_news';
+   30 | 
+   31 | interface GeneratedEntry {
+   32 |   content: string;
+   33 |   contentType: ContentType;
+   34 |   updatedAt: number;
+   35 |   sentAt?: number;
+   36 | }
+   37 | 
+   38 | function loadGeneratedStore(): Record<string, GeneratedEntry> {
+   39 |   if (typeof window === 'undefined') return {};
+   40 |   try {
+   41 |     const raw = localStorage.getItem(GENERATED_STORE_KEY);
+   42 |     const parsed = raw ? JSON.parse(raw) : {};
+   43 |     return parsed && typeof parsed === 'object' ? parsed : {};
+   44 |   } catch {
+   45 |     return {};
+   46 |   }
+   47 | }
+   48 | 
+   49 | import { useAuth } from '../contexts/AuthContext';
+   50 | import { LoginPage } from '../pages/LoginPage';
+   51 | import { AddModal } from './AddModal';
+   52 | import { BookmarksModal } from './BookmarksModal';
+   53 | import { DigestConfigModal } from './DigestConfigModal';
+   54 | import { DigestView } from './DigestView';
+   55 | import { FeedManagerModal } from './FeedManagerModal';
+   56 | import { Header } from './Header';
+   57 | import { InterestProfileModal } from './InterestProfileModal';
+   58 | import { NewsGrid } from './NewsGrid';
+   59 | import { NewsletterBuilderModal } from './NewsletterBuilderModal';
+   60 | import { NewsletterConfigModal } from './NewsletterConfigModal';
+   61 | import { OfflineBanner } from './OfflineBanner';
+   62 | import { ReaderModal } from './ReaderModal';
+   63 | import { SettingsModal } from './SettingsModal';
+   64 | import { ShareModal } from './ShareModal';
+   65 | import { ShortcutsHelp } from './ShortcutsHelp';
+   66 | import { StatsModal } from './StatsModal';
+   67 | import { Status } from './Status';
+   68 | import { TelegramQueueModal } from './TelegramQueueModal';
+   69 | import { TemplatesModal } from './TemplatesModal';
+   70 | import { type ReadFilter, Toolbar } from './Toolbar';
+   71 | import { UpdateToast } from './UpdateToast';
+   72 | import { UserSettingsModal } from './UserSettingsModal';
+   73 | import { UsersModal } from './UsersModal';
+   74 | 
+   75 | function ProtectedRoute({ children }: { children: React.ReactNode }) {
+   76 |   const { user, loading } = useAuth();
+   77 |   const { t } = useI18n();
+   78 |   const location = useLocation();
+   79 | 
+   80 |   if (loading) {
+   81 |     return (
+   82 |       <div
+   83 |         className="app"
+   84 |         style={{
+   85 |           display: 'flex',
+   86 |           justifyContent: 'center',
+   87 |           alignItems: 'center',
+   88 |           height: '100dvh',
+   89 |         }}
+   90 |       >
+   91 |         <div>{t('app.loading')}</div>
+   92 |       </div>
+   93 |     );
+   94 |   }
+   95 | 
+   96 |   if (!user) {
+   97 |     return <Navigate to="/login" state={{ from: location }} replace />;
+   98 |   }
+   99 | 
+  100 |   return <>{children}</>;
+  101 | }
+  102 | 
+  103 | function AppContent() {
+  104 |   const { user, loading: authLoading } = useAuth();
+  105 |   const { t } = useI18n();
+  106 |   const online = useOnlineStatus();
+  107 |   const [markOnOpen] = useMarkOnOpen();
+  108 |   const [openInReader] = useOpenInReader();
+  109 |   const {
+  110 |     generatedContent,
+  111 |     generating,
+  112 |     error: aiError,
+  113 |     generate,
+  114 |     clear: clearAI,
+  115 |     setContent: setAIContent,
+  116 |   } = useAI();
+  117 |   const { sending, error: tgError, success: tgSuccess, send, reset: resetTG } = useTelegram();
+  118 | 
+  119 |   const [showShareModal, setShowShareModal] = useState(false);
+  120 |   const [showAddModal, setShowAddModal] = useState(false);
+  121 |   const [showStatsModal, setShowStatsModal] = useState(false);
+  122 |   const [showFeedManager, setShowFeedManager] = useState(false);
+  123 |   const [showNewsletterConfig, setShowNewsletterConfig] = useState(false);
+  124 |   const [showNewsletterBuilder, setShowNewsletterBuilder] = useState(false);
+  125 |   const [showSettings, setShowSettings] = useState(false);
+  126 |   const [showDigestConfig, setShowDigestConfig] = useState(false);
+  127 |   const [showUsers, setShowUsers] = useState(false);
+  128 |   const [showTelegramQueue, setShowTelegramQueue] = useState(false);
+  129 |   const [showBookmarks, setShowBookmarks] = useState(false);
+  130 |   const [showProfileModal, setShowProfileModal] = useState(false);
+  131 |   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  132 |   const [showUserSettings, setShowUserSettings] = useState(false);
+  133 |   const [_interestProfile, setInterestProfile] = useState<InterestProfile | null>(null);
+  134 |   const [digestGrouping, setDigestGrouping] = useState<DigestGrouping>(() => {
+  135 |     if (typeof window !== 'undefined') {
+  136 |       return (localStorage.getItem('digestGrouping') as DigestGrouping) || 'none';
+  137 |     }
+  138 |     return 'none';
+  139 |   });
+  140 |   const [digestView, setDigestView] = useState(false);
+  141 |   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  142 |   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  143 |   const [readerItem, setReaderItem] = useState<NewsItem | null>(null);
+  144 |   const [selectedIndex, setSelectedIndex] = useState(-1);
+  145 |   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  146 |   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  147 |   const [contentType, setContentType] = useState<ContentType>('thread');
+  148 |   const [language, setLanguage] = useState<Language>('pt');
+  149 |   const [provider, setProvider] = useState<Provider>('auto');
+  150 |   const [templateId, setTemplateId] = useState<string>('');
+  151 |   const [templateVariables, setTemplateVariables] = useState<Record<string, string>>({});
+  152 |   const [templates, setTemplates] = useState<Template[]>([]);
+  153 |   const [generatedByNews, setGeneratedByNews] =
+  154 |     useState<Record<string, GeneratedEntry>>(loadGeneratedStore);
+  155 |   const [status, setStatus] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  156 |   const [searchQuery, setSearchQuery] = useState('');
+  157 |   const [sourceFilter, setSourceFilter] = useState('');
+  158 |   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'relevance'>('newest');
+  159 |   const [readFilter, setReadFilter] = useState<ReadFilter>(() => {
+  160 |     if (typeof window === 'undefined') return 'all';
+  161 |     const stored = localStorage.getItem('readFilter');
+  162 |     return stored === 'unread' || stored === 'read' ? stored : 'all';
+  163 |   });
+  164 |   const [showShortcuts, setShowShortcuts] = useState(false);
+  165 | 
+  166 |   // O input responde na hora; o servidor só é consultado quando o usuário
+  167 |   // para de digitar.
+  168 |   const debouncedSearch = useDebouncedValue(searchQuery, 300);
+  169 | 
+  170 |   const {
+  171 |     news,
+  172 |     loading,
+  173 |     loadingMore,
+  174 |     error,
+  175 |     total,
+  176 |     counts,
+  177 |     sources,
+  178 |     hasMore,
+  179 |     fetchMore,
+  180 |     addNews,
+  181 |     fetchRss,
+  182 |     setRead,
+  183 |     fromCache,
+  184 |     cachedAt,
+  185 |   } = useNews(user?.id, {
+  186 |     query: debouncedSearch,
+  187 |     source: sourceFilter,
+  188 |     sort: sortOrder,
+  189 |     read: readFilter,
+  190 |   });
+  191 | 
+  192 |   const unreadCount = counts.unread;
+  193 |   const readCount = counts.read;
+  194 | 
+  195 |   // Busca, filtro, ordenação e paginação já vêm do servidor: a lista em mãos
+  196 |   // é exatamente o recorte pedido. Os aliases mantêm os handlers abaixo com
+  197 |   // o mesmo nome de antes.
+  198 |   const filteredNews = news;
+  199 |   const visibleNews = news;
+  200 |   // Remember the filter across reloads (same pattern as the digest grouping).

@@ -1,0 +1,25 @@
+# fonte: frontend/src/components/Status.tsx
+# copiado de: frontend/src/components/Status.tsx
+
+    1 | import { CheckCircle2, X, XCircle } from 'lucide-react';
+    2 | 
+    3 | interface StatusProps {
+    4 |   message: string;
+    5 |   type: 'success' | 'error';
+    6 |   onClose?: () => void;
+    7 | }
+    8 | 
+    9 | export function Status({ message, type, onClose }: StatusProps) {
+   10 |   return (
+   11 |     <div className={`status ${type}`} role="alert" aria-live="polite">
+   12 |       {type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+   13 |       <span>{message}</span>
+   14 |       {onClose && (
+   15 |         <button className="close-btn" onClick={onClose} aria-label="Close">
+   16 |           <X size={15} />
+   17 |         </button>
+   18 |       )}
+   19 |     </div>
+   20 |   );
+   21 | }
+   22 | 

@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useModalFocus } from '../hooks/useModalFocus';
 import { useI18n } from '../i18n';
 
 interface Shortcut {
@@ -16,6 +17,7 @@ interface ShortcutsHelpProps {
 export function ShortcutsHelp({ isOpen, onClose, shortcuts }: ShortcutsHelpProps) {
   const { t } = useI18n();
   useEscapeKey(isOpen, onClose);
+  const dialogRef = useModalFocus<HTMLDivElement>(isOpen);
 
   if (!isOpen) return null;
 
@@ -27,7 +29,12 @@ export function ShortcutsHelp({ isOpen, onClose, shortcuts }: ShortcutsHelpProps
       aria-modal="true"
       aria-labelledby="shortcuts-title"
     >
-      <div className="modal shortcuts-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal shortcuts-modal"
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h3 id="shortcuts-title">{t('shortcuts.title')}</h3>
           <button className="close-btn" onClick={onClose} aria-label={t('common.close')}>

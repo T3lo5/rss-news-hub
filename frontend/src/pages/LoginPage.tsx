@@ -1,10 +1,18 @@
 import { LogIn, Radio } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n';
+
+// Mensagens de erro que o backend devolve em inglês. As conhecidas viram chaves
+// de i18n; o resto é repassado cru, para não esconder um erro novo (MU-005).
+const BACKEND_AUTH_ERRORS: Record<string, string> = {
+  'Invalid credentials': 'login.invalidCredentials',
+  'User with this email already exists': 'login.emailTaken',
+  'Registration disabled': 'login.registrationDisabled',
+};
 
 export function LoginPage() {
   const { login, register, user } = useAuth();
@@ -16,6 +24,7 @@ export function LoginPage() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
   // O registro pode estar desligado (ALLOW_REGISTRATION=false, e/ou bloqueio
   // no proxy). Nesse caso o link "Criar conta" some, em vez de abrir um
   // formulario que sempre termina em 403.
@@ -44,6 +53,18 @@ export function LoginPage() {
     }
   }, [user, navigate]);
 
+  // A caixa de erro tem role="alert" (anunciada) e recebe foco quando aparece,
+  // para quem navega por teclado/leitor de tela não ficar sem resposta (MU-006).
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
+
+  const localizeError = (err: unknown): string => {
+    const raw = err instanceof Error ? err.message : t('login.unknownError');
+    const key = BACKEND_AUTH_ERRORS[raw];
+    return key ? t(key) : raw;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -55,7 +76,7 @@ export function LoginPage() {
         await register(email, password, name);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('login.unknownError'));
+      setError(localizeError(err));
     } finally {
       setLoading(false);
     }
@@ -77,7 +98,11 @@ export function LoginPage() {
           <p className="subtitle">{t('header.subtitle')}</p>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className="error-message" role="alert" tabIndex={-1} ref={errorRef}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           {!isLogin && (

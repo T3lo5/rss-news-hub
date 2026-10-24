@@ -1,0 +1,12 @@
+{
+  "source": "/mnt/Arquivos/github-personal/rss-news/.monkey-user/reports/2026-10-24-a/findings.json",
+  "generated_at": "2026-10-24T16:02:51.377288+00:00",
+  "html": "index.html",
+  "queue_markdown": "priority-queue.md",
+  "queue_csv": "priority-queue.csv",
+  "findings": 18,
+  "queue_items": 10,
+  "warnings": [],
+  "browser_open_attempted": false,
+  "browser_open_result": null
+}

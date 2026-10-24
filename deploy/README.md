@@ -33,13 +33,15 @@ O que ficou no lugar:
 | Regra | Onde | Efeito |
 |---|---|---|
 | `respond @register 403` | Caddy | ninguém cria conta; instantâneo, sem hash, sem banco |
-| `ALLOW_REGISTRATION=false` | app | a tela de login esconde o link "Criar conta" |
+| `ALLOW_REGISTRATION=false` | app | esconde o link "Criar conta" **e** o endpoint devolve 403 |
 | JWT em `/api/**` | app | todo dado exige login |
 | rate limit em `auth/*` | app | freia força bruta no login |
 
 `GET /api/auth/config` (público) devolve `{ registrationEnabled }`, e a tela de login
 usa isso para não oferecer um formulário que o proxy vai recusar com 403. O bloqueio
-do Caddy continua sendo a garantia; a flag é só para a UI não mentir.
+do Caddy continua sendo a garantia externa; agora o próprio app também recusa
+(`POST /api/auth/register` → 403 quando `ALLOW_REGISTRATION=false`), então remover a
+regra do proxy sozinha não reabre o cadastro.
 
 Consequência: **uma senha só** (a do app). O Caddy não recebe o `.env.prod`, apenas
 `DOMAIN` — as chaves de IA e o `JWT_SECRET` não existem no processo do proxy.

@@ -14,7 +14,7 @@ import {
   UserCog,
   Users,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { usePwaInstall } from '../hooks/usePwaInstall';
@@ -73,6 +73,50 @@ export function Header({
 
   const moreRef = useClickOutside<HTMLDivElement>(openMenu === 'more', () => setOpenMenu(null));
   const userRef = useClickOutside<HTMLDivElement>(openMenu === 'user', () => setOpenMenu(null));
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const userTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // Os painéis anunciam aria-haspopup="menu", então precisam do comportamento
+  // esperado: Escape fecha e devolve o foco ao gatilho, setas/Home/End
+  // navegam entre os itens (MU-010).
+  const handleMenuKeys = useCallback(
+    (
+      event: React.KeyboardEvent<HTMLDivElement>,
+      close: () => void,
+      trigger: React.RefObject<HTMLButtonElement | null>
+    ) => {
+      const panel = event.currentTarget.querySelector<HTMLElement>('.menu-panel');
+
+      if (event.key === 'Escape') {
+        if (!panel) return;
+        event.preventDefault();
+        event.stopPropagation(); // não deixa o fechador global tratar de novo
+        close();
+        trigger.current?.focus();
+        return;
+      }
+
+      if (!panel) return;
+      const items = Array.from(panel.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+      if (items.length === 0) return;
+      const index = items.indexOf(document.activeElement as HTMLElement);
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        items[index + 1 >= items.length ? 0 : index + 1].focus();
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        items[index <= 0 ? items.length - 1 : index - 1].focus();
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        items[0].focus();
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        items[items.length - 1].focus();
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -88,10 +132,17 @@ export function Header({
     return () => clearInterval(interval);
   }, []);
 
-  const run = useCallback((action: () => void) => {
-    setOpenMenu(null);
-    action();
-  }, []);
+  const run = useCallback(
+    (action: () => void) => {
+      // Fecha o menu e devolve o foco ao botão que o abriu: sem isso o foco
+      // fica perdido no <body> quando o painel desmonta com o item ativado.
+      const trigger = openMenu === 'more' ? moreTriggerRef.current : userTriggerRef.current;
+      setOpenMenu(null);
+      action();
+      trigger?.focus();
+    },
+    [openMenu]
+  );
 
   const install = async () => {
     if (canPrompt) {
@@ -136,17 +187,34 @@ export function Header({
             </span>
           </div>
 
-          <button className="btn btn-primary" onClick={onRefresh}>
+          <button
+            className="btn btn-primary"
+            onClick={onRefresh}
+            aria-label={t('header.refresh')}
+            title={t('header.refresh')}
+          >
             <RefreshCw size={16} />
             <span className="btn-label">{t('header.refresh')}</span>
           </button>
-          <button className="btn btn-secondary" onClick={onAddClick}>
+          <button
+            className="btn btn-secondary"
+            onClick={onAddClick}
+            aria-label={t('header.add')}
+            title={t('header.add')}
+          >
             <Plus size={16} />
             <span className="btn-label">{t('header.add')}</span>
           </button>
 
-          <div className="menu" ref={moreRef}>
+          <div
+            className="menu"
+            ref={(node) => {
+              moreRef.current = node;
+            }}
+            onKeyDown={(event) => handleMenuKeys(event, () => setOpenMenu(null), moreTriggerRef)}
+          >
             <button
+              ref={moreTriggerRef}
               className="btn-icon"
               aria-haspopup="menu"
               aria-expanded={openMenu === 'more'}
@@ -206,8 +274,15 @@ export function Header({
           <ThemeToggle />
 
           {user ? (
-            <div className="menu" ref={userRef}>
+            <div
+              className="menu"
+              ref={(node) => {
+                userRef.current = node;
+              }}
+              onKeyDown={(event) => handleMenuKeys(event, () => setOpenMenu(null), userTriggerRef)}
+            >
               <button
+                ref={userTriggerRef}
                 className="user-chip"
                 aria-haspopup="menu"
                 aria-expanded={openMenu === 'user'}
