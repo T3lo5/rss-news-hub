@@ -1,10 +1,16 @@
-import { newsletterHistoryRepository, newsRepository } from '../src/db/repositories/index.js';
+import {
+  feedRepository,
+  newsletterHistoryRepository,
+  newsRepository,
+} from '../src/db/repositories/index.js';
 import { buildSystemPrompt, chat, pickProvider } from './ai.service.js';
 import { isEmailConfigured, sendEmail } from './email.service.js';
 import { markdownToHtml, renderEmailHtml } from './markdown.js';
 import { telegramSend } from './telegram.service.js';
 
-function filterNewsByConfig(news, config) {
+// Exported for tests: this is the whole selection policy (filters, score gate,
+// ranking order and cap), so it is worth asserting directly.
+export function filterNewsByConfig(news, config) {
   const cutoff = Date.now() - config.lookbackDays * 24 * 60 * 60 * 1000;
   let filtered = news.filter((n) => new Date(n.pubDate).getTime() >= cutoff);
 
@@ -13,7 +19,32 @@ function filterNewsByConfig(news, config) {
   }
 
   if (config.categories?.length) {
-    filtered = filtered.filter((n) => config.categories.includes(n.category || 'General'));
+    // `category` lives on `feeds`, not `news_items`: reading `n.category` here
+    // always yielded undefined and made every selection collapse to "General",
+    // so picking any real category emptied the edition. The caller decorates
+    // each item with `feedCategory` before filtering; items the caller did not
+    // decorate keep the old "General" fallback.
+    filtered = filtered.filter((n) => config.categories.includes(n.feedCategory || 'General'));
+  }
+
+  // Score gate. 0 keeps everything; items never scored count as -1 so an
+  // unscored backlog cannot slip past a threshold the admin set on purpose.
+  const minScore = Number(config.minRelevanceScore) || 0;
+  if (minScore > 0) {
+    filtered = filtered.filter((n) => Number(n.relevanceScore ?? -1) >= minScore);
+  }
+
+  // Best-ranked first, then newest. Ordering matters as soon as maxItems caps
+  // the edition: the cap must trim the tail, not whatever sorted first.
+  filtered.sort(
+    (a, b) =>
+      Number(b.relevanceScore ?? -1) - Number(a.relevanceScore ?? -1) ||
+      new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
+  );
+
+  const maxItems = Number(config.maxItems);
+  if (Number.isFinite(maxItems) && maxItems > 0) {
+    filtered = filtered.slice(0, maxItems);
   }
 
   return filtered;
@@ -47,7 +78,16 @@ export async function generateAndSendNewsletter(config, delivery = {}) {
 
   try {
     const news = await newsRepository.findAll();
-    const filtered = filterNewsByConfig(news, config);
+    // Category is a feed property; carry it onto the items so the filter below
+    // can match a real selection instead of the "General" fallback.
+    const categoryByFeed = new Map(
+      (await feedRepository.findAll()).map((feed) => [feed.id, feed.category])
+    );
+    const enriched = news.map((item) => ({
+      ...item,
+      feedCategory: categoryByFeed.get(item.feedId) || null,
+    }));
+    const filtered = filterNewsByConfig(enriched, config);
 
     if (filtered.length === 0) {
       entry.error = 'No news items match filters';

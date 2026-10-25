@@ -182,6 +182,25 @@ describe('Settings API', () => {
     assert.strictEqual(stored.language, 'pt');
   });
 
+  // The trigger spends AI credits and posts to the owner's Telegram bot, so it
+  // must never be reachable anonymously; the same goes for reading or writing
+  // the config that decides where those messages go.
+  test('newsletter config, history and trigger are admin-only', async () => {
+    const anonGets = [
+      ['GET', '/api/newsletter/config'],
+      ['GET', '/api/newsletter/history'],
+      ['POST', '/api/newsletter/trigger'],
+    ] as const;
+
+    for (const [method, path] of anonGets) {
+      const anon = await request(method, path, method === 'POST' ? {} : undefined);
+      assert.strictEqual(anon.status, 401, `${method} ${path}: ${anon.raw}`);
+    }
+
+    const anonPut = await request('PUT', '/api/newsletter/config', { lookbackDays: 7 });
+    assert.strictEqual(anonPut.status, 401, anonPut.raw);
+  });
+
   test('digest config is persisted', async () => {
     const token = await createAdminToken();
     const res = await request('PUT', '/api/digest/config', { lookbackDays: 14 }, bearer(token));

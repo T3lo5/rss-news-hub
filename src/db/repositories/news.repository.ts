@@ -4,6 +4,15 @@ import { getDb, schema } from '../index.js';
 export type NewsSortOrder = 'newest' | 'oldest' | 'relevance';
 export type NewsReadFilter = 'all' | 'unread' | 'read';
 
+/**
+ * Shared guard for every pruning statement: a row that any user bookmarked is
+ * never deleted, whatever its age or score. The table is referenced by name so
+ * the subquery keeps resolving to `bookmarks` and not the outer `news_items`.
+ */
+function notBookmarked() {
+  return sql`NOT EXISTS (SELECT 1 FROM bookmarks WHERE bookmarks.news_id = ${schema.newsItems.id})`;
+}
+
 export interface NewsPageOptions {
   userId?: string;
   limit: number;
@@ -251,7 +260,26 @@ export class NewsRepository {
   async deleteOlderThan(cutoffDate: Date): Promise<number> {
     const result = await this.db
       .delete(schema.newsItems)
-      .where(sql`${schema.newsItems.pubDate} < ${cutoffDate.getTime()}`);
+      .where(and(sql`${schema.newsItems.pubDate} < ${cutoffDate.getTime()}`, notBookmarked()));
+    return result.changes;
+  }
+
+  /**
+   * Prunes the junk tier: items below `threshold` on the 0-100 relevance scale
+   * (never-scored items included, treated as -1) that are also older than
+   * `cutoffDate`. Bookmarked rows are left alone — a bookmark is an explicit
+   * user choice and must outlive any cleanup heuristic.
+   */
+  async deleteLowRelevanceOlderThan(cutoffDate: Date, threshold: number): Promise<number> {
+    const result = await this.db
+      .delete(schema.newsItems)
+      .where(
+        and(
+          sql`${schema.newsItems.pubDate} < ${cutoffDate.getTime()}`,
+          sql`coalesce(${schema.newsItems.relevanceScore}, -1) < ${threshold}`,
+          notBookmarked()
+        )
+      );
     return result.changes;
   }
 

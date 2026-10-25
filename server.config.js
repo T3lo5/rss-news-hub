@@ -119,6 +119,10 @@ const newsletterConfig = {
   lookbackDays: 7,
   sources: [],
   categories: [],
+  // Only items at or above this score make it into the edition; 0 keeps them all.
+  minRelevanceScore: 0,
+  // Upper bound on items per edition so one send never becomes unreadable.
+  maxItems: 15,
   language: 'en',
   provider: 'auto',
   telegramEnabled: true,
@@ -144,6 +148,12 @@ const email = {
 // News retention. 0 (the default) disables automatic pruning.
 const retention = {
   retentionDays: parseInt(process.env.NEWS_RETENTION_DAYS || '0', 10),
+  // Second, faster rule for junk: items scoring below the threshold AND older
+  // than lowScoreDays are pruned while relevant news survives. Items never
+  // scored (relevance_score IS NULL) count as below the threshold — anything
+  // old enough has already been through the scoring cycle. 0 disables it.
+  lowScoreThreshold: parseInt(process.env.NEWS_LOW_SCORE_THRESHOLD || '30', 10),
+  lowScoreDays: parseInt(process.env.NEWS_LOW_SCORE_DAYS || '0', 10),
 };
 
 export {

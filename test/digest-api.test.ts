@@ -41,15 +41,28 @@ describe('Digest API', () => {
   });
 
   test('GET /api/digest/config returns the current config', async () => {
-    const res = await request('GET', '/api/digest/config');
+    const token = await createAdminToken();
+    const res = await request('GET', '/api/digest/config', undefined, bearer(token));
     assert.strictEqual(res.status, 200, res.raw);
     assert.strictEqual(res.json.data.maxItems, 10);
     assert.strictEqual(res.json.data.enabled, false);
   });
 
+  test('digest config and status are admin-only', async () => {
+    const anonConfig = await request('GET', '/api/digest/config');
+    assert.strictEqual(anonConfig.status, 401, anonConfig.raw);
+    const anonStatus = await request('GET', '/api/digest/status');
+    assert.strictEqual(anonStatus.status, 401, anonStatus.raw);
+
+    const userToken = await createUserToken();
+    const userConfig = await request('GET', '/api/digest/config', undefined, bearer(userToken));
+    assert.strictEqual(userConfig.status, 403, userConfig.raw);
+  });
+
   test('GET /api/digest/status returns the computed next run when enabled', async () => {
     updateDigestConfig({ enabled: true, cron: '0 9 * * 1-5' });
-    const res = await request('GET', '/api/digest/status');
+    const token = await createAdminToken();
+    const res = await request('GET', '/api/digest/status', undefined, bearer(token));
     assert.strictEqual(res.status, 200, res.raw);
     assert.strictEqual(res.json.data.enabled, true);
     assert.strictEqual(res.json.data.cron, '0 9 * * 1-5');

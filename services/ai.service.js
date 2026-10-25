@@ -107,6 +107,23 @@ async function chatWithConfig(cfg, systemPrompt, userContent) {
   return data.choices?.[0]?.message?.content || '';
 }
 
+/**
+ * The one error a restricted account can hit: it has no AI key of its own and
+ * is not allowed to borrow the deployment owner's. `code` rides along so the
+ * client can explain it in the user's language instead of surfacing a raw
+ * English sentence.
+ */
+function noProviderError(resolvedConfig) {
+  if (resolvedConfig?.restricted) {
+    const err = new Error('This account has no AI API key of its own');
+    err.code = 'AI_KEYS_REQUIRED';
+    return err;
+  }
+  return new Error(
+    'No AI provider configured. Set at least one API key in .env or in your profile settings'
+  );
+}
+
 export async function chat(systemPrompt, userContent, provider = 'auto', userId = null) {
   // Resolve a config efetiva (per-user se userId fornecido, senão global)
   const resolvedConfig = await resolveConfig(userId);
@@ -123,9 +140,7 @@ export async function chat(systemPrompt, userContent, provider = 'auto', userId 
         : listConfiguredProviders();
 
     if (candidates.length === 0 || !candidates[0]?.cfg) {
-      throw new Error(
-        'No AI provider configured. Set at least one API key in .env or in your profile settings'
-      );
+      throw noProviderError(resolvedConfig);
     }
 
     let lastErr;
@@ -140,12 +155,7 @@ export async function chat(systemPrompt, userContent, provider = 'auto', userId 
         }
       }
     }
-    throw (
-      lastErr ||
-      new Error(
-        'No AI provider configured. Set at least one API key in .env or in your profile settings'
-      )
-    );
+    throw lastErr || noProviderError(resolvedConfig);
   } finally {
     aiConfig = prevConfig; // restaura
   }
@@ -166,9 +176,7 @@ export async function chatStream(
   try {
     const cfg = pickProvider(provider);
     if (!cfg) {
-      throw new Error(
-        'No AI provider configured. Set at least one API key in .env or in your profile settings'
-      );
+      throw noProviderError(resolvedConfig);
     }
 
     const abortSignal = options.signal;

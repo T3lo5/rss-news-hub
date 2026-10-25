@@ -18,13 +18,7 @@ interface ProviderSelectProps {
 
 // Shared AI provider dropdown. Uses GET /api/ai/providers so unconfigured
 // providers are shown but disabled, instead of the old hardcoded list.
-export function ProviderSelect({
-  value,
-  onChange,
-  id,
-  disabled,
-  autoLabel,
-}: ProviderSelectProps) {
+export function ProviderSelect({ value, onChange, id, disabled, autoLabel }: ProviderSelectProps) {
   const { t } = useI18n();
   const list = useAiProviders(true);
   const providers = list?.providers ?? DEFAULT_PROVIDERS;

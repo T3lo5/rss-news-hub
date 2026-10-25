@@ -7,6 +7,7 @@ import { useI18n } from '../i18n';
 import type { FeedConfig, OPMLImportResult } from '../types';
 import { FeedFormModal } from './FeedFormModal';
 import { FeedTable } from './FeedTable';
+import { Status } from './Status';
 
 export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t } = useI18n();
@@ -238,11 +239,7 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
             </div>
           </div>
 
-          {error && (
-            <div className="status error" style={{ margin: '16px', borderRadius: 0 }}>
-              {error}
-            </div>
-          )}
+          {error && <Status message={error} type="error" onClose={() => setError(null)} />}
 
           <div style={{ flex: 1, overflow: 'auto', padding: '0 16px 16px' }}>
             <FeedTable

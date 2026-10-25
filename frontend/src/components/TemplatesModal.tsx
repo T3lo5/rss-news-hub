@@ -4,6 +4,7 @@ import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { Template } from '../types';
+import { Status } from './Status';
 
 interface TemplatesModalProps {
   isOpen: boolean;
@@ -227,9 +228,11 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
         ) : (
           <div className="modal-body">
             {error && (
-              <div className="error" style={{ marginBottom: '16px' }}>
-                {t('templates.errorPrefix', { error })}
-              </div>
+              <Status
+                message={t('templates.errorPrefix', { error })}
+                type="error"
+                onClose={() => setError(null)}
+              />
             )}
 
             <div

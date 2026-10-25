@@ -96,6 +96,13 @@ function isEntityParseError(description) {
 
 export async function telegramSend(text, parseMode = 'Markdown', config, options = {}) {
   if (!(config?.botToken && config?.chatId)) {
+    // A restricted account cannot fall back to the owner's bot; tell the client
+    // why with a code it can translate.
+    if (config?.restricted) {
+      const err = new Error('This account has no Telegram bot of its own');
+      err.code = 'TELEGRAM_REQUIRED';
+      throw err;
+    }
     throw new Error('Telegram not configured');
   }
   const url = `https://api.telegram.org/bot${config.botToken}/sendMessage`;

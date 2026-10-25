@@ -98,6 +98,8 @@ export const updateNewsletterConfigSchema = z.object({
   lookbackDays: z.number().int().min(1).max(30).optional(),
   sources: z.array(z.string()).optional(),
   categories: z.array(z.string()).optional(),
+  minRelevanceScore: z.number().int().min(0).max(100).optional(),
+  maxItems: z.number().int().min(1).max(50).optional(),
   language: z.enum(['en', 'pt']).optional(),
   provider: z.enum(['auto', 'sensenova', 'deepseek', 'openai']).optional(),
   telegramEnabled: z.boolean().optional(),
@@ -142,6 +144,9 @@ export const aiTestSchema = z.object({
 
 export const retentionSettingsSchema = z.object({
   retentionDays: z.number().int().min(0).max(3650),
+  // 0 disables the low-score rule; threshold is on the 0-100 relevance scale.
+  lowScoreThreshold: z.number().int().min(0).max(100).optional(),
+  lowScoreDays: z.number().int().min(0).max(3650).optional(),
 });
 
 // Email/SMTP settings (admin). pass: omitted = keep, null/'' = clear.

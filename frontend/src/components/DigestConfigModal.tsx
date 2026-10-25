@@ -5,6 +5,7 @@ import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { DigestConfig, DigestPreview, DigestStatus } from '../types';
 import { ProviderSelect } from './ProviderSelect';
+import { Status } from './Status';
 
 const CRON_PRESETS = [
   { key: 'digest.presetDaily', value: '0 9 * * *' },
@@ -164,16 +165,8 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
           className="modal-body"
           style={{ padding: '20px', overflow: 'auto', maxHeight: '75vh' }}
         >
-          {error && (
-            <div className="status error" style={{ marginBottom: '16px' }}>
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="status success" style={{ marginBottom: '16px' }}>
-              {success}
-            </div>
-          )}
+          {error && <Status message={error} type="error" onClose={() => setError(null)} />}
+          {success && <Status message={success} type="success" />}
 
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: 0 }}>
             {t('digest.intro')}

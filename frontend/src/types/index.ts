@@ -155,6 +155,10 @@ export interface NewsletterConfig {
   lookbackDays: number;
   sources: string[];
   categories: string[];
+  /** Items below this score are left out; 0 keeps everything. */
+  minRelevanceScore: number;
+  /** Upper bound on items in one edition. */
+  maxItems: number;
   language: 'en' | 'pt';
   provider: 'auto' | 'sensenova' | 'deepseek' | 'openai';
   telegramEnabled: boolean;
@@ -258,13 +262,23 @@ export interface AppSettings {
 
 export interface RetentionSettings {
   retentionDays: number;
+  /** Items scoring below this (0-100) are the first tier to go. */
+  lowScoreThreshold: number;
+  /** Age at which that tier is pruned. 0 turns the rule off. */
+  lowScoreDays: number;
   running?: boolean;
 }
 
 export interface PruneResult {
   skipped: boolean;
   deleted: number;
+  /** Removed by the age rule. */
+  ageDeleted?: number;
+  /** Removed by the low-score rule. */
+  scoreDeleted?: number;
   retentionDays: number;
+  lowScoreDays?: number;
+  lowScoreThreshold?: number;
   cutoff?: string;
 }
 
@@ -395,7 +409,12 @@ export interface HealthStatus {
   schedulers: {
     fetch?: { running?: boolean; nextRun?: number | null };
     digest?: { enabled?: boolean; cron?: string; nextRun?: number | null };
-    retention?: { retentionDays?: number; running?: boolean };
+    retention?: {
+      retentionDays?: number;
+      lowScoreThreshold?: number;
+      lowScoreDays?: number;
+      running?: boolean;
+    };
     telegram?: { running?: boolean; queueLength?: number };
   };
   providers: { configured: string[] };

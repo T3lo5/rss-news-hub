@@ -6,6 +6,7 @@ import { useOpenInReader } from '../hooks/useOpenInReader';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { AiProviderId } from '../types';
+import { Status } from './Status';
 
 // Tipos para a visão geral de configurações por usuário
 interface UserSettingsOverview {
@@ -332,8 +333,8 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
         {loading && <div className="modal-body">{t('app.loading') || 'Loading...'}</div>}
 
-        {error && <div className="status error modal-status">{error}</div>}
-        {success && <div className="status success modal-status">{success}</div>}
+        {error && <Status message={error} type="error" onClose={() => setError(null)} />}
+        {success && <Status message={success} type="success" />}
 
         {settings && !loading && (
           <div className="modal-body">

@@ -225,8 +225,28 @@ export async function deleteSession(token) {
 }
 
 export async function createDefaultAdmin() {
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@localhost';
+  // `admin@localhost` has no TLD, so `z.string().email()` rejects it and an
+  // account created with it could never sign in. The environment can still
+  // pin any address; only the built-in default changed.
+  const FALLBACK_ADMIN_EMAIL = 'admin@localhost.local';
+  const adminEmail = process.env.ADMIN_EMAIL || FALLBACK_ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD || 'changeme123';
+
+  // Upgrade a row created under the old default so an existing install gets a
+  // usable admin instead of keeping a permanently locked account. Guarded on
+  // both sides: only when the environment is not overriding the address, and
+  // only when nothing already occupies the new one.
+  if (!process.env.ADMIN_EMAIL) {
+    const legacy = await getUserByEmail('admin@localhost');
+    const target = await getUserByEmail(adminEmail);
+    if (legacy && !target) {
+      const db = getDb();
+      await db
+        .update(schema.users)
+        .set({ email: adminEmail, updatedAt: new Date() })
+        .where(eq(schema.users.id, legacy.id));
+    }
+  }
 
   const existing = await getUserByEmail(adminEmail);
   if (existing) return existing;

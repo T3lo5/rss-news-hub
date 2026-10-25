@@ -11,6 +11,7 @@ import {
 import { useI18n } from '../i18n';
 import type { FeedConfig, NewsletterConfig, NewsletterHistoryEntry } from '../types';
 import { ProviderSelect } from './ProviderSelect';
+import { Status } from './Status';
 
 const CRON_PRESETS = [
   { key: 'newsletterConfig.presetDaily', value: '0 9 * * *' },
@@ -35,6 +36,8 @@ export function NewsletterConfigModal({
     lookbackDays: 7,
     sources: [],
     categories: [],
+    minRelevanceScore: 0,
+    maxItems: 15,
     language: 'pt',
     provider: 'auto',
     telegramEnabled: true,
@@ -170,16 +173,8 @@ export function NewsletterConfigModal({
           className="modal-body"
           style={{ padding: '20px', overflow: 'auto', maxHeight: '70vh' }}
         >
-          {error && (
-            <div className="status error" style={{ marginBottom: '16px' }}>
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="status success" style={{ marginBottom: '16px' }}>
-              {success}
-            </div>
-          )}
+          {error && <Status message={error} type="error" onClose={() => setError(null)} />}
+          {success && <Status message={success} type="success" />}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div className="form-group">
@@ -257,6 +252,40 @@ export function NewsletterConfigModal({
               />
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                 {t('newsletterConfig.lookbackHint')}
+              </p>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="minRelevanceScore">{t('newsletterConfig.minScore')}</label>
+              <input
+                id="minRelevanceScore"
+                type="number"
+                min="0"
+                max="100"
+                value={config.minRelevanceScore}
+                onChange={(e) =>
+                  handleChange('minRelevanceScore', parseInt(e.target.value, 10) || 0)
+                }
+                disabled={loading}
+              />
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                {t('newsletterConfig.minScoreHint')}
+              </p>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="maxItems">{t('newsletterConfig.maxItems')}</label>
+              <input
+                id="maxItems"
+                type="number"
+                min="1"
+                max="50"
+                value={config.maxItems}
+                onChange={(e) => handleChange('maxItems', parseInt(e.target.value, 10) || 1)}
+                disabled={loading}
+              />
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                {t('newsletterConfig.maxItemsHint')}
               </p>
             </div>
 

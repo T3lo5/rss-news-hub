@@ -4,6 +4,7 @@ import { useEscapeKey } from '../hooks/useEscapeKey';
 import { fetchProfile, updateProfile } from '../hooks/useRelevance';
 import { useI18n } from '../i18n';
 import type { InterestProfile } from '../types';
+import { Status } from './Status';
 
 export function InterestProfileModal({
   isOpen,
@@ -168,16 +169,8 @@ export function InterestProfileModal({
           className="modal-body"
           style={{ padding: '20px', overflow: 'auto', maxHeight: '70vh' }}
         >
-          {error && (
-            <div className="status error" style={{ marginBottom: '16px' }}>
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="status success" style={{ marginBottom: '16px' }}>
-              {success}
-            </div>
-          )}
+          {error && <Status message={error} type="error" onClose={() => setError(null)} />}
+          {success && <Status message={success} type="success" />}
 
           <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '14px' }}>
             {t('profile.intro')}

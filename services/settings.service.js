@@ -96,6 +96,12 @@ function buildRetentionConfig(stored = {}) {
   return {
     retentionDays:
       stored.retentionDays !== undefined ? stored.retentionDays : ENV_RETENTION.retentionDays,
+    lowScoreThreshold:
+      stored.lowScoreThreshold !== undefined
+        ? stored.lowScoreThreshold
+        : ENV_RETENTION.lowScoreThreshold,
+    lowScoreDays:
+      stored.lowScoreDays !== undefined ? stored.lowScoreDays : ENV_RETENTION.lowScoreDays,
   };
 }
 
@@ -231,6 +237,8 @@ export async function updateRetentionSettings(data = {}) {
   const next = { ...stored };
 
   if (data.retentionDays !== undefined) next.retentionDays = data.retentionDays;
+  if (data.lowScoreThreshold !== undefined) next.lowScoreThreshold = data.lowScoreThreshold;
+  if (data.lowScoreDays !== undefined) next.lowScoreDays = data.lowScoreDays;
 
   await writeArea('retention', next);
   Object.assign(retention, buildRetentionConfig(next));

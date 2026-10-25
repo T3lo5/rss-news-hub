@@ -276,17 +276,33 @@
 /* ============================================================
    Status toast / inline alerts
    ============================================================ */
+/*
+ * Toast ancorado à tela, não banner inline. Antes vivia no fluxo normal, então
+ * sumia assim que o usuário rolava — dentro de um modal longo podia ficar
+ * inteiramente fora do viewport. `fixed` + --z-toast (1100, acima do overlay
+ * de 1000) garante que apareça sempre no campo de visão.
+ *
+ * Fica no topo-centro de propósito: cobre só o miolo do header (logo/subtítulo)
+ * e deixa toolbar, filtros e botões do modal livres, mesmo quando um erro fica
+ * na tela até a próxima ação.
+ */
 .status {
+  position: fixed;
+  top: calc(var(--space-3) + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  margin: 0;
+  max-width: calc(100vw - 32px);
   padding: 12px 16px;
   font-size: var(--text-md);
   font-weight: var(--weight-medium);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
-  margin: 0 auto var(--space-4);
-  max-width: var(--content-max);
+  box-shadow: var(--shadow-lg);
   animation: slideDown var(--transition-slow);
 }
 
@@ -306,14 +322,16 @@
   margin-left: auto;
 }
 
+/* O -50% precisa estar dentro do keyframe: um translateY puro sobrescreveria o
+   centramento do transform enquanto a animação roda (o toast pularia de lugar). */
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translate(-50%, -8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(-50%, 0);
   }
 }
 
@@ -1402,9 +1420,9 @@
   width: 95vw;
 }
 
-/* Status banners that live between the header and the scrollable body. */
+/* `.status` é um toast fixo agora: margem aqui só deslocaria ele do centro. */
 .modal-status {
-  margin: var(--space-4) var(--space-5) 0;
+  margin: 0;
 }
 
 .form-actions {

@@ -496,6 +496,10 @@ export const pt: Record<string, string> = {
   'newsletterConfig.cronPlaceholder': 'ex: 0 9 * * 1',
   'newsletterConfig.lookback': 'Dias de retrospectiva:',
   'newsletterConfig.lookbackHint': 'Inclui notícias dos últimos N dias',
+  'newsletterConfig.minScore': 'Nota mínima (0-100):',
+  'newsletterConfig.minScoreHint': '0 inclui tudo; com 50 ou mais, só o que pontuou bem',
+  'newsletterConfig.maxItems': 'Máximo de notícias por edição:',
+  'newsletterConfig.maxItemsHint': 'As melhores primeiro; o resto fica de fora (1-50)',
   'newsletterConfig.language': 'Idioma:',
   'newsletterConfig.provider': 'Provedor de IA:',
   'newsletterConfig.telegram': 'Enviar via Telegram',
@@ -535,6 +539,10 @@ export const pt: Record<string, string> = {
 
   // newsletter builder
   'newsletterBuilder.errGenerate': 'Erro ao gerar a newsletter',
+  'ai.keysRequired':
+    'Esta conta não tem chave de API de IA própria. Configure a sua em Configurações para gerar conteúdo.',
+  'telegram.botRequired':
+    'Esta conta não tem bot do Telegram próprio. Configure o seu em Configurações para enviar.',
   'newsletterBuilder.emailSubject': 'Newsletter — {date}',
   'newsletterBuilder.errEmail': 'Erro ao enviar e-mail',
   'newsletterBuilder.title': 'Montar Newsletter',
@@ -647,6 +655,13 @@ export const pt: Record<string, string> = {
   'settings.maintenanceOff': '0 desliga',
   'settings.maintenancePost': 'a limpeza automática.',
   'settings.retentionLabel': 'Manter notícias por (dias):',
+  'settings.lowScorePre':
+    'Limpeza por ranking: notícias abaixo da nota mínima são removidas antes, para o banco não encher de ruído. Favoritos nunca são apagados.',
+  'settings.lowScoreThreshold': 'Nota máxima para apagar (0-100):',
+  'settings.lowScoreThresholdHint': '30 = apaga o que pontuou abaixo de 30',
+  'settings.lowScoreDays': 'Apagar após (dias):',
+  'settings.lowScoreDaysHint': '0 desliga esta limpeza',
+  'settings.errScoreThreshold': 'Informe uma nota entre 0 e 100.',
   'settings.pruning': 'Limpando...',
   'settings.prune': 'Limpar agora',
   'settings.saveRetention': 'Salvar Retenção',
@@ -1194,6 +1209,10 @@ export const en: Record<string, string> = {
   'newsletterConfig.cronPlaceholder': 'e.g. 0 9 * * 1',
   'newsletterConfig.lookback': 'Lookback Days:',
   'newsletterConfig.lookbackHint': 'Include news from the last N days',
+  'newsletterConfig.minScore': 'Minimum score (0-100):',
+  'newsletterConfig.minScoreHint': '0 includes everything; 50 or more keeps only top-ranked news',
+  'newsletterConfig.maxItems': 'Max news per edition:',
+  'newsletterConfig.maxItemsHint': 'Best-ranked first; the rest is left out (1-50)',
   'newsletterConfig.language': 'Language:',
   'newsletterConfig.provider': 'AI Provider:',
   'newsletterConfig.telegram': 'Send via Telegram',
@@ -1233,6 +1252,10 @@ export const en: Record<string, string> = {
 
   // newsletter builder
   'newsletterBuilder.errGenerate': 'Failed to generate the newsletter',
+  'ai.keysRequired':
+    'This account has no AI API key of its own. Set yours in Settings to generate content.',
+  'telegram.botRequired':
+    'This account has no Telegram bot of its own. Set yours in Settings to send.',
   'newsletterBuilder.emailSubject': 'Newsletter — {date}',
   'newsletterBuilder.errEmail': 'Failed to send e-mail',
   'newsletterBuilder.title': 'Build Newsletter',
@@ -1344,6 +1367,13 @@ export const en: Record<string, string> = {
   'settings.maintenanceOff': '0 turns off',
   'settings.maintenancePost': 'automatic cleanup.',
   'settings.retentionLabel': 'Keep news for (days):',
+  'settings.lowScorePre':
+    'Score cleanup: news below the minimum score is removed first so the database does not fill with noise. Bookmarks are never deleted.',
+  'settings.lowScoreThreshold': 'Delete below this score (0-100):',
+  'settings.lowScoreThresholdHint': '30 = deletes anything scoring under 30',
+  'settings.lowScoreDays': 'Delete after (days):',
+  'settings.lowScoreDaysHint': '0 turns this cleanup off',
+  'settings.errScoreThreshold': 'Enter a score between 0 and 100.',
   'settings.pruning': 'Cleaning...',
   'settings.prune': 'Clean now',
   'settings.saveRetention': 'Save Retention',

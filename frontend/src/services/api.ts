@@ -150,8 +150,15 @@ async function handleResponse<T>(res: Response): Promise<T> {
   }
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || `HTTP ${res.status}`);
+    const error = (await res.json().catch(() => ({ error: 'Request failed' }))) as {
+      error?: string;
+      code?: string;
+    };
+    // `code` carries machine-readable causes (e.g. AI_KEYS_REQUIRED) so callers
+    // can show a localized message instead of the server's English sentence.
+    const err = new Error(error.error || `HTTP ${res.status}`) as Error & { code?: string };
+    err.code = error.code;
+    throw err;
   }
   return res.json();
 }
@@ -628,10 +635,14 @@ export const api = {
     return data.data;
   },
 
-  async updateRetentionSettings(retentionDays: number): Promise<RetentionSettings> {
+  async updateRetentionSettings(settings: {
+    retentionDays: number;
+    lowScoreThreshold?: number;
+    lowScoreDays?: number;
+  }): Promise<RetentionSettings> {
     const res = await fetchWithAuth('/api/settings/retention', {
       method: 'PUT',
-      body: JSON.stringify({ retentionDays }),
+      body: JSON.stringify(settings),
     });
     const data = await handleResponse<{ ok: boolean; data: RetentionSettings }>(res);
     return data.data;

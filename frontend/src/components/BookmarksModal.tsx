@@ -4,6 +4,7 @@ import { fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import type { Bookmark } from '../types';
+import { Status } from './Status';
 
 export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t, language } = useI18n();
@@ -67,11 +68,7 @@ export function BookmarksModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
           className="modal-body"
           style={{ padding: '20px', overflow: 'auto', maxHeight: '70vh' }}
         >
-          {error && (
-            <div className="status error" style={{ marginBottom: '16px' }}>
-              {error}
-            </div>
-          )}
+          {error && <Status message={error} type="error" onClose={() => setError(null)} />}
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>

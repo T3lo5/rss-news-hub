@@ -9,12 +9,14 @@
 // Segredos (apiKey, botToken, senha SMTP) são criptografados em repouso com
 // AES-256-GCM (services/secrets.js) e nunca são retornados em texto claro.
 
+import { eq } from 'drizzle-orm';
 import {
   ai as envAi,
   email as envEmail,
   telegram as envTelegram,
   newsletterConfig,
 } from '../server.config.js';
+import { getDb, schema } from '../src/db/index.js';
 import { settingsRepository, userSettingsRepository } from '../src/db/repositories/index.js';
 import { decryptSecret, encryptSecret } from './secrets.js';
 
@@ -48,6 +50,31 @@ function hasKeys(obj) {
   return Boolean(obj && Object.keys(obj).length > 0);
 }
 
+// ─── Herança de credenciais do sistema ────────────────────────────────────
+
+// An empty stand-in for the .env AI/Telegram config so a restricted account
+// resolves only what it stored itself instead of falling through to secrets
+// that belong to the deployment owner.
+const LOCKED_AI_ENV = { sensenova: {}, deepseek: {}, openai: {} };
+const LOCKED_TELEGRAM_ENV = { botToken: '', chatId: '' };
+
+/**
+ * Whether an account may fall back to the system-wide credentials
+ * (app_settings + .env). Only the owner (admin) may: everyone else must bring
+ * their own keys, so one account can never spend another one's AI credits or
+ * post through someone else's bot.
+ *
+ * No user context (internal/background calls) keeps the legacy behaviour.
+ */
+export async function canInheritSystemConfig(userId) {
+  if (!userId) return true;
+  const rows = await getDb()
+    .select({ role: schema.users.role })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId));
+  return rows[0]?.role === 'admin';
+}
+
 // ─── Builders de config (merge: user → global → env) ───────────────────────
 
 function mergeProvider(userProvider = {}, globalProvider = {}, envProvider = {}) {
@@ -68,14 +95,18 @@ function mergeProvider(userProvider = {}, globalProvider = {}, envProvider = {})
 export function resolveAiConfig(userId) {
   // Síncrono: retorna um objeto Promise para manter a API uniforme
   return Promise.resolve().then(async () => {
+    // `restricted` accounts read only their own row: no global settings, no .env.
+    const restricted = !(await canInheritSystemConfig(userId));
     const userStored = await readUserArea(userId, 'ai');
-    const globalStored = await readGlobalArea('ai');
+    const globalStored = restricted ? {} : await readGlobalArea('ai');
+    const envStored = restricted ? LOCKED_AI_ENV : envAi;
 
     const config = {
-      sensenova: mergeProvider(userStored.sensenova, globalStored.sensenova, envAi.sensenova),
-      deepseek: mergeProvider(userStored.deepseek, globalStored.deepseek, envAi.deepseek),
-      openai: mergeProvider(userStored.openai, globalStored.openai, envAi.openai),
+      sensenova: mergeProvider(userStored.sensenova, globalStored.sensenova, envStored.sensenova),
+      deepseek: mergeProvider(userStored.deepseek, globalStored.deepseek, envStored.deepseek),
+      openai: mergeProvider(userStored.openai, globalStored.openai, envStored.openai),
       defaultProvider: userStored.defaultProvider || globalStored.defaultProvider || 'auto',
+      restricted,
     };
     return config;
   });
@@ -83,15 +114,18 @@ export function resolveAiConfig(userId) {
 
 export function resolveTelegramConfig(userId) {
   return Promise.resolve().then(async () => {
+    const restricted = !(await canInheritSystemConfig(userId));
     const userStored = await readUserArea(userId, 'telegram');
-    const globalStored = await readGlobalArea('telegram');
+    const globalStored = restricted ? {} : await readGlobalArea('telegram');
+    const envStored = restricted ? LOCKED_TELEGRAM_ENV : envTelegram;
     return {
       botToken: userStored.botToken
         ? decryptSecret(userStored.botToken)
         : globalStored.botToken
           ? decryptSecret(globalStored.botToken)
-          : envTelegram.botToken,
-      chatId: userStored.chatId || globalStored.chatId || envTelegram.chatId,
+          : envStored.botToken,
+      chatId: userStored.chatId || globalStored.chatId || envStored.chatId,
+      restricted,
     };
   });
 }

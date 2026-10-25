@@ -5,6 +5,7 @@ import { useI18n } from '../i18n';
 import type { ContentType, Language, NewsItem, Provider, Template } from '../types';
 import { formatGeneratedContent } from '../utils/content';
 import { ProviderSelect } from './ProviderSelect';
+import { Status } from './Status';
 
 interface ShareModalProps {
   news: NewsItem | null;
@@ -270,11 +271,9 @@ export function ShareModal({
             </div>
           )}
 
-          {tgError && (
-            <div className="error-text text-center mt-3">
-              {t('share.error', { error: tgError })}
-            </div>
-          )}
+          {/* Portal no topo-centro: no fim do corpo rolável este erro ficava
+              fora do campo de visão. */}
+          {tgError && <Status message={t('share.error', { error: tgError })} type="error" />}
         </div>
       </div>
     </div>

@@ -52,19 +52,27 @@ describe('Regressions: per-user config resolution', () => {
     assert.ok(newsletter && typeof newsletter === 'object');
   });
 
-  test('telegram falls back to the admin/global token when the user has no override', async () => {
-    const user = await createUserRecord();
+  test('a regular user does not inherit the admin/global telegram token', async () => {
+    const regular = await createUserRecord();
+    const admin = await createUserRecord('admin');
 
-    // Exatamente o cenário reportado: token salvo pela tela de Settings
-    // (global), sem nenhuma linha em user_settings para esse usuário.
+    // Token salvo pela tela de Settings pertence ao admin. Quem não é admin
+    // precisa configurar o próprio bot: nunca postar pelo bot de outra conta.
     await updateTelegramSettings({ botToken: 'global-bot-token', chatId: '123456' });
 
-    const config = await resolveTelegramConfig(user.id);
-    assert.strictEqual(config.botToken, 'global-bot-token');
-    assert.strictEqual(config.chatId, '123456');
+    const config = await resolveTelegramConfig(regular.id);
+    assert.strictEqual(config.botToken, '', `não deve herdar o token global`);
+    assert.strictEqual(config.chatId, '');
+    assert.strictEqual(config.restricted, true);
+
+    // O dono (admin) continua enxergando a config global.
+    const adminConfig = await resolveTelegramConfig(admin.id);
+    assert.strictEqual(adminConfig.botToken, 'global-bot-token');
+    assert.strictEqual(adminConfig.chatId, '123456');
+    assert.strictEqual(adminConfig.restricted, false);
   });
 
-  test('POST /api/telegram/send uses the global token instead of crashing', async () => {
+  test('POST /api/telegram/send refuses to spend the global bot for a regular user', async () => {
     const user = await createUserRecord();
     await updateTelegramSettings({ botToken: 'global-bot-token', chatId: '123456' });
 
@@ -76,11 +84,9 @@ describe('Regressions: per-user config resolution', () => {
     const token = login.json.data.accessToken as string;
 
     const originalFetch = globalThis.fetch;
-    let calledUrl = '';
-    let calledBody: any = null;
-    globalThis.fetch = (async (url: any, init: any) => {
-      calledUrl = String(url);
-      calledBody = JSON.parse(init.body);
+    let fetchCalled = false;
+    globalThis.fetch = (async () => {
+      fetchCalled = true;
       return {
         ok: true,
         status: 200,
@@ -91,9 +97,9 @@ describe('Regressions: per-user config resolution', () => {
 
     try {
       const res = await request('POST', '/api/telegram/send', { text: 'olá' }, bearer(token));
-      assert.strictEqual(res.status, 200, res.raw);
-      assert.match(calledUrl, /\/sendMessage$/);
-      assert.strictEqual(calledBody.chat_id, '123456');
+      assert.strictEqual(res.status, 400, res.raw);
+      assert.strictEqual(res.json.code, 'TELEGRAM_REQUIRED', res.raw);
+      assert.strictEqual(fetchCalled, false, 'não deve chamar a API do Telegram');
     } finally {
       globalThis.fetch = originalFetch;
     }

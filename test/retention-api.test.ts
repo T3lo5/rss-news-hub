@@ -1,8 +1,9 @@
 import assert from 'node:assert';
 import { beforeEach, describe, test } from 'node:test';
+import { retention } from '../server.config.js';
 import { createUser } from '../services/auth.service.js';
 import { runRetentionCleanup } from '../services/retention.service.js';
-import { newsRepository } from '../src/db/repositories/index.js';
+import { bookmarkRepository, newsRepository } from '../src/db/repositories/index.js';
 import { bearer, request } from './helpers/auth-http.js';
 import { getTestDb, resetTestDb } from './setup.js';
 
@@ -20,16 +21,47 @@ async function tokenFor(role: 'admin' | 'user'): Promise<string> {
   return login.json.data.accessToken;
 }
 
+async function userIdFor(role: 'admin' | 'user'): Promise<string> {
+  const email = uniqueEmail(`retention-${role}`);
+  const created = await createUser(email, 'senha12345', `Retention ${role}`, role);
+  return created.id;
+}
+
 const DAY = 24 * 60 * 60 * 1000;
 
-async function seedNews(id: string, ageDays: number) {
+async function seedNews(id: string, ageDays: number, score: number | null = null) {
   await newsRepository.create({
     id,
     title: `Item ${id}`,
     link: `https://example.com/${id}`,
     source: 'Example',
     pubDate: new Date(Date.now() - ageDays * DAY),
-    relevanceScore: null,
+    relevanceScore: score,
+  });
+}
+
+// The score rule reads the live config object, so tests set it explicitly and
+// restore it afterwards instead of relying on whatever the environment has.
+function withScoreCleanup(lowScoreDays: number, lowScoreThreshold: number) {
+  const previousDays = retention.lowScoreDays;
+  const previousThreshold = retention.lowScoreThreshold;
+  retention.lowScoreDays = lowScoreDays;
+  retention.lowScoreThreshold = lowScoreThreshold;
+  return () => {
+    retention.lowScoreDays = previousDays;
+    retention.lowScoreThreshold = previousThreshold;
+  };
+}
+
+async function seedBookmark(userId: string, newsId: string) {
+  const news = await newsRepository.findById(newsId);
+  if (!news) throw new Error(`seedBookmark: news ${newsId} not found`);
+  await bookmarkRepository.add(userId, {
+    id: `bm-${newsId}`,
+    newsId,
+    title: news.title,
+    link: news.link,
+    source: news.source,
   });
 }
 
@@ -93,5 +125,74 @@ describe('retention API', () => {
     assert.strictEqual(result.skipped, true);
     assert.strictEqual(result.deleted, 0);
     assert.strictEqual(await newsRepository.count(), 1);
+  });
+
+  test('PUT /api/settings/retention persists the low-score rule', async () => {
+    const token = await tokenFor('admin');
+
+    const invalid = await request(
+      'PUT',
+      '/api/settings/retention',
+      { retentionDays: 30, lowScoreThreshold: 101 },
+      bearer(token)
+    );
+    assert.strictEqual(invalid.status, 400, invalid.raw);
+
+    const ok = await request(
+      'PUT',
+      '/api/settings/retention',
+      { retentionDays: 30, lowScoreDays: 14, lowScoreThreshold: 25 },
+      bearer(token)
+    );
+    assert.strictEqual(ok.status, 200, ok.raw);
+    assert.strictEqual(ok.json.data.lowScoreDays, 14);
+    assert.strictEqual(ok.json.data.lowScoreThreshold, 25);
+
+    const read = await request('GET', '/api/settings/retention', undefined, bearer(token));
+    assert.strictEqual(read.json.data.lowScoreDays, 14);
+    assert.strictEqual(read.json.data.lowScoreThreshold, 25);
+  });
+
+  test('low-score rule prunes only items below the threshold past the window', async () => {
+    const restore = withScoreCleanup(14, 30);
+    try {
+      await seedNews('junk-old', 20, 5);
+      await seedNews('junk-fresh', 2, 5);
+      await seedNews('good-old', 20, 80);
+      await seedNews('edge', 20, 30);
+      // Never scored counts as below the threshold.
+      await seedNews('unscored-old', 20, null);
+
+      // Age rule off: this run exercises the score rule alone.
+      const result = await runRetentionCleanup(0);
+      assert.strictEqual(result.skipped, false);
+      assert.strictEqual(result.scoreDeleted, 2, JSON.stringify(result));
+      assert.strictEqual(result.ageDeleted, 0);
+
+      const remaining = (await newsRepository.findAll()).map((n) => n.id).sort();
+      assert.deepStrictEqual(remaining, ['edge', 'good-old', 'junk-fresh']);
+    } finally {
+      restore();
+    }
+  });
+
+  test('bookmark survives both rules even when old and low-scoring', async () => {
+    const userId = await userIdFor('user');
+
+    await seedNews('bookmarked-junk', 40, 3);
+    await seedNews('plain-junk', 40, 3);
+    await seedBookmark(userId, 'bookmarked-junk');
+
+    const restore = withScoreCleanup(14, 30);
+    try {
+      const result = await runRetentionCleanup(30);
+      assert.strictEqual(result.skipped, false);
+      assert.strictEqual(result.deleted, 1, JSON.stringify(result));
+
+      const remaining = (await newsRepository.findAll()).map((n) => n.id);
+      assert.deepStrictEqual(remaining, ['bookmarked-junk']);
+    } finally {
+      restore();
+    }
   });
 });

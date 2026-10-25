@@ -21,6 +21,7 @@ import {
   ensureDefaultFeeds,
   generateFeedId,
   readFeedsConfig,
+  readVisibleFeedsConfig,
   validateFeedUrl,
   writeFeedsConfig,
 } from './services/config.service.js';
@@ -569,7 +570,7 @@ export async function handleRequest(req, res) {
     if (path === '/api/feeds' && req.method === 'GET') {
       requireViewer()(req, res, async () => {
         try {
-          const feeds = await readFeedsConfig();
+          const feeds = await readVisibleFeedsConfig(req.user);
           const stats = await getStatsAsync();
           const feedsWithStats = feeds.map((feed) => {
             const feedStat = stats.feeds?.find((f) => f.feedId === feed.id) || {};
@@ -594,7 +595,7 @@ export async function handleRequest(req, res) {
     if (path === '/api/feeds/health' && req.method === 'GET') {
       requireViewer()(req, res, async () => {
         try {
-          const feeds = await readFeedsConfig();
+          const feeds = await readVisibleFeedsConfig(req.user);
           const health = getFeedHealth();
           // Merge with feed config for URL and enabled status
           const healthWithConfig = health.map((h) => {
@@ -615,7 +616,7 @@ export async function handleRequest(req, res) {
 
     // POST /api/feeds - add new feed
     if (path === '/api/feeds' && req.method === 'POST') {
-      requireUser()(req, res, () => {
+      requireAdmin()(req, res, () => {
         validateBody(schemas.addFeedSchema)(req, res, async () => {
           const { name, url, enabled, category } = req.body;
 
@@ -651,7 +652,7 @@ export async function handleRequest(req, res) {
     // PUT /api/feeds/:id - update feed
     if (path.match(/^\/api\/feeds\/[^/]+$/) && req.method === 'PUT') {
       const id = path.split('/')[3];
-      requireUser()(req, res, () => {
+      requireAdmin()(req, res, () => {
         validateBody(schemas.updateFeedSchema)(req, res, async () => {
           const updates = req.body;
 
@@ -686,7 +687,7 @@ export async function handleRequest(req, res) {
     // DELETE /api/feeds/:id - delete feed
     if (path.match(/^\/api\/feeds\/[^/]+$/) && req.method === 'DELETE') {
       const id = path.split('/')[3];
-      requireUser()(req, res, async () => {
+      requireAdmin()(req, res, async () => {
         try {
           const feeds = await readFeedsConfig();
           const index = feeds.findIndex((f) => f.id === id);
@@ -723,7 +724,7 @@ export async function handleRequest(req, res) {
       const id = path.split('/')[3];
       requireUser()(req, res, async () => {
         try {
-          const feeds = await readFeedsConfig();
+          const feeds = await readVisibleFeedsConfig(req.user);
           const feed = feeds.find((f) => f.id === id);
           if (!feed) {
             const err = createError(ErrorCode.FEED_NOT_FOUND, 'Feed not found');
@@ -779,8 +780,8 @@ export async function handleRequest(req, res) {
     if (path === '/api/feeds/opml' && req.method === 'GET') {
       requireViewer()(req, res, async () => {
         try {
-          const { exportOPML } = await import('./services/opml.service.js');
-          const opml = await exportOPML();
+          const { generateOPML } = await import('./services/opml.service.js');
+          const opml = generateOPML(await readVisibleFeedsConfig(req.user));
           res.writeHead(200, {
             'Content-Type': 'application/xml; charset=utf-8',
             'Content-Disposition': 'attachment; filename="rss-news-hub-feeds.opml"',
@@ -795,7 +796,7 @@ export async function handleRequest(req, res) {
 
     // POST /api/feeds/opml - import feeds from OPML
     if (path === '/api/feeds/opml' && req.method === 'POST') {
-      requireUser()(req, res, async () => {
+      requireAdmin()(req, res, async () => {
         try {
           const { importOPML } = await import('./services/opml.service.js');
 
@@ -850,19 +851,40 @@ export async function handleRequest(req, res) {
 
     // GET /api/newsletter/config - get newsletter config
     if (path === '/api/newsletter/config' && req.method === 'GET') {
-      return sendJSON(res, 200, { ok: true, data: newsletterConfig });
+      requireAdmin()(req, res, () => {
+        return sendJSON(res, 200, { ok: true, data: newsletterConfig });
+      });
+      return;
     }
 
     // PUT /api/newsletter/config - update newsletter config
     if (path === '/api/newsletter/config' && req.method === 'PUT') {
-      validateBody(schemas.updateNewsletterConfigSchema)(req, res, async () => {
-        const updates = req.body;
+      requireAdmin()(req, res, () => {
+        validateBody(schemas.updateNewsletterConfigSchema)(req, res, async () => {
+          const updates = req.body;
 
+          try {
+            Object.assign(newsletterConfig, updates);
+            await persistNewsletterSettings();
+            startNewsletterJob(newsletterConfig, { telegram, email });
+            return sendJSON(res, 200, { ok: true, data: newsletterConfig });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        });
+      });
+      return;
+    }
+
+    // POST /api/newsletter/trigger - manual newsletter generation
+    // Admin-only: this spends AI credits and posts to the owner's Telegram bot,
+    // so it must not be reachable by an anonymous visitor.
+    if (path === '/api/newsletter/trigger' && req.method === 'POST') {
+      requireAdmin()(req, res, async () => {
         try {
-          Object.assign(newsletterConfig, updates);
-          await persistNewsletterSettings();
-          startNewsletterJob(newsletterConfig, { telegram, email });
-          return sendJSON(res, 200, { ok: true, data: newsletterConfig });
+          const { generateAndSendNewsletter } = await import('./services/newsletter.service.js');
+          const result = await generateAndSendNewsletter(newsletterConfig, { telegram, email });
+          return sendJSON(res, 200, { ok: true, data: result });
         } catch (err) {
           return sendJSON(res, 500, { ok: false, error: err.message });
         }
@@ -870,36 +892,34 @@ export async function handleRequest(req, res) {
       return;
     }
 
-    // POST /api/newsletter/trigger - manual newsletter generation
-    if (path === '/api/newsletter/trigger' && req.method === 'POST') {
-      try {
-        const { generateAndSendNewsletter } = await import('./services/newsletter.service.js');
-        const result = await generateAndSendNewsletter(newsletterConfig, { telegram, email });
-        return sendJSON(res, 200, { ok: true, data: result });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
-    }
-
     // GET /api/newsletter/history - get newsletter history
     if (path === '/api/newsletter/history' && req.method === 'GET') {
-      try {
-        const { readHistory } = await import('./services/newsletter.service.js');
-        const history = await readHistory();
-        return sendJSON(res, 200, { ok: true, data: history.slice(0, 10) });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      requireAdmin()(req, res, async () => {
+        try {
+          const { readHistory } = await import('./services/newsletter.service.js');
+          const history = await readHistory();
+          return sendJSON(res, 200, { ok: true, data: history.slice(0, 10) });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
     }
 
     // GET /api/digest/config - get digest config
     if (path === '/api/digest/config' && req.method === 'GET') {
-      return sendJSON(res, 200, { ok: true, data: getDigestConfig() });
+      requireAdmin()(req, res, () => {
+        return sendJSON(res, 200, { ok: true, data: getDigestConfig() });
+      });
+      return;
     }
 
     // GET /api/digest/status - computed schedule status (next run)
     if (path === '/api/digest/status' && req.method === 'GET') {
-      return sendJSON(res, 200, { ok: true, data: getDigestStatus() });
+      requireAdmin()(req, res, () => {
+        return sendJSON(res, 200, { ok: true, data: getDigestStatus() });
+      });
+      return;
     }
 
     // PUT /api/digest/config - update digest config
@@ -1324,7 +1344,13 @@ export async function handleRequest(req, res) {
               const msg = err?.message || 'AI generation failed';
               log.error({ err }, 'AI generation failed');
               if (!res.headersSent) {
-                return sendJSON(res, 502, { ok: false, error: msg });
+                // `code` lets the client explain a missing personal key in the
+                // user's language instead of echoing this English message.
+                return sendJSON(res, 502, {
+                  ok: false,
+                  error: msg,
+                  ...(err?.code ? { code: err.code } : {}),
+                });
               }
             }
           });
@@ -1450,7 +1476,13 @@ export async function handleRequest(req, res) {
               if (!res.headersSent) {
                 // Network/API failures are upstream errors, not client errors.
                 const status = /network|timeout/i.test(msg) ? 502 : 400;
-                return sendJSON(res, status, { ok: false, error: msg });
+                return sendJSON(res, status, {
+                  ok: false,
+                  error: msg,
+                  // `code` distinguishes "this account has no bot of its own"
+                  // from a generic Telegram failure so the UI can localize it.
+                  ...(err?.code ? { code: err.code } : {}),
+                });
               }
             }
           });
@@ -1475,7 +1507,13 @@ export async function handleRequest(req, res) {
               log.error({ err }, 'Email send failed');
               if (!res.headersSent) {
                 const status = /network|timeout|ECONN|EAUTH|getaddrinfo/i.test(msg) ? 502 : 400;
-                return sendJSON(res, status, { ok: false, error: msg });
+                return sendJSON(res, status, {
+                  ok: false,
+                  error: msg,
+                  // `code` distinguishes "this account has no bot of its own"
+                  // from a generic Telegram failure so the UI can localize it.
+                  ...(err?.code ? { code: err.code } : {}),
+                });
               }
             }
           });

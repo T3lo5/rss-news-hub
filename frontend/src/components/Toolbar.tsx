@@ -26,7 +26,8 @@ interface ToolbarProps {
   loadedCount: number;
   onSelectAll: () => void;
   onClearSelection: () => void;
-  onNewsletterClick: () => void;
+  /** Undefined hides the button: the config endpoint is admin-only. */
+  onNewsletterClick?: () => void;
   onTemplatesClick: () => void;
   bookmarkCount: number;
   onBookmarksClick: () => void;
@@ -235,10 +236,12 @@ export function Toolbar({
           </button>
         )}
 
-        <button className="btn btn-secondary btn-sm" onClick={onNewsletterClick}>
-          <Newspaper size={15} />
-          <span className="btn-label">{t('toolbar.newsletter')}</span>
-        </button>
+        {onNewsletterClick && (
+          <button className="btn btn-secondary btn-sm" onClick={onNewsletterClick}>
+            <Newspaper size={15} />
+            <span className="btn-label">{t('toolbar.newsletter')}</span>
+          </button>
+        )}
       </div>
     </div>
   );

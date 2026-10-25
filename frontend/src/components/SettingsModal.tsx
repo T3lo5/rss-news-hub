@@ -10,6 +10,7 @@ import type {
   AppSettings,
   EmailSettingsUpdate,
 } from '../types';
+import { Status } from './Status';
 
 type ProviderForm = {
   baseUrl: string;
@@ -59,6 +60,8 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [testingEmail, setTestingEmail] = useState(false);
 
   const [retentionDays, setRetentionDays] = useState('0');
+  const [lowScoreDays, setLowScoreDays] = useState('0');
+  const [lowScoreThreshold, setLowScoreThreshold] = useState('30');
   const [savingRetention, setSavingRetention] = useState(false);
   const [pruning, setPruning] = useState(false);
 
@@ -104,6 +107,8 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
       setEmailFrom(data.email.from);
       setEmailRecipients(data.email.recipients.join(', '));
       setRetentionDays(String(data.retention.retentionDays));
+      setLowScoreDays(String(data.retention.lowScoreDays ?? 0));
+      setLowScoreThreshold(String(data.retention.lowScoreThreshold ?? 30));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('settings.errLoad'));
     } finally {
@@ -277,15 +282,33 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
     return parsed;
   };
 
+  // All three fields are validated together so a bad low-score value cannot
+  // slip through by being saved on its own.
+  const parseRetentionField = (raw: string, max: number, message: string): number | null => {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isNaN(parsed) || parsed < 0 || parsed > max) {
+      setError(message);
+      return null;
+    }
+    return parsed;
+  };
+
   const handleSaveRetention = async () => {
     setError(null);
     setSuccess(null);
     const days = handleRetentionDays();
     if (days === null) return;
+    const scoreDays = parseRetentionField(lowScoreDays, 3650, t('settings.errRetention'));
+    const threshold = parseRetentionField(lowScoreThreshold, 100, t('settings.errScoreThreshold'));
+    if (scoreDays === null || threshold === null) return;
 
     setSavingRetention(true);
     try {
-      const retention = await api.updateRetentionSettings(days);
+      const retention = await api.updateRetentionSettings({
+        retentionDays: days,
+        lowScoreDays: scoreDays,
+        lowScoreThreshold: threshold,
+      });
       setSettings((prev) => (prev ? { ...prev, retention } : prev));
       flashSuccess(t('settings.savedRetention'));
     } catch (err) {
@@ -342,16 +365,8 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
           ref={bodyRef}
           style={{ padding: '20px', overflow: 'auto', maxHeight: '75vh' }}
         >
-          {error && (
-            <div className="status error" style={{ marginBottom: '16px' }}>
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="status success" style={{ marginBottom: '16px' }}>
-              {success}
-            </div>
-          )}
+          {error && <Status message={error} type="error" onClose={() => setError(null)} />}
+          {success && <Status message={success} type="success" />}
 
           {loading && !settings ? (
             <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
@@ -392,162 +407,168 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 {tab === 'ai' && (
                   <section id="settings-panel-ai" role="tabpanel" aria-labelledby="settings-tab-ai">
                     <div className="form-group">
-                    <label htmlFor="defaultProvider">{t('settings.defaultProvider')}</label>
-                    <select
-                      id="defaultProvider"
-                      value={defaultProvider}
-                      onChange={(e) => setDefaultProvider(e.target.value as 'auto' | AiProviderId)}
-                    >
-                      <option value="auto">{t('common.autoFirst')}</option>
-                      {settings.ai.providers.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {settings.ai.providers.map((provider) => {
-                    const form = providerForms[provider.id] || {
-                      baseUrl: provider.baseUrl,
-                      model: provider.model,
-                      apiKey: '',
-                      clear: false,
-                    };
-                    return (
-                      <div
-                        key={provider.id}
-                        style={{
-                          border: '1px solid var(--border)',
-                          borderRadius: 'var(--radius)',
-                          padding: '14px',
-                          marginTop: '12px',
-                        }}
+                      <label htmlFor="defaultProvider">{t('settings.defaultProvider')}</label>
+                      <select
+                        id="defaultProvider"
+                        value={defaultProvider}
+                        onChange={(e) =>
+                          setDefaultProvider(e.target.value as 'auto' | AiProviderId)
+                        }
                       >
+                        <option value="auto">{t('common.autoFirst')}</option>
+                        {settings.ai.providers.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {settings.ai.providers.map((provider) => {
+                      const form = providerForms[provider.id] || {
+                        baseUrl: provider.baseUrl,
+                        model: provider.model,
+                        apiKey: '',
+                        clear: false,
+                      };
+                      return (
                         <div
+                          key={provider.id}
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            marginBottom: '10px',
-                            gap: '8px',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius)',
+                            padding: '14px',
+                            marginTop: '12px',
                           }}
                         >
-                          <strong>{provider.label}</strong>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => handleTestProvider(provider.id)}
-                              disabled={testingProvider === provider.id}
-                              title={t('settings.testProviderTitle')}
-                            >
-                              {testingProvider === provider.id
-                                ? t('common.testing')
-                                : t('common.test')}
-                            </button>
-                            <span
-                              className={`status-badge ${provider.apiKeySet ? 'ok' : 'error'}`}
-                              title={
-                                provider.apiKeySet
-                                  ? t('settings.keySetTitle')
-                                  : t('settings.noKeyTitle')
-                              }
-                            >
-                              {provider.apiKeySet ? t('settings.keySet') : t('settings.noKey')}
-                            </span>
-                          </div>
-                        </div>
-
-                        {providerTest[provider.id] && (
                           <div
-                            className={`test-result ${providerTest[provider.id].ok ? 'success' : 'error'}`}
-                          >
-                            {providerTest[provider.id].ok ? <Check size={13} /> : <X size={13} />}{' '}
-                            {providerTest[provider.id].message}
-                          </div>
-                        )}
-
-                        <div className="form-group">
-                          <label>{t('settings.apiKeyLabel')}</label>
-                          <input
-                            type="password"
-                            autoComplete="off"
-                            value={form.apiKey}
-                            placeholder={
-                              provider.apiKeySet ? t('settings.secretPlaceholderKeep') : 'sk-...'
-                            }
-                            onChange={(e) =>
-                              updateProviderForm(provider.id, {
-                                apiKey: e.target.value,
-                                clear: false,
-                              })
-                            }
-                          />
-                          {provider.apiKeySet && (
-                            <label
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                marginTop: '6px',
-                                fontSize: '12px',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={form.clear}
-                                onChange={(e) =>
-                                  updateProviderForm(provider.id, {
-                                    clear: e.target.checked,
-                                    apiKey: '',
-                                  })
-                                }
-                              />
-                              {t('settings.removeKey')}
-                            </label>
-                          )}
-                        </div>
-
-                        <div className="form-group">
-                          <label>{t('settings.baseUrl')}</label>
-                          <input
-                            type="text"
-                            value={form.baseUrl}
-                            onChange={(e) =>
-                              updateProviderForm(provider.id, { baseUrl: e.target.value })
-                            }
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label>{t('settings.model')}</label>
-                          <input
-                            type="text"
-                            value={form.model}
-                            onChange={(e) =>
-                              updateProviderForm(provider.id, { model: e.target.value })
-                            }
-                          />
-                          <p
                             style={{
-                              fontSize: '12px',
-                              color: 'var(--text-secondary)',
-                              marginTop: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              marginBottom: '10px',
+                              gap: '8px',
                             }}
                           >
-                            {t(PROVIDER_HINTS[provider.id])}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                            <strong>{provider.label}</strong>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => handleTestProvider(provider.id)}
+                                disabled={testingProvider === provider.id}
+                                title={t('settings.testProviderTitle')}
+                              >
+                                {testingProvider === provider.id
+                                  ? t('common.testing')
+                                  : t('common.test')}
+                              </button>
+                              <span
+                                className={`status-badge ${provider.apiKeySet ? 'ok' : 'error'}`}
+                                title={
+                                  provider.apiKeySet
+                                    ? t('settings.keySetTitle')
+                                    : t('settings.noKeyTitle')
+                                }
+                              >
+                                {provider.apiKeySet ? t('settings.keySet') : t('settings.noKey')}
+                              </span>
+                            </div>
+                          </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-                    <button className="btn btn-primary" onClick={handleSaveAi} disabled={savingAi}>
-                      {savingAi ? t('common.saving') : t('settings.saveAi')}
-                    </button>
-                  </div>
+                          {providerTest[provider.id] && (
+                            <div
+                              className={`test-result ${providerTest[provider.id].ok ? 'success' : 'error'}`}
+                            >
+                              {providerTest[provider.id].ok ? <Check size={13} /> : <X size={13} />}{' '}
+                              {providerTest[provider.id].message}
+                            </div>
+                          )}
+
+                          <div className="form-group">
+                            <label>{t('settings.apiKeyLabel')}</label>
+                            <input
+                              type="password"
+                              autoComplete="off"
+                              value={form.apiKey}
+                              placeholder={
+                                provider.apiKeySet ? t('settings.secretPlaceholderKeep') : 'sk-...'
+                              }
+                              onChange={(e) =>
+                                updateProviderForm(provider.id, {
+                                  apiKey: e.target.value,
+                                  clear: false,
+                                })
+                              }
+                            />
+                            {provider.apiKeySet && (
+                              <label
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  marginTop: '6px',
+                                  fontSize: '12px',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={form.clear}
+                                  onChange={(e) =>
+                                    updateProviderForm(provider.id, {
+                                      clear: e.target.checked,
+                                      apiKey: '',
+                                    })
+                                  }
+                                />
+                                {t('settings.removeKey')}
+                              </label>
+                            )}
+                          </div>
+
+                          <div className="form-group">
+                            <label>{t('settings.baseUrl')}</label>
+                            <input
+                              type="text"
+                              value={form.baseUrl}
+                              onChange={(e) =>
+                                updateProviderForm(provider.id, { baseUrl: e.target.value })
+                              }
+                            />
+                          </div>
+
+                          <div className="form-group">
+                            <label>{t('settings.model')}</label>
+                            <input
+                              type="text"
+                              value={form.model}
+                              onChange={(e) =>
+                                updateProviderForm(provider.id, { model: e.target.value })
+                              }
+                            />
+                            <p
+                              style={{
+                                fontSize: '12px',
+                                color: 'var(--text-secondary)',
+                                marginTop: '4px',
+                              }}
+                            >
+                              {t(PROVIDER_HINTS[provider.id])}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleSaveAi}
+                        disabled={savingAi}
+                      >
+                        {savingAi ? t('common.saving') : t('settings.saveAi')}
+                      </button>
+                    </div>
                   </section>
                 )}
 
@@ -558,67 +579,67 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     role="tabpanel"
                     aria-labelledby="settings-tab-telegram"
                   >
-                  <div className="form-group">
-                    <label htmlFor="tgChatId">{t('settings.chatId')}</label>
-                    <input
-                      id="tgChatId"
-                      type="text"
-                      value={chatId}
-                      onChange={(e) => setChatId(e.target.value)}
-                      placeholder="-1001234567890"
-                    />
-                  </div>
+                    <div className="form-group">
+                      <label htmlFor="tgChatId">{t('settings.chatId')}</label>
+                      <input
+                        id="tgChatId"
+                        type="text"
+                        value={chatId}
+                        onChange={(e) => setChatId(e.target.value)}
+                        placeholder="-1001234567890"
+                      />
+                    </div>
 
-                  <div className="form-group">
-                    <label htmlFor="tgBotToken">{t('settings.botToken')}</label>
-                    <input
-                      id="tgBotToken"
-                      type="password"
-                      autoComplete="off"
-                      value={botToken}
-                      placeholder={
-                        settings.telegram.botTokenSet
-                          ? t('settings.secretPlaceholderKeep')
-                          : '123456:ABC-DEF...'
-                      }
-                      onChange={(e) => {
-                        setBotToken(e.target.value);
-                        setClearToken(false);
-                      }}
-                    />
-                    {settings.telegram.botTokenSet && (
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          marginTop: '6px',
-                          fontSize: '12px',
-                          cursor: 'pointer',
+                    <div className="form-group">
+                      <label htmlFor="tgBotToken">{t('settings.botToken')}</label>
+                      <input
+                        id="tgBotToken"
+                        type="password"
+                        autoComplete="off"
+                        value={botToken}
+                        placeholder={
+                          settings.telegram.botTokenSet
+                            ? t('settings.secretPlaceholderKeep')
+                            : '123456:ABC-DEF...'
+                        }
+                        onChange={(e) => {
+                          setBotToken(e.target.value);
+                          setClearToken(false);
                         }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={clearToken}
-                          onChange={(e) => {
-                            setClearToken(e.target.checked);
-                            setBotToken('');
+                      />
+                      {settings.telegram.botTokenSet && (
+                        <label
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginTop: '6px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
                           }}
-                        />
-                        {t('settings.removeToken')}
-                      </label>
-                    )}
-                  </div>
+                        >
+                          <input
+                            type="checkbox"
+                            checked={clearToken}
+                            onChange={(e) => {
+                              setClearToken(e.target.checked);
+                              setBotToken('');
+                            }}
+                          />
+                          {t('settings.removeToken')}
+                        </label>
+                      )}
+                    </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleSaveTelegram}
-                      disabled={savingTelegram}
-                    >
-                      {savingTelegram ? t('common.saving') : t('settings.saveTelegram')}
-                    </button>
-                  </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleSaveTelegram}
+                        disabled={savingTelegram}
+                      >
+                        {savingTelegram ? t('common.saving') : t('settings.saveTelegram')}
+                      </button>
+                    </div>
                   </section>
                 )}
 
@@ -629,181 +650,181 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     role="tabpanel"
                     aria-labelledby="settings-tab-email"
                   >
-                  <p
-                    style={{
-                      fontSize: '12px',
-                      color: 'var(--text-secondary)',
-                      marginTop: 0,
-                      marginBottom: '12px',
-                    }}
-                  >
-                    {t('settings.emailIntro')}
-                  </p>
-
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={emailEnabled}
-                      onChange={(e) => setEmailEnabled(e.target.checked)}
-                    />
-                    {t('settings.emailEnable')}
-                  </label>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: '12px',
-                    }}
-                  >
-                    <div className="form-group">
-                      <label htmlFor="smtpHost">{t('settings.smtpHost')}</label>
-                      <input
-                        id="smtpHost"
-                        type="text"
-                        value={emailHost}
-                        onChange={(e) => setEmailHost(e.target.value)}
-                        placeholder="smtp.gmail.com"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="smtpPort">{t('settings.port')}</label>
-                      <input
-                        id="smtpPort"
-                        type="number"
-                        value={emailPort}
-                        onChange={(e) => setEmailPort(e.target.value)}
-                        placeholder="587"
-                      />
-                    </div>
-                  </div>
-
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={emailSecure}
-                      onChange={(e) => setEmailSecure(e.target.checked)}
-                    />
-                    {t('settings.emailSecure')}
-                  </label>
-
-                  <div className="form-group">
-                    <label htmlFor="smtpUser">{t('settings.user')}</label>
-                    <input
-                      id="smtpUser"
-                      type="text"
-                      value={emailUser}
-                      onChange={(e) => setEmailUser(e.target.value)}
-                      placeholder="voce@exemplo.com"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="smtpPass">{t('settings.emailPass')}</label>
-                    <input
-                      id="smtpPass"
-                      type="password"
-                      autoComplete="off"
-                      value={emailPass}
-                      placeholder={
-                        settings.email.passwordSet
-                          ? t('settings.secretPlaceholderKeep')
-                          : 'app password'
-                      }
-                      onChange={(e) => {
-                        setEmailPass(e.target.value);
-                        setClearEmailPass(false);
+                    <p
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        marginTop: 0,
+                        marginBottom: '12px',
                       }}
-                    />
-                    {settings.email.passwordSet && (
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          marginTop: '6px',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                        }}
-                      >
+                    >
+                      {t('settings.emailIntro')}
+                    </p>
+
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        marginBottom: '12px',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={emailEnabled}
+                        onChange={(e) => setEmailEnabled(e.target.checked)}
+                      />
+                      {t('settings.emailEnable')}
+                    </label>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: '12px',
+                      }}
+                    >
+                      <div className="form-group">
+                        <label htmlFor="smtpHost">{t('settings.smtpHost')}</label>
                         <input
-                          type="checkbox"
-                          checked={clearEmailPass}
-                          onChange={(e) => {
-                            setClearEmailPass(e.target.checked);
-                            setEmailPass('');
-                          }}
+                          id="smtpHost"
+                          type="text"
+                          value={emailHost}
+                          onChange={(e) => setEmailHost(e.target.value)}
+                          placeholder="smtp.gmail.com"
                         />
-                        {t('settings.removePass')}
-                      </label>
-                    )}
-                  </div>
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="smtpPort">{t('settings.port')}</label>
+                        <input
+                          id="smtpPort"
+                          type="number"
+                          value={emailPort}
+                          onChange={(e) => setEmailPort(e.target.value)}
+                          placeholder="587"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="form-group">
-                    <label htmlFor="smtpFrom">{t('settings.from')}</label>
-                    <input
-                      id="smtpFrom"
-                      type="text"
-                      value={emailFrom}
-                      onChange={(e) => setEmailFrom(e.target.value)}
-                      placeholder="RSS News Hub <voce@exemplo.com>"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="smtpRecipients">{t('settings.recipients')}</label>
-                    <input
-                      id="smtpRecipients"
-                      type="text"
-                      value={emailRecipients}
-                      onChange={(e) => setEmailRecipients(e.target.value)}
-                      placeholder="a@exemplo.com, b@exemplo.com"
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      gap: '10px',
-                      marginTop: '16px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <button
-                      className="btn btn-ghost"
-                      onClick={handleTestEmail}
-                      disabled={testingEmail || !emailHost || !emailFrom}
-                      title={t('settings.testEmailTitle')}
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        marginBottom: '12px',
+                      }}
                     >
-                      {testingEmail ? t('settings.testingEmail') : t('settings.testConnection')}
-                    </button>
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleSaveEmail}
-                      disabled={savingEmail}
+                      <input
+                        type="checkbox"
+                        checked={emailSecure}
+                        onChange={(e) => setEmailSecure(e.target.checked)}
+                      />
+                      {t('settings.emailSecure')}
+                    </label>
+
+                    <div className="form-group">
+                      <label htmlFor="smtpUser">{t('settings.user')}</label>
+                      <input
+                        id="smtpUser"
+                        type="text"
+                        value={emailUser}
+                        onChange={(e) => setEmailUser(e.target.value)}
+                        placeholder="voce@exemplo.com"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="smtpPass">{t('settings.emailPass')}</label>
+                      <input
+                        id="smtpPass"
+                        type="password"
+                        autoComplete="off"
+                        value={emailPass}
+                        placeholder={
+                          settings.email.passwordSet
+                            ? t('settings.secretPlaceholderKeep')
+                            : 'app password'
+                        }
+                        onChange={(e) => {
+                          setEmailPass(e.target.value);
+                          setClearEmailPass(false);
+                        }}
+                      />
+                      {settings.email.passwordSet && (
+                        <label
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginTop: '6px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={clearEmailPass}
+                            onChange={(e) => {
+                              setClearEmailPass(e.target.checked);
+                              setEmailPass('');
+                            }}
+                          />
+                          {t('settings.removePass')}
+                        </label>
+                      )}
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="smtpFrom">{t('settings.from')}</label>
+                      <input
+                        id="smtpFrom"
+                        type="text"
+                        value={emailFrom}
+                        onChange={(e) => setEmailFrom(e.target.value)}
+                        placeholder="RSS News Hub <voce@exemplo.com>"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="smtpRecipients">{t('settings.recipients')}</label>
+                      <input
+                        id="smtpRecipients"
+                        type="text"
+                        value={emailRecipients}
+                        onChange={(e) => setEmailRecipients(e.target.value)}
+                        placeholder="a@exemplo.com, b@exemplo.com"
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        gap: '10px',
+                        marginTop: '16px',
+                        flexWrap: 'wrap',
+                      }}
                     >
-                      {savingEmail ? t('common.saving') : t('settings.saveEmail')}
-                    </button>
-                  </div>
+                      <button
+                        className="btn btn-ghost"
+                        onClick={handleTestEmail}
+                        disabled={testingEmail || !emailHost || !emailFrom}
+                        title={t('settings.testEmailTitle')}
+                      >
+                        {testingEmail ? t('settings.testingEmail') : t('settings.testConnection')}
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleSaveEmail}
+                        disabled={savingEmail}
+                      >
+                        {savingEmail ? t('common.saving') : t('settings.saveEmail')}
+                      </button>
+                    </div>
                   </section>
                 )}
 
@@ -814,50 +835,104 @@ export function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                     role="tabpanel"
                     aria-labelledby="settings-tab-maintenance"
                   >
-                  <p
-                    style={{
-                      fontSize: '12px',
-                      color: 'var(--text-secondary)',
-                      marginTop: 0,
-                      marginBottom: '12px',
-                    }}
-                  >
-                    {t('settings.maintenancePre')} <strong>{t('settings.maintenanceOff')}</strong>{' '}
-                    {t('settings.maintenancePost')}
-                  </p>
-
-                  <div className="form-group" style={{ maxWidth: '220px' }}>
-                    <label htmlFor="retentionDays">{t('settings.retentionLabel')}</label>
-                    <input
-                      id="retentionDays"
-                      type="number"
-                      min={0}
-                      max={3650}
-                      value={retentionDays}
-                      onChange={(e) => setRetentionDays(e.target.value)}
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      gap: '10px',
-                      marginTop: '16px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <button className="btn btn-ghost" onClick={handlePrune} disabled={pruning}>
-                      {pruning ? t('settings.pruning') : t('settings.prune')}
-                    </button>
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleSaveRetention}
-                      disabled={savingRetention}
+                    <p
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        marginTop: 0,
+                        marginBottom: '12px',
+                      }}
                     >
-                      {savingRetention ? t('common.saving') : t('settings.saveRetention')}
-                    </button>
-                  </div>
+                      {t('settings.maintenancePre')} <strong>{t('settings.maintenanceOff')}</strong>{' '}
+                      {t('settings.maintenancePost')}
+                    </p>
+
+                    <div className="form-group" style={{ maxWidth: '220px' }}>
+                      <label htmlFor="retentionDays">{t('settings.retentionLabel')}</label>
+                      <input
+                        id="retentionDays"
+                        type="number"
+                        min={0}
+                        max={3650}
+                        value={retentionDays}
+                        onChange={(e) => setRetentionDays(e.target.value)}
+                      />
+                    </div>
+
+                    <p
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        margin: '16px 0 12px',
+                      }}
+                    >
+                      {t('settings.lowScorePre')}
+                    </p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div className="form-group">
+                        <label htmlFor="lowScoreThreshold">{t('settings.lowScoreThreshold')}</label>
+                        <input
+                          id="lowScoreThreshold"
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={lowScoreThreshold}
+                          onChange={(e) => setLowScoreThreshold(e.target.value)}
+                        />
+                        <p
+                          style={{
+                            fontSize: '11px',
+                            color: 'var(--text-secondary)',
+                            marginTop: '4px',
+                          }}
+                        >
+                          {t('settings.lowScoreThresholdHint')}
+                        </p>
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="lowScoreDays">{t('settings.lowScoreDays')}</label>
+                        <input
+                          id="lowScoreDays"
+                          type="number"
+                          min={0}
+                          max={3650}
+                          value={lowScoreDays}
+                          onChange={(e) => setLowScoreDays(e.target.value)}
+                        />
+                        <p
+                          style={{
+                            fontSize: '11px',
+                            color: 'var(--text-secondary)',
+                            marginTop: '4px',
+                          }}
+                        >
+                          {t('settings.lowScoreDaysHint')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        gap: '10px',
+                        marginTop: '16px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <button className="btn btn-ghost" onClick={handlePrune} disabled={pruning}>
+                        {pruning ? t('settings.pruning') : t('settings.prune')}
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleSaveRetention}
+                        disabled={savingRetention}
+                      >
+                        {savingRetention ? t('common.saving') : t('settings.saveRetention')}
+                      </button>
+                    </div>
                   </section>
                 )}
               </div>

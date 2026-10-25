@@ -5,6 +5,7 @@ import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { User, UserRole } from '../types';
+import { Status } from './Status';
 
 interface UsersModalProps {
   isOpen: boolean;
@@ -163,16 +164,8 @@ export function UsersModal({ isOpen, onClose }: UsersModalProps) {
           className="modal-body"
           style={{ padding: '20px', overflow: 'auto', maxHeight: '75vh' }}
         >
-          {error && (
-            <div className="status error" style={{ marginBottom: '16px' }}>
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="status success" style={{ marginBottom: '16px' }}>
-              {success}
-            </div>
-          )}
+          {error && <Status message={error} type="error" onClose={() => setError(null)} />}
+          {success && <Status message={success} type="success" />}
 
           <section style={{ marginBottom: '28px' }}>
             <h4 style={{ marginBottom: '12px' }}>{t('users.createTitle')}</h4>

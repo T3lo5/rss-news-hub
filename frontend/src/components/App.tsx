@@ -640,7 +640,9 @@ function AppContent() {
             digestGrouping={digestGrouping}
             onProfileClick={() => setShowProfileModal(true)}
             onTemplatesClick={() => setShowTemplatesModal(true)}
-            onNewsletterClick={() => setShowNewsletterConfig(true)}
+            onNewsletterClick={
+              user && user.role === 'admin' ? () => setShowNewsletterConfig(true) : undefined
+            }
             onNewsletterBuilderClick={
               user && user.role !== 'viewer' ? () => setShowNewsletterBuilder(true) : undefined
             }

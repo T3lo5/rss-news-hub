@@ -7,6 +7,7 @@ import { api } from '../services/api';
 import type { Language, NewsItem, Provider, Template } from '../types';
 import { formatGeneratedContent } from '../utils/content';
 import { ProviderSelect } from './ProviderSelect';
+import { Status } from './Status';
 
 interface NewsletterBuilderModalProps {
   isOpen: boolean;
@@ -136,7 +137,11 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
       });
       setContent(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('newsletterBuilder.errGenerate'));
+      // A restricted account has no key of its own and may not borrow the
+      // deployment owner's — explain that instead of echoing the raw message.
+      const code = (err as { code?: string } | null)?.code;
+      const fallback = err instanceof Error ? err.message : t('newsletterBuilder.errGenerate');
+      setError(code === 'AI_KEYS_REQUIRED' ? t('ai.keysRequired') : fallback);
     } finally {
       setGenerating(false);
     }
@@ -205,8 +210,19 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
           </button>
         </div>
         <div className="modal-body">
-          {error && <div className="status error">{error}</div>}
-          {tgSuccess && <div className="status success">{t('content.sentTelegramBanner')}</div>}
+          {/* Um único toast por vez: o portal ocupa o topo-centro da tela, então
+              dois ao mesmo tempo ocupariam exatamente o mesmo lugar. */}
+          {error ? (
+            <Status message={error} type="error" onClose={() => setError(null)} />
+          ) : tgError ? (
+            <Status
+              message={t('newsletterBuilder.tgError', { error: tgError })}
+              type="error"
+              onClose={resetTg}
+            />
+          ) : tgSuccess ? (
+            <Status message={t('content.sentTelegramBanner')} type="success" />
+          ) : null}
 
           <p className="newsletter-intro">{t('newsletterBuilder.intro')}</p>
 
@@ -390,12 +406,6 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
                     ? t('content.sent')
                     : t('content.sendTelegram')}
               </button>
-            </div>
-          )}
-
-          {tgError && (
-            <div className="newsletter-error">
-              {t('newsletterBuilder.tgError', { error: tgError })}
             </div>
           )}
 

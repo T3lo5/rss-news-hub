@@ -1,6 +1,9 @@
 import { RSS_FEEDS } from '../server.config.js';
 import { feedRepository } from '../src/db/repositories/index.js';
 
+/** Ids dos feeds padrão — a semente de `RSS_FEEDS`. */
+export const DEFAULT_FEED_IDS = RSS_FEEDS.map((feed, index) => feed.id || `feed-${index}`);
+
 /**
  * Instalação limpa: `RSS_FEEDS` é só a semente. Materializa os feeds padrão em
  * `feeds` antes de qualquer escrita que os referencie — `feed_caches`,
@@ -47,6 +50,21 @@ export async function readFeedsConfig() {
     enabled: feed.enabled !== false,
     category: feed.category || 'General',
   }));
+}
+
+/**
+ * Escopo de leitura por papel. O admin enxerga o catálogo inteiro; qualquer
+ * outra conta enxerga apenas os feeds padrão (a semente de `RSS_FEEDS`), nunca
+ * os feeds que outro usuário adicionou.
+ *
+ * Só para leitura via HTTP. Os jobs internos (fetch/ingest/scheduler) devem
+ * continuar chamando `readFeedsConfig()`, que devolve tudo: a coleta precisa de
+ * todos os feeds, não da visão de um usuário.
+ */
+export async function readVisibleFeedsConfig(user) {
+  const feeds = await readFeedsConfig();
+  if (!user || user.role === 'admin') return feeds;
+  return feeds.filter((feed) => DEFAULT_FEED_IDS.includes(feed.id));
 }
 
 export async function writeFeedsConfig(feeds) {
