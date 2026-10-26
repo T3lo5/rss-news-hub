@@ -13,7 +13,7 @@
 // repository): a bookmark is a deliberate user choice, not an heuristic input.
 
 import { retention } from '../server.config.js';
-import { newsRepository } from '../src/db/repositories/index.js';
+import { ensureSearchIndex, newsRepository } from '../src/db/repositories/index.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -47,6 +47,12 @@ export async function runRetentionCleanup(retentionDays = retention.retentionDay
   const now = Date.now();
   let ageDeleted = 0;
   let scoreDeleted = 0;
+
+  // Um índice FTS defasado derruba a poda: o trigger de DELETE de news_items
+  // estoura ("database disk image is malformed") quando a entrada não existe
+  // no índice, e a rotina falharia em silêncio até o próximo boot. Reconcilia
+  // antes de apagar — é uma checagem por rodada e torna a rotina autoconsertável.
+  await ensureSearchIndex();
 
   if (ageDays > 0) {
     ageDeleted = await newsRepository.deleteOlderThan(new Date(now - ageDays * DAY_MS));
@@ -87,7 +93,7 @@ async function runScheduled() {
 export function startRetentionJob() {
   stopRetentionJob();
   // Either rule alone is enough to justify the daily timer.
-  if (!asDays(retention.retentionDays) && !asDays(retention.lowScoreDays)) return;
+  if (!(asDays(retention.retentionDays) || asDays(retention.lowScoreDays))) return;
 
   runScheduled();
   timer = setInterval(runScheduled, DAY_MS);

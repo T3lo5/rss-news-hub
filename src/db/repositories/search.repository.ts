@@ -201,20 +201,22 @@ const NON_TERM_CHARS = /[^0-9a-zA-ZÀ-ÿ_*]/g;
 /**
  * Monta uma expressão MATCH segura para o FTS5.
  *
- * Termos viram consulta por prefixo (`"vacina"*`), ligados por AND: todos
- * precisam aparecer (em qualquer ordem) — a convenção de caixa de busca. O
- * resultado é sempre entre aspas, então nada do que o usuário digita é
- * interpretado como sintaxe do FTS5.
+ * Tudo vira um único bloco entre aspas com `*` no final: um termo é busca por
+ * prefixo (`"vacina"*`), vários são frase com prefixo no último termo
+ * (`"source b"*`). Frase é de propósito — é a leitura que o filtro legado de
+ * substring já fazia ("source b" como unidade, não duas palavras soltas), com
+ * o acréscimo de casar por prefixo. Como o texto é sempre entre aspas e a
+ * pontuação é removida antes, nada do que o usuário digita é interpretado
+ * como sintaxe do FTS5.
  */
 export function buildMatchQuery(raw: string): string {
   const terms = raw
     .split(TERM_SPLIT)
     .map((term) => term.replace(NON_TERM_CHARS, ''))
-    .filter((term) => term.length > 0)
-    .map((term) => `"${term}"*`);
+    .filter((term) => term.length > 0);
 
   if (terms.length === 0) return '';
-  return terms.length === 1 ? terms[0] : terms.join(' AND ');
+  return `"${terms.join(' ')}"*`;
 }
 
 /** Limite de ids devolvidos por consulta: a paginação final roda em news_items. */

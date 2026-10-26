@@ -30,6 +30,15 @@ export function getTestDb() {
 
 export function resetTestDb() {
   if (testSqlite) {
+    // O FTS é de conteúdo externo e o trigger de DELETE de news_items
+    // estoura se o índice estiver defasado (entrada faltando). Reconcilia o
+    // índice com a tabela antes de apagar, para o reset nunca travar.
+    try {
+      testSqlite.exec(`INSERT INTO news_search(news_search) VALUES('rebuild');`);
+    } catch {
+      // Tabela ainda não existe (primeira execução)
+    }
+
     // Clear all tables in reverse order (respecting foreign keys)
     const tables = [
       'app_settings',

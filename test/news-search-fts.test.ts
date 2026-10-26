@@ -42,6 +42,27 @@ async function list(token: string, query: string) {
   return { body: res.json.data, headers: res.headers };
 }
 
+/**
+ * Remove a linha do índice sem tocar na notícia — é o estado de uma base
+ * defasada (base anterior aos triggers ou rebuild interrompido) e é o que
+ * força o caminho legado de instr().
+ */
+function removeFromIndex(id: string): void {
+  const sqlite = (getTestDb() as any).$client;
+  const row = sqlite
+    .prepare(
+      'SELECT rowid AS rid, id, title, content, description, source FROM news_items WHERE id = ?'
+    )
+    .get(id);
+  assert.ok(row, `notícia ${id} existe`);
+  sqlite
+    .prepare(
+      `INSERT INTO news_search(news_search, rowid, id, title, content, description, source)
+       VALUES('delete', ?, ?, ?, ?, ?, ?)`
+    )
+    .run(row.rid, row.id, row.title, row.content, row.description, row.source);
+}
+
 describe('GET /api/news search via FTS index', () => {
   let token: string;
 
@@ -79,10 +100,26 @@ describe('GET /api/news search via FTS index', () => {
   });
 
   test('query with no FTS match falls back to the legacy substring filter', async () => {
-    // Item sem linha no índice: simula base defasada/rebuild manual pendente.
-    await newsRepository.create(buildItem(1, { title: 'substringonly marcador raro' }));
+    await seed([buildItem(1, { title: 'substringonly marcador raro' })]);
+    removeFromIndex('fts-1');
+    assert.strictEqual(await searchHasMatch('substringonly'), false, 'índice sem a entrada');
 
     const res = await list(token, 'q=substringonly');
+    assert.strictEqual(res.body.total, 1);
+    assert.strictEqual(res.body.results[0].id, 'fts-1');
+  });
+
+  test('term that only exists in the description is found by the index', async () => {
+    await seed([
+      buildItem(1, {
+        title: 'Noticia sem o termo',
+        description: 'relato exclusivo no resumo da materia',
+        content: 'corpo da materia sem o termo',
+      }),
+      buildItem(2, { title: 'Outra noticia' }),
+    ]);
+
+    const res = await list(token, 'q=exclusivo');
     assert.strictEqual(res.body.total, 1);
     assert.strictEqual(res.body.results[0].id, 'fts-1');
   });
@@ -142,17 +179,7 @@ describe('GET /api/news search via FTS index', () => {
     assert.strictEqual(await searchHasMatch('backfill'), true);
 
     // Simula índice velho: tira a entrada de só um lado, sem tocar na notícia.
-    // É o estado de uma base anterior aos triggers da migração 0006.
-    const sqlite = (getTestDb() as any).$client;
-    const row = sqlite
-      .prepare('SELECT rowid AS rid, id, title, content, source FROM news_items WHERE id = ?')
-      .get('fts-1');
-    sqlite
-      .prepare(
-        `INSERT INTO news_search(news_search, rowid, id, title, content, source)
-         VALUES('delete', ?, ?, ?, ?, ?)`
-      )
-      .run(row.rid, row.id, row.title, row.content, row.source);
+    removeFromIndex('fts-1');
 
     assert.strictEqual(await searchHasMatch('backfill'), false, 'índice defasado');
 

@@ -69,6 +69,7 @@ export const newsSearch = sqliteTable(
     id: text('id').primaryKey(),
     title: text('title').notNull(),
     content: text('content'),
+    description: text('description'),
     source: text('source').notNull(),
   },
   (table) => ({
