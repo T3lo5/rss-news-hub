@@ -55,9 +55,14 @@ export async function readHistory(limit = 50) {
 }
 
 export async function addHistoryEntry(entry) {
+  // `newsletter_history.timestamp` is a drizzle `timestamp_ms` column: it maps
+  // through `Date.prototype.getTime()`, so handing it the raw `Date.now()`
+  // number throws "value.getTime is not a function" and the whole run is
+  // reported as a failure after the edition was already delivered.
+  const timestamp = entry.timestamp ?? Date.now();
   return newsletterHistoryRepository.add({
     id: entry.id || `nl-${Date.now()}`,
-    timestamp: entry.timestamp,
+    timestamp: timestamp instanceof Date ? timestamp : new Date(timestamp),
     success: entry.success,
     itemCount: entry.itemCount,
     error: entry.error,

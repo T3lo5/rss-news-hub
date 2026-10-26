@@ -514,56 +514,73 @@ export async function handleRequest(req, res) {
 
     // POST /api/fetch - trigger RSS fetch
     if (path === '/api/fetch' && req.method === 'POST') {
-      fetchLimiter(req, res, async () => {
+      // A fetch cycle also scores the new items, i.e. it spends the configured
+      // AI credits: it must never be reachable anonymously.
+      requireViewer()(req, res, () =>
+        fetchLimiter(req, res, async () => {
+          try {
+            // Fetch + score in the same cycle, otherwise items that arrive here
+            // stay unscored until the scheduler or a digest touches them.
+            const result = await fetchAndScoreFeeds();
+            return sendJSON(res, 200, { ok: true, data: result });
+          } catch (err) {
+            console.error('Fetch error:', err);
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        })
+      );
+      return;
+    }
+
+    // GET /api/scheduler/status - get scheduler status
+    if (path === '/api/scheduler/status' && req.method === 'GET') {
+      return requireViewer()(req, res, () =>
+        sendJSON(res, 200, { ok: true, data: getSchedulerStatus() })
+      );
+    }
+
+    // POST /api/scheduler/trigger - manual trigger
+    if (path === '/api/scheduler/trigger' && req.method === 'POST') {
+      requireAdmin()(req, res, async () => {
         try {
-          // Fetch + score in the same cycle, otherwise items that arrive here
-          // stay unscored until the scheduler or a digest touches them.
-          const result = await fetchAndScoreFeeds();
+          const result = await triggerScheduler(fetchAndScoreFeeds);
           return sendJSON(res, 200, { ok: true, data: result });
         } catch (err) {
-          console.error('Fetch error:', err);
           return sendJSON(res, 500, { ok: false, error: err.message });
         }
       });
       return;
     }
 
-    // GET /api/scheduler/status - get scheduler status
-    if (path === '/api/scheduler/status' && req.method === 'GET') {
-      return sendJSON(res, 200, { ok: true, data: getSchedulerStatus() });
-    }
-
-    // POST /api/scheduler/trigger - manual trigger
-    if (path === '/api/scheduler/trigger' && req.method === 'POST') {
-      try {
-        const result = await triggerScheduler(fetchAndScoreFeeds);
-        return sendJSON(res, 200, { ok: true, data: result });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
-    }
-
     // POST /api/scheduler/config - update scheduler interval
     if (path === '/api/scheduler/config' && req.method === 'POST') {
-      const { intervalMs } = req.body || {};
-      if (typeof intervalMs !== 'number' || intervalMs < 1000) {
-        return sendJSON(res, 400, { ok: false, error: 'intervalMs must be number >= 1000' });
-      }
-      setSchedulerInterval(intervalMs);
-      return sendJSON(res, 200, { ok: true, data: { intervalMs } });
+      // The interval is process-wide: a caller must be authenticated as admin
+      // before it can make the app refetch on any cadence it likes.
+      requireAdmin()(req, res, () => {
+        const { intervalMs } = req.body || {};
+        if (typeof intervalMs !== 'number' || intervalMs < 1000) {
+          return sendJSON(res, 400, { ok: false, error: 'intervalMs must be number >= 1000' });
+        }
+        setSchedulerInterval(intervalMs);
+        return sendJSON(res, 200, { ok: true, data: { intervalMs } });
+      });
+      return;
     }
 
     // GET /api/stats - get aggregated stats
     if (path === '/api/stats' && req.method === 'GET') {
-      try {
-        const { getStatus: getSchedulerStatus } = await import('./services/scheduler.service.js');
-        const stats = await getStatsAsync();
-        const schedulerStatus = getSchedulerStatus();
-        stats.scheduler = schedulerStatus;
-        return sendJSON(res, 200, { ok: true, data: stats });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      requireViewer()(req, res, async () => {
+        try {
+          const { getStatus: getSchedulerStatus } = await import('./services/scheduler.service.js');
+          const stats = await getStatsAsync();
+          const schedulerStatus = getSchedulerStatus();
+          stats.scheduler = schedulerStatus;
+          return sendJSON(res, 200, { ok: true, data: stats });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
     }
 
     // GET /api/feeds - list all feeds with stats
@@ -1261,25 +1278,10 @@ export async function handleRequest(req, res) {
 
     // GET /api/ai/profile - get interest profile
     if (path === '/api/ai/profile' && req.method === 'GET') {
-      try {
-        const { readProfile } = await import('./services/relevance.service.js');
-        const profile = await readProfile();
-        return sendJSON(res, 200, { ok: true, data: profile });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
-    }
-
-    // PUT /api/ai/profile - update interest profile
-    if (path === '/api/ai/profile' && req.method === 'PUT') {
-      validateBody(schemas.updateProfileSchema)(req, res, async () => {
+      requireViewer()(req, res, async () => {
         try {
-          const { writeProfile } = await import('./services/relevance.service.js');
-          const updates = req.body;
           const { readProfile } = await import('./services/relevance.service.js');
-          const current = await readProfile();
-          const profile = { ...current, ...updates };
-          await writeProfile(profile);
+          const profile = await readProfile();
           return sendJSON(res, 200, { ok: true, data: profile });
         } catch (err) {
           return sendJSON(res, 500, { ok: false, error: err.message });
@@ -1288,32 +1290,65 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    // PUT /api/ai/profile - update interest profile
+    if (path === '/api/ai/profile' && req.method === 'PUT') {
+      // The interest profile is shared scoring config, so writing it is a
+      // user-level action (viewer is read-only), never an anonymous one.
+      requireUser()(req, res, () =>
+        validateBody(schemas.updateProfileSchema)(req, res, async () => {
+          try {
+            const { writeProfile } = await import('./services/relevance.service.js');
+            const updates = req.body;
+            const { readProfile } = await import('./services/relevance.service.js');
+            const current = await readProfile();
+            const profile = { ...current, ...updates };
+            await writeProfile(profile);
+            return sendJSON(res, 200, { ok: true, data: profile });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        })
+      );
+      return;
+    }
+
     // POST /api/ai/score - score news items for relevance
     if (path === '/api/ai/score' && req.method === 'POST') {
-      validateBody(schemas.scoreItemsSchema)(req, res, async () => {
-        try {
-          const { scoreItems, readProfile } = await import('./services/relevance.service.js');
-          const { items, profile } = req.body;
-          const scoringProfile = profile || (await readProfile());
-          const scored = await scoreItems(items, scoringProfile);
-          return sendJSON(res, 200, { ok: true, data: scored });
-        } catch (err) {
-          return sendJSON(res, 500, { ok: false, error: err.message });
-        }
-      });
+      // Scoring calls the AI provider, so it is gated exactly like
+      // /api/ai/generate: authenticated user, then the AI rate limiter.
+      requireUser()(req, res, () =>
+        aiGenerateLimiter(req, res, () =>
+          validateBody(schemas.scoreItemsSchema)(req, res, async () => {
+            try {
+              const { scoreItems, readProfile } = await import('./services/relevance.service.js');
+              const { items, profile } = req.body;
+              const scoringProfile = profile || (await readProfile());
+              const scored = await scoreItems(items, scoringProfile);
+              return sendJSON(res, 200, { ok: true, data: scored });
+            } catch (err) {
+              return sendJSON(res, 500, { ok: false, error: err.message });
+            }
+          })
+        )
+      );
       return;
     }
 
     // POST /api/ai/score-new - score unscored news items
     if (path === '/api/ai/score-new' && req.method === 'POST') {
-      try {
-        const { scoreNewItems, readProfile } = await import('./services/relevance.service.js');
-        const profile = await readProfile();
-        const result = await scoreNewItems(profile);
-        return sendJSON(res, 200, { ok: true, data: result });
-      } catch (err) {
-        return sendJSON(res, 500, { ok: false, error: err.message });
-      }
+      requireUser()(req, res, () =>
+        aiGenerateLimiter(req, res, async () => {
+          try {
+            const { scoreNewItems, readProfile } = await import('./services/relevance.service.js');
+            const profile = await readProfile();
+            const result = await scoreNewItems(profile);
+            return sendJSON(res, 200, { ok: true, data: result });
+          } catch (err) {
+            return sendJSON(res, 500, { ok: false, error: err.message });
+          }
+        })
+      );
+      return;
     }
 
     // POST /api/ai/generate - generate content with AI
@@ -1557,32 +1592,36 @@ export async function handleRequest(req, res) {
 
     // POST /api/telegram/schedule - schedule a message for later
     if (path === '/api/telegram/schedule' && req.method === 'POST') {
-      telegramSendLimiter(req, res, () => {
-        validateBody(schemas.telegramScheduleSchema)(req, res, async () => {
-          const {
-            text,
-            parseMode,
-            scheduledAt,
-            messageThreadId,
-            replyToMessageId,
-            inlineKeyboard,
-            linkButton,
-            linkUrl,
-          } = req.body;
+      // Same gate as POST /api/telegram/send: queueing posts through the bot
+      // eventually configured on this instance is an authenticated action.
+      requireUser()(req, res, () =>
+        telegramSendLimiter(req, res, () =>
+          validateBody(schemas.telegramScheduleSchema)(req, res, async () => {
+            const {
+              text,
+              parseMode,
+              scheduledAt,
+              messageThreadId,
+              replyToMessageId,
+              inlineKeyboard,
+              linkButton,
+              linkUrl,
+            } = req.body;
 
-          const { queueTelegramMessage } = await import('./services/telegram.service.js');
-          const msg = await queueTelegramMessage({
-            text,
-            parseMode: parseMode || 'Markdown',
-            scheduledAt,
-            options: { messageThreadId, replyToMessageId, inlineKeyboard, linkButton, linkUrl },
-          });
-          return sendJSON(res, 200, {
-            ok: true,
-            data: { messageId: msg.id, scheduledAt: msg.scheduledAt, status: 'pending' },
-          });
-        });
-      });
+            const { queueTelegramMessage } = await import('./services/telegram.service.js');
+            const msg = await queueTelegramMessage({
+              text,
+              parseMode: parseMode || 'Markdown',
+              scheduledAt,
+              options: { messageThreadId, replyToMessageId, inlineKeyboard, linkButton, linkUrl },
+            });
+            return sendJSON(res, 200, {
+              ok: true,
+              data: { messageId: msg.id, scheduledAt: msg.scheduledAt, status: 'pending' },
+            });
+          })
+        )
+      );
       return;
     }
 
@@ -1654,33 +1693,56 @@ export async function handleRequest(req, res) {
 
     // GET /api/templates - list all templates
     if (path === '/api/templates' && req.method === 'GET') {
-      const { loadTemplates } = await import('./services/templates.js');
-      const templates = await loadTemplates();
-      return sendJSON(res, 200, { ok: true, data: templates });
+      requireViewer()(req, res, async () => {
+        const { loadTemplates } = await import('./services/templates.js');
+        const templates = await loadTemplates();
+        return sendJSON(res, 200, { ok: true, data: templates });
+      });
+      return;
     }
 
     // POST /api/templates - create new template
     if (path === '/api/templates' && req.method === 'POST') {
-      validateBody(schemas.templateSchema)(req, res, async () => {
-        const { createTemplate } = await import('./services/templates.js');
-        try {
-          const template = await createTemplate(req.body);
-          return sendJSON(res, 201, { ok: true, data: template });
-        } catch (err) {
-          return sendJSON(res, 400, { ok: false, error: err.message });
-        }
-      });
+      requireUser()(req, res, () =>
+        validateBody(schemas.templateSchema)(req, res, async () => {
+          const { createTemplate } = await import('./services/templates.js');
+          try {
+            const template = await createTemplate(req.body);
+            return sendJSON(res, 201, { ok: true, data: template });
+          } catch (err) {
+            return sendJSON(res, 400, { ok: false, error: err.message });
+          }
+        })
+      );
       return;
     }
 
     // PUT /api/templates/:id - update template
     if (path.match(/^\/api\/templates\/[^/]+$/) && req.method === 'PUT') {
       const templateId = path.split('/').pop();
-      validateBody(schemas.updateTemplateSchema)(req, res, async () => {
-        const { updateTemplate } = await import('./services/templates.js');
+      requireUser()(req, res, () =>
+        validateBody(schemas.updateTemplateSchema)(req, res, async () => {
+          const { updateTemplate } = await import('./services/templates.js');
+          try {
+            const template = await updateTemplate(templateId, req.body);
+            return sendJSON(res, 200, { ok: true, data: template });
+          } catch (err) {
+            const status = err.message.includes('not found') ? 404 : 400;
+            return sendJSON(res, status, { ok: false, error: err.message });
+          }
+        })
+      );
+      return;
+    }
+
+    // DELETE /api/templates/:id - delete template
+    if (path.match(/^\/api\/templates\/[^/]+$/) && req.method === 'DELETE') {
+      const templateId = path.split('/').pop();
+      requireUser()(req, res, async () => {
+        const { deleteTemplate } = await import('./services/templates.js');
         try {
-          const template = await updateTemplate(templateId, req.body);
-          return sendJSON(res, 200, { ok: true, data: template });
+          await deleteTemplate(templateId);
+          return sendJSON(res, 200, { ok: true, data: { deleted: true } });
         } catch (err) {
           const status = err.message.includes('not found') ? 404 : 400;
           return sendJSON(res, status, { ok: false, error: err.message });
@@ -1689,62 +1751,51 @@ export async function handleRequest(req, res) {
       return;
     }
 
-    // DELETE /api/templates/:id - delete template
-    if (path.match(/^\/api\/templates\/[^/]+$/) && req.method === 'DELETE') {
-      const templateId = path.split('/').pop();
-      const { deleteTemplate } = await import('./services/templates.js');
-      try {
-        await deleteTemplate(templateId);
-        return sendJSON(res, 200, { ok: true, data: { deleted: true } });
-      } catch (err) {
-        const status = err.message.includes('not found') ? 404 : 400;
-        return sendJSON(res, status, { ok: false, error: err.message });
-      }
-    }
-
     // POST /api/templates/:id/test - test template with sample data
     if (path.match(/^\/api\/templates\/[^/]+\/test$/) && req.method === 'POST') {
       const templateId = path.split('/')[3];
-      validateBody(schemas.testTemplateSchema)(req, res, async () => {
-        const { getTemplateSystemPrompt, getDefaultTemplateId } = await import(
-          './services/templates.js'
-        );
-        try {
-          const { templateId: bodyTemplateId, variables, type, news } = req.body;
+      requireUser()(req, res, () =>
+        validateBody(schemas.testTemplateSchema)(req, res, async () => {
+          const { getTemplateSystemPrompt, getDefaultTemplateId } = await import(
+            './services/templates.js'
+          );
+          try {
+            const { templateId: bodyTemplateId, variables, type, news } = req.body;
 
-          const effectiveTemplateId =
-            bodyTemplateId || templateId || (type ? getDefaultTemplateId(type) : null);
+            const effectiveTemplateId =
+              bodyTemplateId || templateId || (type ? getDefaultTemplateId(type) : null);
 
-          if (!effectiveTemplateId) {
-            return sendJSON(res, 400, { ok: false, error: 'templateId or type required' });
+            if (!effectiveTemplateId) {
+              return sendJSON(res, 400, { ok: false, error: 'templateId or type required' });
+            }
+
+            // Build variables from news + custom variables
+            const testVariables = {
+              language: variables?.language || 'en',
+              title: news?.title || 'Sample Article Title',
+              source: news?.source || 'Sample Source',
+              link: news?.link || 'https://example.com/article',
+              content: news?.content || 'Sample article content goes here...',
+              description: news?.description || 'Sample description',
+              pubDate: news?.pubDate || new Date().toISOString(),
+              ...variables,
+            };
+
+            const systemPrompt = await getTemplateSystemPrompt(effectiveTemplateId, testVariables);
+
+            return sendJSON(res, 200, {
+              ok: true,
+              data: {
+                templateId: effectiveTemplateId,
+                systemPrompt,
+                variables: testVariables,
+              },
+            });
+          } catch (err) {
+            return sendJSON(res, 400, { ok: false, error: err.message });
           }
-
-          // Build variables from news + custom variables
-          const testVariables = {
-            language: variables?.language || 'en',
-            title: news?.title || 'Sample Article Title',
-            source: news?.source || 'Sample Source',
-            link: news?.link || 'https://example.com/article',
-            content: news?.content || 'Sample article content goes here...',
-            description: news?.description || 'Sample description',
-            pubDate: news?.pubDate || new Date().toISOString(),
-            ...variables,
-          };
-
-          const systemPrompt = await getTemplateSystemPrompt(effectiveTemplateId, testVariables);
-
-          return sendJSON(res, 200, {
-            ok: true,
-            data: {
-              templateId: effectiveTemplateId,
-              systemPrompt,
-              variables: testVariables,
-            },
-          });
-        } catch (err) {
-          return sendJSON(res, 400, { ok: false, error: err.message });
-        }
-      });
+        })
+      );
       return;
     }
 
