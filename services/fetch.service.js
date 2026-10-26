@@ -291,6 +291,8 @@ async function fetchAllFeeds() {
       feedId: feedNameToId.get(item.source) || item.source,
     }));
 
+    // O índice FTS acompanha sozinho: a migração 0006 cria triggers de
+    // INSERT/UPDATE/DELETE em news_items que mantêm news_search em dia.
     await newsRepository.upsertMany(newsItems);
   }
 

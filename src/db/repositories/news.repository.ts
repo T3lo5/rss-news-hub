@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, sql } from 'drizzle-orm';
 import { getDb, schema } from '../index.js';
+import { buildMatchQuery, searchNewsIds } from './search.repository.js';
 
 export type NewsSortOrder = 'newest' | 'oldest' | 'relevance';
 export type NewsReadFilter = 'all' | 'unread' | 'read';
@@ -62,13 +63,22 @@ export class NewsRepository {
     const filters = [];
     const needle = query?.trim();
     if (needle) {
-      // Substring match like the old client-side `includes()` filter; `instr`
-      // avoids LIKE wildcards (`%`, `_`) being interpreted.
-      filters.push(sql`(
-        instr(lower(${schema.newsItems.title}), lower(${needle})) > 0 OR
-        instr(lower(${schema.newsItems.source}), lower(${needle})) > 0 OR
-        instr(lower(coalesce(${schema.newsItems.description}, '')), lower(${needle})) > 0
-      )`);
+      const matchedIds = await searchNewsIds({ query: buildMatchQuery(needle) });
+      if (matchedIds.length > 0) {
+        // Índice FTS primeiro: cobre título, conteúdo e fonte, com stemming e
+        // ranking. Ele só decide quem entra — a ordenação continua sendo a
+        // pedida (data/relevância), porque é um feed de notícias.
+        filters.push(inArray(schema.newsItems.id, matchedIds));
+      } else {
+        // Sem match no índice (consulta sem termos úteis, índice defasado ou
+        // sintaxe FTS rejeitada): substring legada, igual ao filtro client-side
+        // antigo. `instr` evita LIKE com curingas (`%`, `_`).
+        filters.push(sql`(
+          instr(lower(${schema.newsItems.title}), lower(${needle})) > 0 OR
+          instr(lower(${schema.newsItems.source}), lower(${needle})) > 0 OR
+          instr(lower(coalesce(${schema.newsItems.description}, '')), lower(${needle})) > 0
+        )`);
+      }
     }
     if (source) filters.push(eq(schema.newsItems.source, source));
     const baseWhere = filters.length ? and(...filters) : undefined;

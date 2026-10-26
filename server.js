@@ -1840,6 +1840,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.warn(`Default feed seed failed: ${err.message}`);
   }
 
+  try {
+    // Reconcilia o índice FTS com a tabela (primeira migração, base legada ou
+    // poda feita fora do app) — sem isso a busca devolve resultado velho até o
+    // próximo rebuild manual.
+    const { ensureSearchIndex } = await import('./src/db/repositories/index.js');
+    await ensureSearchIndex();
+  } catch (err) {
+    console.warn(`Search index backfill failed: ${err.message}`);
+  }
+
   // Start scheduler: fetch now and then every 30 minutes
   startScheduler(30 * 60 * 1000, fetchAndScoreFeeds, { runNow: true });
   // Start newsletter job if enabled

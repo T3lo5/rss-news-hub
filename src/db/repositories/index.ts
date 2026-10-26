@@ -39,7 +39,13 @@ export { newsRepository } from './news.repository.js';
 export { newsHashRepository } from './news-hash.repository.js';
 export { newsReadRepository } from './news-read.repository.js';
 export { newsletterHistoryRepository } from './newsletter-history.repository.js';
-export { searchRepository } from './search.repository.js';
+export {
+  buildMatchQuery,
+  ensureSearchIndex,
+  searchHasMatch,
+  searchNewsIds,
+  searchRepository,
+} from './search.repository.js';
 export { settingsRepository } from './settings.repository.js';
 export { telegramQueueRepository } from './telegram-queue.repository.js';
 export { templateRepository } from './template.repository.js';
