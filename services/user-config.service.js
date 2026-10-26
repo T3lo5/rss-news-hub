@@ -57,6 +57,25 @@ function hasKeys(obj) {
 // that belong to the deployment owner.
 const LOCKED_AI_ENV = { sensenova: {}, deepseek: {}, openai: {} };
 const LOCKED_TELEGRAM_ENV = { botToken: '', chatId: '' };
+const LOCKED_EMAIL_ENV = {
+  enabled: false,
+  host: '',
+  port: 587,
+  secure: false,
+  user: '',
+  pass: '',
+  from: '',
+  recipients: [],
+};
+// Neutral newsletter fallback for a restricted account: not the owner's
+// schedule, language or provider.
+const LOCKED_NEWSLETTER = {
+  enabled: false,
+  cron: '',
+  lookbackDays: 7,
+  language: 'en',
+  provider: 'auto',
+};
 
 /**
  * Whether an account may fall back to the system-wide credentials
@@ -213,38 +232,44 @@ export function resolveNewsletterConfig(userId) {
 
 // Lista todas as áreas de config do usuário com indicação de "tem override"
 export async function getUserSettingsOverview(userId) {
-  const [userAreas, globalAreas] = await Promise.all([
-    userSettingsRepository.getAllForUser(userId),
-    Promise.all(['ai', 'telegram', 'email', 'newsletter', 'digest'].map(readGlobalArea)),
-  ]);
-  const globalMap = {};
-  for (let i = 0; i < ['ai', 'telegram', 'email', 'newsletter', 'digest'].length; i++) {
-    const area = ['ai', 'telegram', 'email', 'newsletter', 'digest'][i];
-    globalMap[area] = globalAreas[i];
-  }
+  // A restricted account has to see the same reality the resolver gives it:
+  // only its own override. Merging the global/.env view here told non-admin
+  // accounts what the deployment owner has configured — which AI providers are
+  // set up, the owner's Telegram chat id, the SMTP host — information they
+  // cannot use and should not see.
+  const restricted = !(await canInheritSystemConfig(userId));
+  const aiEnv = restricted ? LOCKED_AI_ENV : envAi;
+  const telegramEnv = restricted ? LOCKED_TELEGRAM_ENV : envTelegram;
+  const emailEnv = restricted ? LOCKED_EMAIL_ENV : envEmail;
+  const newsletterDefaults = restricted ? LOCKED_NEWSLETTER : newsletterConfig;
 
   const areas = ['ai', 'telegram', 'email', 'newsletter', 'digest'];
+  const [userAreas, globalAreas] = await Promise.all([
+    userSettingsRepository.getAllForUser(userId),
+    Promise.all(areas.map((area) => (restricted ? Promise.resolve({}) : readGlobalArea(area)))),
+  ]);
+
   const result = {};
-  for (const area of areas) {
+  for (const [index, area] of areas.entries()) {
     const userStored = userAreas[area];
-    const globalStored = globalMap[area];
+    const globalStored = globalAreas[index] || {};
     const hasUserOverride = hasKeys(userStored);
 
     if (area === 'ai') {
       const aiCfg = mergeProvider(
         userStored?.sensenova || {},
         globalStored?.sensenova || {},
-        envAi.sensenova
+        aiEnv.sensenova
       );
       const aiCfgDs = mergeProvider(
         userStored?.deepseek || {},
         globalStored?.deepseek || {},
-        envAi.deepseek
+        aiEnv.deepseek
       );
       const aiCfgOi = mergeProvider(
         userStored?.openai || {},
         globalStored?.openai || {},
-        envAi.openai
+        aiEnv.openai
       );
       result[area] = {
         hasUserOverride,
@@ -262,42 +287,42 @@ export async function getUserSettingsOverview(userId) {
     } else if (area === 'telegram') {
       result[area] = {
         hasUserOverride,
-        chatId: userStored?.chatId || globalStored?.chatId || envTelegram.chatId || '',
+        chatId: userStored?.chatId || globalStored?.chatId || telegramEnv.chatId || '',
         botTokenSet: Boolean(
           userStored?.botToken
             ? decryptSecret(userStored.botToken)
             : globalStored?.botToken
               ? decryptSecret(globalStored.botToken)
-              : envTelegram.botToken
+              : telegramEnv.botToken
         ),
       };
     } else if (area === 'email') {
       result[area] = {
         hasUserOverride,
-        enabled: userStored?.enabled ?? globalStored?.enabled ?? envEmail.enabled,
-        host: userStored?.host || globalStored?.host || envEmail.host || '',
-        port: userStored?.port || globalStored?.port || envEmail.port,
-        secure: userStored?.secure ?? globalStored?.secure ?? envEmail.secure,
-        user: userStored?.user ?? globalStored?.user ?? envEmail.user ?? '',
-        from: userStored?.from || globalStored?.from || envEmail.from || '',
+        enabled: userStored?.enabled ?? globalStored?.enabled ?? emailEnv.enabled,
+        host: userStored?.host || globalStored?.host || emailEnv.host || '',
+        port: userStored?.port || globalStored?.port || emailEnv.port,
+        secure: userStored?.secure ?? globalStored?.secure ?? emailEnv.secure,
+        user: userStored?.user ?? globalStored?.user ?? emailEnv.user ?? '',
+        from: userStored?.from || globalStored?.from || emailEnv.from || '',
         passwordSet: Boolean(
           userStored?.pass
             ? decryptSecret(userStored.pass)
             : globalStored?.pass
               ? decryptSecret(globalStored.pass)
-              : envEmail.pass
+              : emailEnv.pass
         ),
-        recipients: userStored?.recipients ?? globalStored?.recipients ?? envEmail.recipients ?? [],
+        recipients: userStored?.recipients ?? globalStored?.recipients ?? emailEnv.recipients ?? [],
       };
     } else if (area === 'newsletter') {
       result[area] = {
         hasUserOverride,
-        enabled: userStored?.enabled ?? globalStored?.enabled ?? newsletterConfig.enabled,
-        cron: userStored?.cron || globalStored?.cron || newsletterConfig.cron,
+        enabled: userStored?.enabled ?? globalStored?.enabled ?? newsletterDefaults.enabled,
+        cron: userStored?.cron || globalStored?.cron || newsletterDefaults.cron,
         lookbackDays:
-          userStored?.lookbackDays ?? globalStored?.lookbackDays ?? newsletterConfig.lookbackDays,
-        language: userStored?.language || globalStored?.language || newsletterConfig.language,
-        provider: userStored?.provider || globalStored?.provider || newsletterConfig.provider,
+          userStored?.lookbackDays ?? globalStored?.lookbackDays ?? newsletterDefaults.lookbackDays,
+        language: userStored?.language || globalStored?.language || newsletterDefaults.language,
+        provider: userStored?.provider || globalStored?.provider || newsletterDefaults.provider,
       };
     } else if (area === 'digest') {
       result[area] = {

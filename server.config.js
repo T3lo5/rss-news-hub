@@ -145,15 +145,20 @@ const email = {
     .filter(Boolean),
 };
 
-// News retention. 0 (the default) disables automatic pruning.
+// News retention. Pruning is ON by default: an RSS hub accumulates a few
+// hundred items a week and the database only grows, so a fresh install should
+// clean after itself instead of needing an admin to remember the setting.
+// 0 still disables a rule, and whatever is saved on the admin Settings screen
+// (app_settings.retention) wins over these defaults at boot.
 const retention = {
-  retentionDays: parseInt(process.env.NEWS_RETENTION_DAYS || '0', 10),
+  // Everything older than this goes, bookmarked items excepted.
+  retentionDays: parseInt(process.env.NEWS_RETENTION_DAYS || '30', 10),
   // Second, faster rule for junk: items scoring below the threshold AND older
   // than lowScoreDays are pruned while relevant news survives. Items never
   // scored (relevance_score IS NULL) count as below the threshold — anything
   // old enough has already been through the scoring cycle. 0 disables it.
   lowScoreThreshold: parseInt(process.env.NEWS_LOW_SCORE_THRESHOLD || '30', 10),
-  lowScoreDays: parseInt(process.env.NEWS_LOW_SCORE_DAYS || '0', 10),
+  lowScoreDays: parseInt(process.env.NEWS_LOW_SCORE_DAYS || '7', 10),
 };
 
 export {

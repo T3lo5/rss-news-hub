@@ -11,6 +11,7 @@ import {
   Target,
   X,
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n';
 
 interface ToolbarProps {
@@ -73,6 +74,7 @@ export function Toolbar({
   readCount,
 }: ToolbarProps) {
   const { t } = useI18n();
+  const { user } = useAuth();
 
   // Toda a lista carregada está marcada → o botão passa a desmarcar.
   const allSelected = loadedCount > 0 && selectedCount >= loadedCount;
@@ -209,14 +211,18 @@ export function Toolbar({
           )}
         </div>
 
-        <button
-          className="btn btn-icon btn-sm"
-          onClick={onProfileClick}
-          title={t('toolbar.profileTitle')}
-          aria-label={t('toolbar.profileTitle')}
-        >
-          <Target size={16} />
-        </button>
+        {/* The interest profile is shared scoring config: writing it requires
+            the user role, so a viewer only gets a button that would 403. */}
+        {user?.role !== 'viewer' && (
+          <button
+            className="btn btn-icon btn-sm"
+            onClick={onProfileClick}
+            title={t('toolbar.profileTitle')}
+            aria-label={t('toolbar.profileTitle')}
+          >
+            <Target size={16} />
+          </button>
+        )}
         <button
           className="btn btn-icon btn-sm"
           onClick={onTemplatesClick}

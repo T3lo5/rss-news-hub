@@ -173,4 +173,50 @@ describe('User Settings API (per-user self-service)', () => {
     const openaiProvider = userOverview.json.data.ai.providers.find((p: any) => p.id === 'openai');
     assert.strictEqual(openaiProvider.configured, true);
   });
+
+  // A conta restrita recebe a mesma realidade que o resolver dá a ela: só a
+  // própria override. Antes o overview devolvia a visão mesclada, dizendo a um
+  // usuário comum quais providers o dono configurou, o chat id do Telegram do
+  // dono, o host de SMTP e o cron do newsletter do sistema.
+  test('a non-admin overview does not reflect the system configuration', async () => {
+    const adminToken = await createAdminToken();
+
+    const ai = await request(
+      'PUT',
+      '/api/settings/ai',
+      { deepseek: { apiKey: 'sk-system-secret', model: 'deepseek-reasoner' } },
+      bearer(adminToken)
+    );
+    assert.strictEqual(ai.status, 200, ai.raw);
+
+    const tg = await request(
+      'PUT',
+      '/api/settings/telegram',
+      { botToken: '123456:AA-system-secret', chatId: '-100999' },
+      bearer(adminToken)
+    );
+    assert.strictEqual(tg.status, 200, tg.raw);
+
+    // O admin continua enxergando o que o sistema tem.
+    const adminOverview = await request('GET', '/api/me/settings', undefined, bearer(adminToken));
+    const adminDeepseek = adminOverview.json.data.ai.providers.find(
+      (p: any) => p.id === 'deepseek'
+    );
+    assert.strictEqual(adminDeepseek.configured, true, adminOverview.raw);
+    assert.strictEqual(adminOverview.json.data.telegram.chatId, '-100999');
+
+    // Quem não é admin enxerga o vazio: nada configurado, nada alheio.
+    const userToken = await createUserToken();
+    const res = await request('GET', '/api/me/settings', undefined, bearer(userToken));
+    assert.strictEqual(res.status, 200, res.raw);
+    const { data } = res.json;
+    for (const provider of data.ai.providers) {
+      assert.strictEqual(provider.configured, false, `${provider.id}: ${res.raw}`);
+    }
+    assert.strictEqual(data.telegram.chatId, '');
+    assert.strictEqual(data.telegram.botTokenSet, false);
+    assert.strictEqual(data.email.host, '');
+    assert.strictEqual(data.email.passwordSet, false);
+    assert.strictEqual(data.newsletter.cron, '');
+  });
 });

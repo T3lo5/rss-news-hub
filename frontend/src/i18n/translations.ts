@@ -522,6 +522,12 @@ export const pt: Record<string, string> = {
   'newsletterConfig.success': 'Sucesso',
   'newsletterConfig.failed': 'Falhou',
   'newsletterConfig.errorPrefix': 'Erro: {error}',
+  'newsletterConfig.statusTitle': 'Status do agendamento',
+  'newsletterConfig.statusOff': 'Desativada — nada é enviado até você ativar acima.',
+  'newsletterConfig.statusScheduled': 'Agendada — próxima edição em {when}.',
+  'newsletterConfig.statusNotScheduled': 'Ativada, mas nada agendado: o cron "{cron}" é inválido.',
+  'newsletterConfig.statusLastRun': 'Última execução: {when}',
+  'newsletterConfig.statusLastError': 'A última execução falhou: {error}',
 
   // shared content
   'content.builtin': ' (padrão)',
@@ -1235,6 +1241,12 @@ export const en: Record<string, string> = {
   'newsletterConfig.success': 'Success',
   'newsletterConfig.failed': 'Failed',
   'newsletterConfig.errorPrefix': 'Error: {error}',
+  'newsletterConfig.statusTitle': 'Schedule status',
+  'newsletterConfig.statusOff': 'Off — nothing is sent until you enable it above.',
+  'newsletterConfig.statusScheduled': 'Scheduled — next edition at {when}.',
+  'newsletterConfig.statusNotScheduled': 'Enabled but not scheduled: the cron "{cron}" is invalid.',
+  'newsletterConfig.statusLastRun': 'Last run: {when}',
+  'newsletterConfig.statusLastError': 'The last run failed: {error}',
 
   // shared content
   'content.builtin': ' (built-in)',

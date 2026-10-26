@@ -71,12 +71,22 @@ export interface FetchRssResponse {
   error?: string;
 }
 
+export interface NewsletterScheduleStatus {
+  running: boolean;
+  cron: string | null;
+  lastRun: number | null;
+  nextRun: number | null;
+  lastResult?: { error?: string; timestamp?: number; [key: string]: unknown } | null;
+}
+
 export interface SchedulerStatus {
   running: boolean;
   intervalMs: number;
   lastRun: number | null;
   nextRun: number | null;
   lastResult: unknown;
+  /** Job do newsletter, aninhado no status do fetch (getStatus do scheduler). */
+  newsletter?: NewsletterScheduleStatus;
 }
 
 export interface FeedStat {

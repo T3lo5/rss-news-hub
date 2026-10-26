@@ -71,6 +71,15 @@ describe('retention API', () => {
     await getTestDb();
   });
 
+  // Um hub de RSS acumula centenas de itens por semana, então a instalação
+  // nova tem que limper depois de si mesma; 0 continua desligando a regra.
+  test('ships with pruning enabled by default', () => {
+    if (process.env.NEWS_RETENTION_DAYS || process.env.NEWS_LOW_SCORE_DAYS) return;
+
+    assert.ok(retention.retentionDays > 0, `retentionDays=${retention.retentionDays}`);
+    assert.ok(retention.lowScoreDays > 0, `lowScoreDays=${retention.lowScoreDays}`);
+  });
+
   test('is admin-only', async () => {
     const anon = await request('GET', '/api/settings/retention');
     assert.strictEqual(anon.status, 401, anon.raw);
@@ -119,12 +128,20 @@ describe('retention API', () => {
     assert.strictEqual(remaining[0].id, 'fresh');
   });
 
-  test('runRetentionCleanup is a no-op when the window is disabled', async () => {
+  test('runRetentionCleanup is a no-op when both rules are disabled', async () => {
     await seedNews('very-old', 1000);
-    const result = await runRetentionCleanup(0);
-    assert.strictEqual(result.skipped, true);
-    assert.strictEqual(result.deleted, 0);
-    assert.strictEqual(await newsRepository.count(), 1);
+
+    // The score rule is independent of the age window and is on by default,
+    // so "disabled" has to mean both rules off.
+    const restore = withScoreCleanup(0, 0);
+    try {
+      const result = await runRetentionCleanup(0);
+      assert.strictEqual(result.skipped, true);
+      assert.strictEqual(result.deleted, 0);
+      assert.strictEqual(await newsRepository.count(), 1);
+    } finally {
+      restore();
+    }
   });
 
   test('PUT /api/settings/retention persists the low-score rule', async () => {

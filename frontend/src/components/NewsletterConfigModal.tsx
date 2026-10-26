@@ -9,7 +9,13 @@ import {
   updateNewsletterConfig,
 } from '../hooks/useNewsletter';
 import { useI18n } from '../i18n';
-import type { FeedConfig, NewsletterConfig, NewsletterHistoryEntry } from '../types';
+import { api } from '../services/api';
+import type {
+  FeedConfig,
+  NewsletterConfig,
+  NewsletterHistoryEntry,
+  NewsletterScheduleStatus,
+} from '../types';
 import { ProviderSelect } from './ProviderSelect';
 import { Status } from './Status';
 
@@ -51,6 +57,19 @@ export function NewsletterConfigModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedPreset, setSelectedPreset] = useState('');
+  // Job real no processo (getStatus do scheduler). Sem isso o admin só via
+  // "ativado" e nunca sabia se algo estava de fato agendado ou quando rodava.
+  const [schedule, setSchedule] = useState<NewsletterScheduleStatus | null>(null);
+
+  const refreshSchedule = useCallback(async () => {
+    try {
+      const status = await api.getSchedulerStatus();
+      setSchedule(status.newsletter ?? null);
+    } catch {
+      // Informativo: um erro aqui não pode impedir de abrir a configuração.
+      setSchedule(null);
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -63,6 +82,7 @@ export function NewsletterConfigModal({
       setConfig(cfg);
       setFeeds(fd);
       setHistory(hist);
+      await refreshSchedule();
 
       const preset = CRON_PRESETS.find((p) => p.value === cfg.cron);
       setSelectedPreset(preset ? preset.key : 'newsletterConfig.presetCustom');
@@ -71,7 +91,7 @@ export function NewsletterConfigModal({
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [refreshSchedule, t]);
 
   useEffect(() => {
     if (isOpen) loadData();
@@ -116,6 +136,8 @@ export function NewsletterConfigModal({
     setSuccess(null);
     try {
       await updateNewsletterConfig(config);
+      // Saving restarts the job server-side, so the schedule shown must follow.
+      await refreshSchedule();
       setSuccess(t('newsletterConfig.saved'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -199,6 +221,45 @@ export function NewsletterConfigModal({
               >
                 {t('newsletterConfig.enableHint')}
               </p>
+            </div>
+
+            <div className="form-group">
+              <label>{t('newsletterConfig.statusTitle')}</label>
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  marginTop: '4px',
+                }}
+              >
+                {!config.enabled
+                  ? t('newsletterConfig.statusOff')
+                  : schedule?.running && schedule.nextRun
+                    ? t('newsletterConfig.statusScheduled', {
+                        when: new Date(schedule.nextRun).toLocaleString(locale),
+                      })
+                    : t('newsletterConfig.statusNotScheduled', { cron: config.cron || '—' })}
+              </p>
+              {schedule?.lastRun ? (
+                <p
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    marginTop: '4px',
+                  }}
+                >
+                  {t('newsletterConfig.statusLastRun', {
+                    when: new Date(schedule.lastRun).toLocaleString(locale),
+                  })}
+                </p>
+              ) : null}
+              {schedule?.lastResult?.error ? (
+                <p style={{ fontSize: '12px', color: 'var(--danger)', marginTop: '4px' }}>
+                  {t('newsletterConfig.statusLastError', {
+                    error: schedule.lastResult.error,
+                  })}
+                </p>
+              ) : null}
             </div>
 
             <div className="form-group">

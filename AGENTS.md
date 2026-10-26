@@ -69,8 +69,11 @@ Copy `.env.example` to `.env` and fill in:
 - Optional SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
   `SMTP_PASS`, `SMTP_FROM`, `NEWSLETTER_RECIPIENTS`) for e-mail delivery; can
   also be set from the admin Settings screen, which takes precedence over `.env`.
-- Optional `NEWS_RETENTION_DAYS` (default 0 = off) prunes news older than N
-  days at boot and daily; also editable from the admin Settings screen.
+- News retention is **on by default**: prunes news older than 30 days, plus
+  junk below the relevance threshold (30) after 7 days, at boot and daily.
+  Bookmarked news is exempt. Override with `NEWS_RETENTION_DAYS`,
+  `NEWS_LOW_SCORE_THRESHOLD` and `NEWS_LOW_SCORE_DAYS` (any of them set to 0
+  disables that rule) or from the admin Settings screen, which wins over `.env`.
 
 ## Key conventions
 - ESM (`"type": "module"`). Use `import`/`export`, not `require`.

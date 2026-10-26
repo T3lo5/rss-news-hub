@@ -29,6 +29,12 @@ services:
       - rss-news-hub-config:/app/config
     restart: unless-stopped
     # Healthcheck is defined in the Dockerfile
+    # Bounded logs: the json-file driver grows without limit otherwise.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # One-off helpers:
   #   docker compose run --rm app npm run fetch          # pull all RSS feeds

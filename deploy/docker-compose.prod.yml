@@ -44,6 +44,14 @@ services:
       resources:
         limits:
           memory: 512M
+    # Logs do container: sem limite o driver json-file cresce sem parar e come
+    # o disco da instancia. Roda e sobrevive a restarts, mas so passa a valer
+    # quando o container for recriado (compose up -d app).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - rss
 
@@ -69,6 +77,11 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - rss
 
