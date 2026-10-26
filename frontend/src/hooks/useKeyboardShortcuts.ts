@@ -48,7 +48,7 @@ export function useKeyboardShortcuts({ shortcuts, enabled = true }: UseKeyboardS
             event.altKey === mods.has('alt') &&
             event.metaKey === (mods.has('meta') || mods.has('cmd')));
 
-        if (!matchKey || !matchModifiers) continue;
+        if (!(matchKey && matchModifiers)) continue;
 
         if (shortcut.disabledInInputs && isInput) {
           return;

@@ -7,12 +7,47 @@ import type { DigestConfig, DigestPreview, DigestStatus } from '../types';
 import { ProviderSelect } from './ProviderSelect';
 import { Status } from './Status';
 
-const CRON_PRESETS = [
-  { key: 'digest.presetDaily', value: '0 9 * * *' },
-  { key: 'digest.presetWeekly', value: '0 9 * * 1' },
-  { key: 'digest.presetWeekdays', value: '0 9 * * 1-5' },
-  { key: 'digest.presetCustom', value: '' },
-];
+type Frequency = 'daily' | 'weekdays' | 'weekly';
+
+interface Schedule {
+  frequency: Frequency;
+  hour: number;
+  weekday: number;
+}
+
+/**
+ * O agendamento é editado só com números (frequência, hora, dia da semana);
+ * o cron é um detalhe de implementação do backend e aqui só convertemos.
+ */
+function composeCron(schedule: Schedule): string {
+  const { frequency, hour, weekday } = schedule;
+  if (frequency === 'weekdays') return `0 ${hour} * * 1-5`;
+  if (frequency === 'weekly') return `0 ${hour} * * ${weekday}`;
+  return `0 ${hour} * * *`;
+}
+
+/** Lê de volta um cron armazenado para os campos numéricos do formulário. */
+function parseCron(cron: string): Schedule {
+  const [minute, hour, dayOfMonth, , dayOfWeek] = (cron || '').trim().split(/\s+/);
+  const parsedHour = /^\d+$/.test(hour ?? '') ? Math.min(23, Number(hour)) : 9;
+  const base = minute === '0' && dayOfMonth === '*';
+
+  if (base && dayOfWeek === '1-5') return { frequency: 'weekdays', hour: parsedHour, weekday: 1 };
+  if (base && /^\d$/.test(dayOfWeek ?? '')) {
+    return { frequency: 'weekly', hour: parsedHour, weekday: Number(dayOfWeek) };
+  }
+  if (base && dayOfWeek === '*') return { frequency: 'daily', hour: parsedHour, weekday: 1 };
+
+  // Cron fora do formato suportado (legado): cai no diário 09:00 e o usuário
+  // remonta a agenda com os números.
+  return { frequency: 'daily', hour: 9, weekday: 1 };
+}
+
+function clampNumber(raw: string, min: number, max: number): number {
+  const value = Number.parseInt(raw, 10);
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
 
 const DEFAULT_CONFIG: DigestConfig = {
   enabled: false,
@@ -32,7 +67,9 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
   const locale = language === 'en' ? 'en-US' : 'pt-BR';
   const [config, setConfig] = useState<DigestConfig>(DEFAULT_CONFIG);
   const [status, setStatus] = useState<DigestStatus | null>(null);
-  const [selectedPreset, setSelectedPreset] = useState('');
+  const [frequency, setFrequency] = useState<Frequency>('weekly');
+  const [hour, setHour] = useState(8);
+  const [weekday, setWeekday] = useState(1);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -50,8 +87,10 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
       const [cfg, status] = await Promise.all([api.getDigestConfig(), api.getDigestStatus()]);
       setConfig(cfg);
       setStatus(status);
-      const preset = CRON_PRESETS.find((p) => p.value === cfg.cron);
-      setSelectedPreset(preset ? preset.key : 'digest.presetCustom');
+      const parsed = parseCron(cfg.cron);
+      setFrequency(parsed.frequency);
+      setHour(parsed.hour);
+      setWeekday(parsed.weekday);
       setPreview(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('digest.errLoad'));
@@ -72,14 +111,21 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
   const handleChange = <K extends keyof DigestConfig>(key: K, value: DigestConfig[K]) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
     if (key === 'cron') {
-      const preset = CRON_PRESETS.find((p) => p.value === value);
-      setSelectedPreset(preset ? preset.key : 'digest.presetCustom');
+      const parsed = parseCron(String(value));
+      setFrequency(parsed.frequency);
+      setHour(parsed.hour);
+      setWeekday(parsed.weekday);
     }
   };
 
-  const handlePresetChange = (key: string) => {
-    const preset = CRON_PRESETS.find((p) => p.key === key);
-    if (preset) handleChange('cron', preset.value);
+  // Os três números viram o cron que o backend entende; o usuário só edita
+  // frequência, hora e dia.
+  const updateSchedule = (patch: Partial<Schedule>) => {
+    const next: Schedule = { frequency, hour, weekday, ...patch };
+    setFrequency(next.frequency);
+    setHour(next.hour);
+    setWeekday(next.weekday);
+    handleChange('cron', composeCron(next));
   };
 
   const handleSave = async () => {
@@ -139,6 +185,19 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
       setSending(false);
     }
   };
+
+  // Frase humana do agendamento: o usuário lê “toda segunda-feira às 08:00”,
+  // nunca o cron. O nome do dia vem do Intl, já no idioma da interface.
+  const timeLabel = `${String(hour).padStart(2, '0')}:00`;
+  const weekdayLabel = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(
+    new Date(Date.UTC(2026, 0, 4 + weekday))
+  );
+  const summaryKey =
+    frequency === 'weekly'
+      ? 'digest.summaryWeekly'
+      : frequency === 'weekdays'
+        ? 'digest.summaryWeekdays'
+        : 'digest.summaryDaily';
 
   if (!isOpen) return null;
 
@@ -222,48 +281,66 @@ export function DigestConfigModal({ isOpen, onClose }: { isOpen: boolean; onClos
             </div>
 
             <div className="form-group">
-              <label htmlFor="digestCronPreset">{t('digest.schedule')}</label>
+              <label htmlFor="digestFrequency">{t('digest.schedule')}</label>
               <select
-                id="digestCronPreset"
-                value={selectedPreset}
-                onChange={(e) => handlePresetChange(e.target.value)}
+                id="digestFrequency"
+                value={frequency}
+                onChange={(e) => updateSchedule({ frequency: e.target.value as Frequency })}
                 disabled={loading}
               >
-                {CRON_PRESETS.map((p) => (
-                  <option key={p.key} value={p.key}>
-                    {t(p.key)}
-                  </option>
-                ))}
+                <option value="daily">{t('digest.freqDaily')}</option>
+                <option value="weekdays">{t('digest.freqWeekdays')}</option>
+                <option value="weekly">{t('digest.freqWeekly')}</option>
               </select>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                {t('digest.cron')}{' '}
-                <code
-                  style={{
-                    background: 'var(--bg-primary)',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                  }}
-                >
-                  {config.cron}
-                </code>
-              </p>
-              {status?.enabled && status.nextRun ? (
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  {t('digest.nextRun')}{' '}
-                  <strong>{new Date(status.nextRun).toLocaleString(locale)}</strong>
-                </p>
-              ) : null}
-              {selectedPreset === 'digest.presetCustom' && (
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: frequency === 'weekly' ? '1fr 1fr' : '1fr',
+                gap: '12px',
+              }}
+            >
+              <div className="form-group">
+                <label htmlFor="digestHour">{t('digest.hour')}</label>
                 <input
-                  type="text"
-                  value={config.cron}
-                  onChange={(e) => handleChange('cron', e.target.value)}
-                  placeholder={t('digest.cronPlaceholder')}
-                  style={{ marginTop: '8px', fontFamily: 'monospace' }}
+                  id="digestHour"
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={hour}
+                  onChange={(e) => updateSchedule({ hour: clampNumber(e.target.value, 0, 23) })}
                   disabled={loading}
                 />
-              )}
+              </div>
+              {frequency === 'weekly' ? (
+                <div className="form-group">
+                  <label htmlFor="digestWeekday">{t('digest.weekday')}</label>
+                  <input
+                    id="digestWeekday"
+                    type="number"
+                    min="0"
+                    max="6"
+                    value={weekday}
+                    onChange={(e) => updateSchedule({ weekday: clampNumber(e.target.value, 0, 6) })}
+                    disabled={loading}
+                  />
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    {weekdayLabel}
+                  </p>
+                </div>
+              ) : null}
             </div>
+
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              {t(summaryKey, { day: weekdayLabel, time: timeLabel })}
+            </p>
+            {status?.enabled && status.nextRun ? (
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                {t('digest.nextRun')}{' '}
+                <strong>{new Date(status.nextRun).toLocaleString(locale)}</strong>
+              </p>
+            ) : null}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="form-group">
