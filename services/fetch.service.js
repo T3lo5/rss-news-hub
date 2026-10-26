@@ -11,6 +11,9 @@ import { recordFeedResult, recordFetchResult, recordFetchStart } from './stats.s
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// Wrapper CDATA do RSS: compilado no módulo, não a cada item parseado.
+const CDATA_WRAPPER = /^<!\[CDATA\[([\s\S]*?)\]\]>$/;
+
 async function fetchFeed(feed, options = {}) {
   const { bypassCache = false, timeoutMs = 15000 } = options;
   const feedName = feed.name || feed;
@@ -75,7 +78,7 @@ function extractTag(xml, tag) {
   const m = xml.match(re);
   if (!m) return '';
   let content = m[1].trim();
-  content = content.replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/, '$1');
+  content = content.replace(CDATA_WRAPPER, '$1');
   return content;
 }
 

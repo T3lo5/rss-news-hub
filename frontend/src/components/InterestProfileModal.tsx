@@ -131,9 +131,11 @@ export function InterestProfileModal({
           type="text"
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
-          onKeyDown={(e) =>
-            e.key === 'Enter' && (e.preventDefault(), addItem(field, newValue, setNewValue))
-          }
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            addItem(field, newValue, setNewValue);
+          }}
           placeholder={placeholder}
           style={{ flex: 1 }}
         />

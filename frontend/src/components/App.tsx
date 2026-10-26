@@ -208,17 +208,17 @@ function AppContent() {
 
   const generatedIds = useMemo(() => {
     const set = new Set<string>();
-    Object.entries(generatedByNews).forEach(([id, entry]) => {
+    for (const [id, entry] of Object.entries(generatedByNews)) {
       if (entry?.content) set.add(id);
-    });
+    }
     return set;
   }, [generatedByNews]);
 
   const sentIds = useMemo(() => {
     const set = new Set<string>();
-    Object.entries(generatedByNews).forEach(([id, entry]) => {
+    for (const [id, entry] of Object.entries(generatedByNews)) {
       if (entry?.sentAt) set.add(id);
-    });
+    }
     return set;
   }, [generatedByNews]);
 
@@ -418,7 +418,7 @@ function AppContent() {
           const to = ids.indexOf(id);
           if (from !== -1 && to !== -1) {
             const [start, end] = from < to ? [from, to] : [to, from];
-            ids.slice(start, end + 1).forEach((rangeId) => next.add(rangeId));
+            for (const rangeId of ids.slice(start, end + 1)) next.add(rangeId);
             return next;
           }
         }

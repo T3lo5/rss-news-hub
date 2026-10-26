@@ -56,7 +56,7 @@ describe('newsletter selection', () => {
     const news = [
       item('worst', { relevanceScore: 10 }),
       item('older', { relevanceScore: 80, pubDate: new Date(Date.now() - 6 * DAY) }),
-      item('newer', { relevanceScore: 80, pubDate: new Date(Date.now() - 1 * DAY) }),
+      item('newer', { relevanceScore: 80, pubDate: new Date(Date.now() - Number(DAY)) }),
       item('middle', { relevanceScore: 50 }),
     ];
     const result = filterNewsByConfig(news, { ...base, maxItems: 2 });

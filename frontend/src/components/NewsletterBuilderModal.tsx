@@ -54,7 +54,9 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
     api
       .getFeeds()
       .then((feeds) =>
-        setFeedSources(feeds.map((feed) => feed.name).filter((name): name is string => !!name))
+        setFeedSources(
+          feeds.map((feed) => feed.name).filter((name): name is string => Boolean(name))
+        )
       )
       .catch(() => setFeedSources([]));
   }, [isOpen]);

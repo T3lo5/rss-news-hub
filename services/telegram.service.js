@@ -7,6 +7,10 @@ import { resolveTelegramConfig } from './user-config.service.js';
 // limit.
 const SAFE_TG_LENGTH = 4000;
 
+// Falhas de formatação de entidade do Telegram: compilada no módulo, sem
+// flag `g`, então `.test` não guarda estado entre chamadas.
+const TELEGRAM_PARSE_ERROR = /entit|can't find end|unsupported start tag|parse/i;
+
 // Split long text into <= maxLength chunks, preferring paragraph boundaries,
 // then line breaks, then sentence/word boundaries. This prevents a single
 // oversized payload from being rejected by Telegram.
@@ -91,7 +95,7 @@ async function postToTelegram(url, body) {
 }
 
 function isEntityParseError(description) {
-  return /entit|can't find end|unsupported start tag|parse/i.test(description || '');
+  return TELEGRAM_PARSE_ERROR.test(description || '');
 }
 
 export async function telegramSend(text, parseMode = 'Markdown', config, options = {}) {

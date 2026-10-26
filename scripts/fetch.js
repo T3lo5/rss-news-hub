@@ -6,6 +6,9 @@ import { DATA_DIR, NEWS_FILE, RSS_FEEDS } from '../server.config.js';
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// Wrapper CDATA do RSS: compilado no módulo, não a cada item parseado.
+const CDATA_WRAPPER = /^<!\[CDATA\[([\s\S]*?)\]\]>$/;
+
 async function fetchFeed(feed) {
   const res = await fetch(feed.url, {
     headers: {
@@ -80,7 +83,7 @@ function extractTag(xml, tag) {
   if (!m) return '';
   let content = m[1].trim();
   // Remove CDATA wrapper if present
-  content = content.replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/, '$1');
+  content = content.replace(CDATA_WRAPPER, '$1');
   return content;
 }
 

@@ -274,21 +274,30 @@ export async function chatStream(
 // append the analysis sections ("Ângulo escolhido", "Post final", "Por que pode
 // funcionar", "Pontos a confirmar") even when told not to. Extract only the
 // publishable post so nothing leaks into the displayed/copied/Telegram text.
+// Expressões do parser editorial: compiladas uma vez no módulo (todas sem
+// flag `g` onde há `.test`, então não guardam estado entre chamadas).
+const CRLF_LINE_ENDINGS = /\r\n/g;
+const SEPARATOR_LINE = /^\s*-{3,}\s*$/;
+const MD_HEADING_PREFIX = /^\s*#{1,6}\s*/;
+const EDITORIAL_LABEL_PREFIX = /^\s*(Ângulo escolhido|Post final)\s*:?\s*/i;
+const POST_FINAL_LABEL = /Post final/i;
+const ANGLE_LABEL = /Ângulo escolhido/i;
+
 export function stripEditorialMeta(content) {
   if (!content || typeof content !== 'string') return content || '';
 
-  const lines = content.replace(/\r\n/g, '\n').split('\n');
-  const isSep = (l) => /^\s*-{3,}\s*$/.test(l);
+  const lines = content.replace(CRLF_LINE_ENDINGS, '\n').split('\n');
+  const isSep = (l) => SEPARATOR_LINE.test(l);
   const isEnd = (l) => /(Por que pode funcionar|Pontos a confirmar)/i.test(l);
   const stripLabel = (line) =>
     line
-      .replace(/^\s*#{1,6}\s*/, '')
+      .replace(MD_HEADING_PREFIX, '')
       .replace(/\*\*/g, '')
-      .replace(/^\s*(Ângulo escolhido|Post final)\s*:?\s*/i, '')
+      .replace(EDITORIAL_LABEL_PREFIX, '')
       .trim();
 
-  const postFinalIdx = lines.findIndex((l) => /Post final/i.test(l));
-  const angleIdx = lines.findIndex((l) => /Ângulo escolhido/i.test(l));
+  const postFinalIdx = lines.findIndex((l) => POST_FINAL_LABEL.test(l));
+  const angleIdx = lines.findIndex((l) => ANGLE_LABEL.test(l));
 
   let start = 0;
   let inlinePrefix = '';

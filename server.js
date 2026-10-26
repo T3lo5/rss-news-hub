@@ -119,6 +119,18 @@ const emailSendLimiter = rateLimitMiddleware({
 });
 const fetchLimiter = rateLimitMiddleware({ maxRequests: 2, windowMs: 60000, keyPrefix: 'fetch:' });
 
+// Rotas com trecho variável e classificações de erro: compiladas uma vez no
+// módulo em vez de recriar a regex a cada requisição (usar .test/.match com
+// regex sem flag `g` não guarda estado entre chamadas).
+const FEED_ITEM_PATH = /^\/api\/feeds\/[^/]+$/;
+const FEED_TEST_PATH = /^\/api\/feeds\/[^/]+\/test$/;
+const ME_SETTINGS_PATH = /^\/api\/me\/settings\/([\w-]+)$/;
+const TELEGRAM_QUEUE_ITEM_PATH = /^\/api\/telegram\/queue\/[^/]+$/;
+const TEMPLATE_ITEM_PATH = /^\/api\/templates\/[^/]+$/;
+const TEMPLATE_TEST_PATH = /^\/api\/templates\/[^/]+\/test$/;
+const UPSTREAM_NETWORK_ERROR = /network|timeout/i;
+const UPSTREAM_SMTP_ERROR = /network|timeout|ECONN|EAUTH|getaddrinfo/i;
+
 function sendJSON(res, status, data) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(data));
@@ -667,7 +679,7 @@ export async function handleRequest(req, res) {
     }
 
     // PUT /api/feeds/:id - update feed
-    if (path.match(/^\/api\/feeds\/[^/]+$/) && req.method === 'PUT') {
+    if (path.match(FEED_ITEM_PATH) && req.method === 'PUT') {
       const id = path.split('/')[3];
       requireAdmin()(req, res, () => {
         validateBody(schemas.updateFeedSchema)(req, res, async () => {
@@ -702,7 +714,7 @@ export async function handleRequest(req, res) {
     }
 
     // DELETE /api/feeds/:id - delete feed
-    if (path.match(/^\/api\/feeds\/[^/]+$/) && req.method === 'DELETE') {
+    if (path.match(FEED_ITEM_PATH) && req.method === 'DELETE') {
       const id = path.split('/')[3];
       requireAdmin()(req, res, async () => {
         try {
@@ -737,7 +749,7 @@ export async function handleRequest(req, res) {
     }
 
     // POST /api/feeds/:id/test - test fetch a single feed
-    if (path.match(/^\/api\/feeds\/[^/]+\/test$/) && req.method === 'POST') {
+    if (path.match(FEED_TEST_PATH) && req.method === 'POST') {
       const id = path.split('/')[3];
       requireUser()(req, res, async () => {
         try {
@@ -1045,7 +1057,7 @@ export async function handleRequest(req, res) {
     }
 
     // PUT /api/me/settings/:area - salva override do usuário
-    const meSettingsMatch = path.match(/^\/api\/me\/settings\/([\w-]+)$/);
+    const meSettingsMatch = path.match(ME_SETTINGS_PATH);
     if (meSettingsMatch && req.method === 'PUT') {
       requireUser()(req, res, async () => {
         const area = meSettingsMatch[1];
@@ -1510,7 +1522,7 @@ export async function handleRequest(req, res) {
               log.error({ err }, 'Telegram send failed');
               if (!res.headersSent) {
                 // Network/API failures are upstream errors, not client errors.
-                const status = /network|timeout/i.test(msg) ? 502 : 400;
+                const status = UPSTREAM_NETWORK_ERROR.test(msg) ? 502 : 400;
                 return sendJSON(res, status, {
                   ok: false,
                   error: msg,
@@ -1541,7 +1553,7 @@ export async function handleRequest(req, res) {
               const msg = err?.message || 'Email send failed';
               log.error({ err }, 'Email send failed');
               if (!res.headersSent) {
-                const status = /network|timeout|ECONN|EAUTH|getaddrinfo/i.test(msg) ? 502 : 400;
+                const status = UPSTREAM_SMTP_ERROR.test(msg) ? 502 : 400;
                 return sendJSON(res, status, {
                   ok: false,
                   error: msg,
@@ -1636,7 +1648,7 @@ export async function handleRequest(req, res) {
     }
 
     // DELETE /api/telegram/queue/:id - cancel scheduled message
-    if (path.match(/^\/api\/telegram\/queue\/[^/]+$/) && req.method === 'DELETE') {
+    if (path.match(TELEGRAM_QUEUE_ITEM_PATH) && req.method === 'DELETE') {
       requireUser()(req, res, async () => {
         const messageId = path.split('/').pop();
         const { cancelTelegramMessage } = await import('./services/telegram.service.js');
@@ -1718,7 +1730,7 @@ export async function handleRequest(req, res) {
     }
 
     // PUT /api/templates/:id - update template
-    if (path.match(/^\/api\/templates\/[^/]+$/) && req.method === 'PUT') {
+    if (path.match(TEMPLATE_ITEM_PATH) && req.method === 'PUT') {
       const templateId = path.split('/').pop();
       requireUser()(req, res, () =>
         validateBody(schemas.updateTemplateSchema)(req, res, async () => {
@@ -1736,7 +1748,7 @@ export async function handleRequest(req, res) {
     }
 
     // DELETE /api/templates/:id - delete template
-    if (path.match(/^\/api\/templates\/[^/]+$/) && req.method === 'DELETE') {
+    if (path.match(TEMPLATE_ITEM_PATH) && req.method === 'DELETE') {
       const templateId = path.split('/').pop();
       requireUser()(req, res, async () => {
         const { deleteTemplate } = await import('./services/templates.js');
@@ -1752,7 +1764,7 @@ export async function handleRequest(req, res) {
     }
 
     // POST /api/templates/:id/test - test template with sample data
-    if (path.match(/^\/api\/templates\/[^/]+\/test$/) && req.method === 'POST') {
+    if (path.match(TEMPLATE_TEST_PATH) && req.method === 'POST') {
       const templateId = path.split('/')[3];
       requireUser()(req, res, () =>
         validateBody(schemas.testTemplateSchema)(req, res, async () => {

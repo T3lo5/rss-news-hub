@@ -10,6 +10,10 @@
 // expect — the previous interval-based approximation ignored the time and the
 // weekday entirely.
 
+// Compiladas uma vez no módulo: são usadas em laços de validação de campo.
+const DIGITS_ONLY = /^\d+$/;
+const WHITESPACE = /\s+/;
+
 const MONTHS = {
   jan: 1,
   feb: 2,
@@ -38,7 +42,7 @@ const FIELD_RANGES = {
 function resolveValue(token, names) {
   const lower = String(token).toLowerCase();
   if (names && Object.prototype.hasOwnProperty.call(names, lower)) return names[lower];
-  if (!/^\d+$/.test(lower)) throw new Error(`Invalid cron value: ${token}`);
+  if (!DIGITS_ONLY.test(lower)) throw new Error(`Invalid cron value: ${token}`);
   return parseInt(lower, 10);
 }
 
@@ -57,7 +61,7 @@ function parseField(field, name, names) {
     if (slash !== -1) {
       body = part.slice(0, slash);
       const stepRaw = part.slice(slash + 1);
-      if (!/^\d+$/.test(stepRaw)) throw new Error(`Invalid cron step: ${part}`);
+      if (!DIGITS_ONLY.test(stepRaw)) throw new Error(`Invalid cron step: ${part}`);
       step = parseInt(stepRaw, 10);
       if (step < 1) throw new Error(`Invalid cron step: ${part}`);
     }
@@ -90,7 +94,7 @@ function parseField(field, name, names) {
 
 export function parseCron(expression) {
   if (typeof expression !== 'string') throw new Error('Cron expression must be a string');
-  const fields = expression.trim().split(/\s+/);
+  const fields = expression.trim().split(WHITESPACE);
   // Accept an optional leading seconds field (6 fields) by ignoring it.
   const parts = fields.length === 6 ? fields.slice(1) : fields;
   if (parts.length !== 5) throw new Error(`Invalid cron expression: ${expression}`);

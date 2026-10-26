@@ -1,6 +1,9 @@
 // Minimal markdown -> inline-styled HTML conversion used for email bodies and
 // Telegram HTML messages. Kept dependency-free on purpose (the app avoids a
 // full markdown pipeline elsewhere too — RSS parsing is regex based).
+// Item de lista da conversão abaixo — compilado no módulo, não por mensagem.
+const LIST_ITEM_LINE = /^- (.+)$/gm;
+
 export function markdownToHtml(md) {
   return md
     .replace(/^# (.+)$/gm, '<h1 style="color:#1a1a2e;margin:24px 0 12px;font-size:24px;">$1</h1>')
@@ -13,7 +16,7 @@ export function markdownToHtml(md) {
       '<code style="background:#f0f0f0;padding:2px 4px;border-radius:3px;">$1</code>'
     )
     .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#2563eb;">$1</a>')
-    .replace(/^- (.+)$/gm, '<li style="margin:8px 0;">$1</li>')
+    .replace(LIST_ITEM_LINE, '<li style="margin:8px 0;">$1</li>')
     .replace(/(<li.*>.*<\/li>)/s, '<ul style="margin:12px 0;padding-left:20px;">$1</ul>')
     .replace(/\n\n/g, '</p><p style="margin:12px 0;line-height:1.6;">')
     .replace(/^(.+)$/gm, '<p style="margin:12px 0;line-height:1.6;">$1</p>')

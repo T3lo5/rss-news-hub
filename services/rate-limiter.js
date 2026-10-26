@@ -126,7 +126,7 @@ function rateLimitMiddleware({ maxRequests = 10, windowMs = 60000, keyPrefix = '
     }
 
     // Set headers for successful response
-    Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v));
+    for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
 
     if (next) next();
   };
