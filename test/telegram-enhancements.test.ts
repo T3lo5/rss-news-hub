@@ -148,6 +148,52 @@ describe('Telegram Enhancements (DB-backed)', () => {
     });
   });
 
+  describe('Telegram output plugin', () => {
+    const pluginConfig = {
+      enabled: true,
+      config: { botToken: 'test-token', chatId: '123', defaultParseMode: 'Markdown' },
+    };
+
+    test('converts markdown to Telegram HTML like the service does', async () => {
+      const mockFetch = mock.fn(async () => ({
+        ok: true,
+        json: async () => ({ ok: true, result: { message_id: 1 } }),
+      }));
+      global.fetch = mockFetch;
+
+      const { TelegramOutputPlugin } = await import('../src/plugins/builtin/outputs.js');
+      const plugin = new TelegramOutputPlugin();
+      await plugin.init(pluginConfig);
+      await plugin.send('## Título\n\n- item **forte**');
+
+      const body = JSON.parse(mockFetch.mock.calls[0].arguments[1].body);
+      assert.strictEqual(body.parse_mode, 'HTML');
+      assert.ok(body.text.includes('<b>Título</b>'));
+      assert.ok(body.text.includes('• item <b>forte</b>'));
+      assert.ok(!body.text.includes('##'));
+    });
+
+    test('passes an explicit HTML parse mode through untouched', async () => {
+      const mockFetch = mock.fn(async () => ({
+        ok: true,
+        json: async () => ({ ok: true, result: { message_id: 1 } }),
+      }));
+      global.fetch = mockFetch;
+
+      const { TelegramOutputPlugin } = await import('../src/plugins/builtin/outputs.js');
+      const plugin = new TelegramOutputPlugin();
+      await plugin.init({
+        ...pluginConfig,
+        config: { ...pluginConfig.config, defaultParseMode: 'HTML' },
+      });
+      await plugin.send('<b>já é HTML</b>');
+
+      const body = JSON.parse(mockFetch.mock.calls[0].arguments[1].body);
+      assert.strictEqual(body.parse_mode, 'HTML');
+      assert.strictEqual(body.text, '<b>já é HTML</b>');
+    });
+  });
+
   describe('Inline Keyboard', () => {
     test('telegramSend includes inline keyboard with link button', async () => {
       const mockFetch = mock.fn(async () => ({

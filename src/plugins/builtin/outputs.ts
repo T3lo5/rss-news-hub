@@ -2,6 +2,7 @@
  * Built-in Output Plugins - Telegram, Discord, Slack, etc.
  */
 
+import { markdownToTelegramHtml } from '../../lib/markdown-telegram.js';
 import { type OutputOptions, type OutputPlugin, type PluginManifest } from '../types.js';
 
 export class TelegramOutputPlugin implements OutputPlugin {
@@ -50,12 +51,16 @@ export class TelegramOutputPlugin implements OutputPlugin {
 
     const _url = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
 
-    const parseMode = options.parseMode || config.defaultParseMode || 'Markdown';
+    // O Markdown legado do Telegram não tem títulos nem listas e trava em `**`:
+    // o plugin converte para o dialeto HTML com o mesmo conversor do serviço,
+    // então todo caminho de saída entrega o mesmo formato.
+    const requestedMode = options.parseMode || config.defaultParseMode || 'Markdown';
+    const isLegacyMarkdown = requestedMode === 'Markdown';
 
     const body: any = {
       chat_id: config.chatId,
-      text: content,
-      parse_mode: parseMode,
+      text: isLegacyMarkdown ? markdownToTelegramHtml(content) : content,
+      parse_mode: isLegacyMarkdown ? 'HTML' : requestedMode,
       disable_web_page_preview: true,
     };
 
