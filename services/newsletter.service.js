@@ -4,8 +4,9 @@ import {
   newsRepository,
 } from '../src/db/repositories/index.js';
 import { buildSystemPrompt, chat, pickProvider } from './ai.service.js';
+import { ensureSourceAttribution, sourceLabels } from './attribution.js';
 import { isEmailConfigured, sendEmail } from './email.service.js';
-import { markdownToHtml, renderEmailHtml } from './markdown.js';
+import { markdownToTelegramHtml, renderEmailHtml } from './markdown.js';
 import { telegramSend } from './telegram.service.js';
 
 // Exported for tests: this is the whole selection policy (filters, score gate,
@@ -115,12 +116,17 @@ export async function generateAndSendNewsletter(config, delivery = {}) {
       throw new Error('No AI provider configured');
     }
 
-    const content = await chat(systemPrompt, userContent, config.provider);
+    const generated = await chat(systemPrompt, userContent, config.provider);
+    // Enforce attribution: the prompt asks for a source link per section, but
+    // the model decides — a newsletter without links is unusable.
+    const content = ensureSourceAttribution(generated, filtered, sourceLabels(config.language));
     entry.contentPreview = content.slice(0, 200);
 
     if (config.telegramEnabled && delivery.telegram?.botToken && delivery.telegram?.chatId) {
-      const html = markdownToHtml(content);
-      await telegramSend(html, 'HTML', delivery.telegram);
+      // The email renderer emits <h1>/<p>/<ul> with inline styles — Telegram's
+      // HTML dialect rejects those tags and the message fell back to plain
+      // text, showing the raw markup. Send Telegram-safe HTML instead.
+      await telegramSend(markdownToTelegramHtml(content), 'HTML', delivery.telegram);
     }
 
     if (config.emailEnabled && isEmailConfigured(delivery.email)) {

@@ -21,7 +21,7 @@ import type {
   Provider,
   Template,
 } from '../types';
-import { formatGeneratedContent } from '../utils/content';
+import { formatGeneratedContent, withSourceAttribution } from '../utils/content';
 
 // Persisted map of newsId -> generated content, so a post that was already
 // generated can be reopened and re-sent (e.g. after a failed Telegram send)
@@ -376,7 +376,18 @@ function AppContent() {
     if (!generatedContent) return;
     try {
       const formattedContent = formatGeneratedContent(generatedContent, contentType);
-      await send(formattedContent);
+      // Every send carries the source: append the news link(s) the model left out.
+      const sourceItems =
+        contentType === 'newsletter'
+          ? filteredNews.filter((n) => selectedIds.has(n.id))
+          : selectedNews
+            ? [selectedNews]
+            : [];
+      const body = withSourceAttribution(formattedContent, sourceItems, {
+        one: t('share.sourceLabel'),
+        many: t('share.sourceLabelMany'),
+      });
+      await send(body);
       // Mark as sent so the grid can show the current delivery status.
       if (selectedNews) {
         setGeneratedByNews((prev) => {
@@ -390,7 +401,7 @@ function AppContent() {
     } catch (err) {
       console.error(err);
     }
-  }, [send, generatedContent, contentType, selectedNews, t]);
+  }, [send, generatedContent, contentType, selectedNews, filteredNews, selectedIds, t]);
 
   const handleRefresh = useCallback(async () => {
     if (!online) {

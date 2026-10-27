@@ -5,7 +5,7 @@ import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
 import type { Language, NewsItem, Provider, Template } from '../types';
-import { formatGeneratedContent } from '../utils/content';
+import { formatGeneratedContent, withSourceAttribution } from '../utils/content';
 import { ProviderSelect } from './ProviderSelect';
 import { Status } from './Status';
 
@@ -149,10 +149,21 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
     }
   }, [selectedItems, language, provider, templateId, templateVariables, t]);
 
+  // The generated newsletter plus any source link the model left out — every
+  // delivery (Telegram or e-mail) goes through this.
+  const withSources = useCallback(
+    () =>
+      withSourceAttribution(formatGeneratedContent(content, 'newsletter'), selectedItems, {
+        one: t('share.sourceLabel'),
+        many: t('share.sourceLabelMany'),
+      }),
+    [content, selectedItems, t]
+  );
+
   const handleSend = async () => {
     if (!content) return;
     try {
-      await send(formatGeneratedContent(content, 'newsletter'));
+      await send(withSources());
     } catch {
       // error surfaced via tgError
     }
@@ -184,7 +195,7 @@ export function NewsletterBuilderModal({ isOpen, news, onClose }: NewsletterBuil
         subject: t('newsletterBuilder.emailSubject', {
           date: new Date().toLocaleDateString(locale),
         }),
-        text: content,
+        text: withSources(),
       });
       setEmailSuccess(true);
     } catch (err) {

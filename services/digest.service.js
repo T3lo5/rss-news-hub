@@ -1,6 +1,7 @@
 import { email as emailConfig } from '../server.config.js';
 import { newsRepository } from '../src/db/repositories/index.js';
 import { chat, pickProvider } from './ai.service.js';
+import { ensureSourceAttribution, sourceLabels } from './attribution.js';
 import { getNextCronRun, isValidCron } from './cron.js';
 import { isEmailConfigured, sendEmail } from './email.service.js';
 import { renderEmailHtml } from './markdown.js';
@@ -177,8 +178,13 @@ export async function generateAndSendDigest(telegram, options = {}) {
     const systemPrompt = buildDigestPrompt(config, filteredItems);
     const userContent = buildDigestUserContent(filteredItems);
 
-    const content = await chat(systemPrompt, userContent, provider);
-
+    const generated = await chat(systemPrompt, userContent, provider);
+    // Enforce attribution: the prompt asks for links but the model decides.
+    const content = ensureSourceAttribution(
+      generated,
+      filteredItems,
+      sourceLabels(config.language)
+    );
     // Send to Telegram if configured
     if (telegram?.botToken && telegram.chatId) {
       await telegramSend(content, 'Markdown', telegram);
@@ -231,7 +237,13 @@ export async function generateDigestPreview(config) {
   if (provider && filteredItems.length > 0) {
     const systemPrompt = buildDigestPrompt(effectiveConfig, filteredItems);
     const userContent = buildDigestUserContent(filteredItems);
-    content = await chat(systemPrompt, userContent, provider);
+    const generated = await chat(systemPrompt, userContent, provider);
+    // Preview must look like what will be sent.
+    content = ensureSourceAttribution(
+      generated,
+      filteredItems,
+      sourceLabels(effectiveConfig.language)
+    );
   }
 
   return {

@@ -97,3 +97,43 @@ export function formatGeneratedContent(content: string, type: ContentType): stri
   }
   return content;
 }
+
+export interface SourceAttributionItem {
+  source?: string | null;
+  title?: string;
+  link?: string | null;
+}
+
+export interface SourceAttributionLabels {
+  one: string;
+  many: string;
+}
+
+// Mirror of services/attribution.js#ensureSourceAttribution: every send carries
+// the origin link of the news behind it, appended only when the model left it
+// out. The link is written as markdown ([url](url)) so it renders as a
+// clickable <a> both on Telegram (markdownToTelegramHtml) and in e-mail.
+export function withSourceAttribution(
+  content: string,
+  items: SourceAttributionItem | SourceAttributionItem[],
+  labels: SourceAttributionLabels
+): string {
+  const base = (content || '').trimEnd();
+  const list = (Array.isArray(items) ? items : [items]).filter(
+    (item): item is SourceAttributionItem & { link: string } => Boolean(item?.link)
+  );
+  const missing = list.filter((item) => !base.includes(item.link));
+  if (missing.length === 0) return content;
+
+  const line = (item: SourceAttributionItem & { link: string }, who?: string | null) =>
+    `${who ? `${who} — ` : ''}[${item.link}](${item.link})`;
+
+  const block =
+    missing.length === 1
+      ? `${labels.one}: ${line(missing[0], missing[0].source || missing[0].title)}`
+      : `${labels.many}:\n${missing
+          .map((item) => `• ${line(item, item.title || item.source)}`)
+          .join('\n')}`;
+
+  return `${base}${base ? '\n\n' : ''}${block}`;
+}
