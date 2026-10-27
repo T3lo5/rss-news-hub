@@ -89,6 +89,65 @@ describe('Telegram Enhancements (DB-backed)', () => {
     });
   });
 
+  describe('Markdown -> Telegram HTML', () => {
+    test('markdownToTelegramHtml maps headings, bullets, emphasis and links', async () => {
+      const { markdownToTelegramHtml } = await import('../services/markdown.js');
+      const html = markdownToTelegramHtml(
+        '## Título\n\n- um\n- dois com **negrito** e _itálico_\n\n[site](https://example.com/a?b=1&c=2)'
+      );
+
+      assert.strictEqual(
+        html,
+        '<b>Título</b>\n\n• um\n• dois com <b>negrito</b> e <i>itálico</i>\n\n' +
+          '<a href="https://example.com/a?b=1&amp;c=2">site</a>'
+      );
+    });
+
+    test('markdownToTelegramHtml escapes markup and keeps code literal', async () => {
+      const { markdownToTelegramHtml } = await import('../services/markdown.js');
+      const html = markdownToTelegramHtml('usa <tag> & 5 * 3 * 2\n\n```const a = **b**;```');
+
+      assert.ok(html.includes('usa &lt;tag&gt; &amp; 5 * 3 * 2'));
+      assert.ok(html.includes('<pre>const a = **b**;</pre>'));
+      // A bare `*` between spaces is arithmetic, not emphasis.
+      assert.ok(!html.includes('<i>'));
+    });
+
+    test('telegramSend posts markdown as HTML instead of legacy Markdown', async () => {
+      const mockFetch = mock.fn(async () => ({
+        ok: true,
+        json: async () => ({ ok: true, result: { message_id: 1 } }),
+      }));
+      global.fetch = mockFetch;
+
+      const config = { botToken: 'test-token', chatId: '123' };
+      await telegramSend('## Título\n\n- item\n\nver [aqui](https://x.com)', 'Markdown', config);
+
+      const body = JSON.parse(mockFetch.mock.calls[0].arguments[1].body);
+      assert.strictEqual(body.parse_mode, 'HTML');
+      assert.ok(body.text.includes('<b>Título</b>'));
+      assert.ok(body.text.includes('• item'));
+      assert.ok(body.text.includes('<a href="https://x.com">aqui</a>'));
+      assert.ok(!body.text.includes('##'), 'no raw heading marker should survive');
+      assert.ok(!body.text.includes('- item'), 'no raw bullet marker should survive');
+    });
+
+    test('telegramSend passes HTML parse mode through untouched', async () => {
+      const mockFetch = mock.fn(async () => ({
+        ok: true,
+        json: async () => ({ ok: true, result: { message_id: 1 } }),
+      }));
+      global.fetch = mockFetch;
+
+      const config = { botToken: 'test-token', chatId: '123' };
+      await telegramSend('<b>já é HTML</b>', 'HTML', config);
+
+      const body = JSON.parse(mockFetch.mock.calls[0].arguments[1].body);
+      assert.strictEqual(body.parse_mode, 'HTML');
+      assert.strictEqual(body.text, '<b>já é HTML</b>');
+    });
+  });
+
   describe('Inline Keyboard', () => {
     test('telegramSend includes inline keyboard with link button', async () => {
       const mockFetch = mock.fn(async () => ({

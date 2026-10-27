@@ -1,4 +1,5 @@
 import { telegramQueueRepository } from '../src/db/repositories/index.js';
+import { markdownToTelegramHtml } from './markdown.js';
 import { withRetry } from './net.js';
 import { resolveTelegramConfig } from './user-config.service.js';
 
@@ -49,13 +50,6 @@ export function splitMessage(text, maxLength = SAFE_TG_LENGTH) {
   return parts;
 }
 
-// Telegram's legacy "Markdown" parse mode uses *bold* (single asterisk), not
-// CommonMark's **bold**. Convert so posts render correctly and don't trigger
-// "Can't find end of the entity" errors.
-function toTelegramMarkdown(text) {
-  return text.replace(/\*\*(.+?)\*\*/g, '*$1*');
-}
-
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -98,6 +92,13 @@ function isEntityParseError(description) {
   return TELEGRAM_PARSE_ERROR.test(description || '');
 }
 
+// Telegram's legacy "Markdown" parse mode only understands *bold*, _italic_,
+// `code` and [links](url) — no headings, no lists, no ** — so markdown posts
+// arrived with the raw markup visible (and unbalanced markers fell back to a
+// plain-text retry, showing everything raw). Convert to Telegram's HTML dialect
+// instead and send it as HTML; `parseMode: 'Markdown'` keeps meaning "formatted
+// message" for every caller, while 'HTML' passes through untouched (the
+// newsletter builds its own Telegram-safe HTML).
 export async function telegramSend(text, parseMode = 'Markdown', config, options = {}) {
   if (!(config?.botToken && config?.chatId)) {
     // A restricted account cannot fall back to the owner's bot; tell the client
@@ -112,7 +113,8 @@ export async function telegramSend(text, parseMode = 'Markdown', config, options
   const url = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
 
   const useMarkdown = parseMode === 'Markdown';
-  const source = useMarkdown ? toTelegramMarkdown(text) : text;
+  const effectiveParseMode = useMarkdown ? 'HTML' : parseMode;
+  const source = useMarkdown ? markdownToTelegramHtml(text) : text;
   const parts = splitMessage(source);
   const results = [];
 
@@ -123,7 +125,7 @@ export async function telegramSend(text, parseMode = 'Markdown', config, options
     const body = {
       chat_id: config.chatId,
       text: partText,
-      parse_mode: parseMode,
+      parse_mode: effectiveParseMode,
       disable_web_page_preview: true,
     };
 
