@@ -337,6 +337,18 @@ export const api = {
     return data;
   },
 
+  /** Fetch Prometheus metrics text (admin only). */
+  async getMetrics(): Promise<string> {
+    const res = await fetchWithAuth('/api/metrics');
+    if (!res.ok) {
+      const error = (await res.json().catch(() => ({ error: 'Failed to fetch metrics' }))) as {
+        error?: string;
+      };
+      throw new Error(error.error || `HTTP ${res.status}`);
+    }
+    return res.text();
+  },
+
   async generateContent(request: GenerateContentRequest): Promise<string> {
     const res = await fetchWithAuth('/api/ai/generate', {
       method: 'POST',

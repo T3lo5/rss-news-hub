@@ -57,6 +57,7 @@ import { DigestView } from './DigestView';
 import { FeedManagerModal } from './FeedManagerModal';
 import { Header } from './Header';
 import { InterestProfileModal } from './InterestProfileModal';
+import { MetricsModal } from './MetricsModal';
 import { NewsGrid } from './NewsGrid';
 import { NewsletterBuilderModal } from './NewsletterBuilderModal';
 import { NewsletterConfigModal } from './NewsletterConfigModal';
@@ -122,6 +123,7 @@ function AppContent() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [showFeedManager, setShowFeedManager] = useState(false);
   const [showNewsletterConfig, setShowNewsletterConfig] = useState(false);
   const [showNewsletterBuilder, setShowNewsletterBuilder] = useState(false);
@@ -733,6 +735,7 @@ function AppContent() {
             digestGrouping={digestGrouping}
             onProfileClick={() => setShowProfileModal(true)}
             onTemplatesClick={() => setShowTemplatesModal(true)}
+            onMetricsClick={() => setShowMetricsModal(true)}
             onNewsletterClick={
               user && user.role === 'admin' ? () => setShowNewsletterConfig(true) : undefined
             }
@@ -852,6 +855,8 @@ function AppContent() {
       {showAddModal && <AddModal onClose={() => setShowAddModal(false)} onSubmit={handleAddNews} />}
 
       {showStatsModal && <StatsModal onClose={() => setShowStatsModal(false)} />}
+
+      {showMetricsModal && <MetricsModal onClose={() => setShowMetricsModal(false)} />}
 
       <SavedSearchesModal
         isOpen={showSavedSearches}

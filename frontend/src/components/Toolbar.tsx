@@ -1,4 +1,5 @@
 import {
+  Activity,
   ArrowUpDown,
   Bookmark,
   BookOpen,
@@ -52,6 +53,7 @@ interface ToolbarProps {
   onExport?: (format: ExportFormat) => void;
   onNewsletterClick?: () => void;
   onTemplatesClick: () => void;
+  onMetricsClick?: () => void;
   onBookmarksClick: () => void;
   bookmarkCount: number;
   digestView: boolean;
@@ -86,6 +88,7 @@ export function Toolbar({
   onClearSelection,
   onNewsletterClick,
   onTemplatesClick,
+  onMetricsClick,
   bookmarkCount,
   onBookmarksClick,
   digestView,
@@ -389,6 +392,7 @@ export function Toolbar({
           </button>
         )}
         <button
+          type="button"
           className="btn btn-icon btn-sm"
           onClick={onTemplatesClick}
           title={t('toolbar.templatesTitle')}
@@ -396,6 +400,17 @@ export function Toolbar({
         >
           <FileText size={16} />
         </button>
+        {onMetricsClick && (
+          <button
+            type="button"
+            className="btn btn-icon btn-sm"
+            onClick={onMetricsClick}
+            title={t('toolbar.metricsTitle')}
+            aria-label={t('toolbar.metricsTitle')}
+          >
+            <Activity size={16} />
+          </button>
+        )}
         {onNewsletterBuilderClick && (
           <button
             className="btn btn-icon btn-sm"
