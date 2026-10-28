@@ -1,5 +1,5 @@
 import { Bell, BellOff, CheckCircle, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useI18n } from '../i18n';
 import { isBackgroundSyncSupported, offlineQueue } from '../services/offlineQueue';
@@ -14,14 +14,7 @@ export function PushNotificationControls() {
     usePushNotifications();
   const [pendingCounts, setPendingCounts] = useState({ bookmarks: 0, reads: 0, telegram: 0 });
 
-  useEffect(() => {
-    if (!isBackgroundSyncSupported()) return;
-    updatePendingCounts();
-    const interval = setInterval(updatePendingCounts, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const updatePendingCounts = async () => {
+  const updatePendingCounts = useCallback(async () => {
     try {
       const [bookmarks, reads, telegram] = await Promise.all([
         offlineQueue.bookmark.getPending(),
@@ -36,7 +29,14 @@ export function PushNotificationControls() {
     } catch {
       // Ignore
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isBackgroundSyncSupported()) return;
+    updatePendingCounts();
+    const interval = setInterval(updatePendingCounts, 5000);
+    return () => clearInterval(interval);
+  }, [updatePendingCounts]);
 
   const totalPending = pendingCounts.bookmarks + pendingCounts.reads + pendingCounts.telegram;
 
