@@ -9,6 +9,7 @@ import {
   requireViewer,
 } from './middleware/auth.js';
 import { handleAuthRoutes } from './routes/auth.routes.js';
+import { handlePushRoutes } from './routes/push.routes.js';
 import { email, newsletterConfig, PORT, telegram } from './server.config.js';
 import {
   buildNewsUserContent,
@@ -350,6 +351,18 @@ export async function handleRequest(req, res) {
       if (handled) return;
     } catch (err) {
       log.error({ err }, 'Auth route failed');
+      return sendJSON(res, 500, { ok: false, error: 'Internal server error' });
+    }
+  }
+
+  // Push notification routes
+  if (path.startsWith('/api/push/')) {
+    try {
+      await authenticateRequest(req, res);
+      const handled = await handlePushRoutes(req, res, path);
+      if (handled) return;
+    } catch (err) {
+      log.error({ err }, 'Push route failed');
       return sendJSON(res, 500, { ok: false, error: 'Internal server error' });
     }
   }

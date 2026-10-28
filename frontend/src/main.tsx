@@ -6,6 +6,7 @@ import { App } from './components/App';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { I18nProvider } from './i18n';
+import { isPeriodicSyncSupported, registerPeriodicFeedSync } from './services/offlineQueue';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -55,7 +56,7 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 
     navigator.serviceWorker
       .register('/sw.js')
-      .then((registration) => {
+      .then(async (registration) => {
         announceUpdate(registration);
 
         registration.addEventListener('updatefound', () => {
@@ -66,6 +67,15 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
             }
           });
         });
+
+        // Register periodic background sync for feed fetching
+        if (isPeriodicSyncSupported()) {
+          try {
+            await registerPeriodicFeedSync();
+          } catch {
+            // Ignore - periodic sync may be denied
+          }
+        }
       })
       .catch((err) => console.warn('Service worker registration failed:', err));
   });

@@ -32,5 +32,22 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Abrir notícias",
+      "short_name": "Notícias",
+      "description": "Abrir a lista de notícias",
+      "url": "/",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Salvar nova notícia",
+      "short_name": "Adicionar",
+      "description": "Adicionar notícia manualmente",
+      "url": "/?add=true",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": []
 }

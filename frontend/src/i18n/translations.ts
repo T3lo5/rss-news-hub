@@ -777,6 +777,11 @@ export const pt: Record<string, string> = {
   'pwa.updateAvailable': 'Nova versão disponível.',
   'pwa.reload': 'Recarregar',
   'pwa.offline': 'Sem conexão — os dados podem estar desatualizados.',
+  'pwa.pushEnable': 'Ativar notificações push',
+  'pwa.pushDisable': 'Desativar notificações push',
+  'pwa.pushDenied': 'Permissão de notificações negada nas configurações do navegador',
+  'pwa.pendingActions':
+    'Ações pendentes: {bookmarks} favoritos, {reads} leituras, {telegram} envios Telegram',
 
   // Leitor interno
   'reader.truncated': 'Este é o resumo disponível no RSS. O texto completo está na fonte.',
@@ -1570,6 +1575,11 @@ export const en: Record<string, string> = {
   'pwa.updateAvailable': 'New version available.',
   'pwa.reload': 'Reload',
   'pwa.offline': 'Offline — data may be out of date.',
+  'pwa.pushEnable': 'Enable push notifications',
+  'pwa.pushDisable': 'Disable push notifications',
+  'pwa.pushDenied': 'Notification permission denied in browser settings',
+  'pwa.pendingActions':
+    'Pending actions: {bookmarks} bookmarks, {reads} reads, {telegram} Telegram sends',
 
   // In-app reader
   'reader.truncated':

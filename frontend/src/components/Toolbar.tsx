@@ -17,6 +17,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n';
+import { PushNotificationControls } from './PushNotificationControls';
 
 export interface SavedSearch {
   id: string;
@@ -350,6 +351,8 @@ export function Toolbar({
             <span className="badge">{bookmarkCount}</span>
           </button>
         )}
+
+        <PushNotificationControls />
 
         <div className="digest-controls">
           <button

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, bumpNewsCacheRevision } from '../services/api';
 import { readNewsSnapshot, saveNewsSnapshot } from '../services/offlineCache';
+import { isBackgroundSyncSupported, offlineQueue } from '../services/offlineQueue';
 import type {
   FetchRssResponse,
   NewsCounts,
@@ -283,6 +284,17 @@ export function useNews(userId?: string, filters: NewsFilters = {}) {
       };
 
       apply(readFlag ? new Date().toISOString() : null);
+
+      // Queue for background sync if offline
+      if (!online && isBackgroundSyncSupported()) {
+        try {
+          await offlineQueue.read.toggle(id, readFlag);
+          return;
+        } catch {
+          // Fall through to online path if queue fails
+        }
+      }
+
       try {
         const result = await api.setNewsRead(id, readFlag);
         bumpNewsCacheRevision();
@@ -302,7 +314,7 @@ export function useNews(userId?: string, filters: NewsFilters = {}) {
         throw e;
       }
     },
-    [matchesReadFilter]
+    [matchesReadFilter, online]
   );
 
   return {
