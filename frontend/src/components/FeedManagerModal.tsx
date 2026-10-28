@@ -11,12 +11,12 @@ import { Status } from './Status';
 
 export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { t } = useI18n();
-  useEscapeKey(isOpen && !showForm, onClose);
   const [feeds, setFeeds] = useState<FeedConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [showForm, setShowForm] = useState(false);
+  useEscapeKey(isOpen && !showForm, onClose);
   const [editingFeed, setEditingFeed] = useState<FeedConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('name');
