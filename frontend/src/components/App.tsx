@@ -70,7 +70,7 @@ import { StatsModal } from './StatsModal';
 import { Status } from './Status';
 import { TelegramQueueModal } from './TelegramQueueModal';
 import { TemplatesModal } from './TemplatesModal';
-import { type ReadFilter, Toolbar, type SavedSearch } from './Toolbar';
+import { type ReadFilter, Toolbar, type SavedSearch, type ExportFormat } from './Toolbar';
 import { UpdateToast } from './UpdateToast';
 import { UserSettingsModal } from './UserSettingsModal';
 import { UsersModal } from './UsersModal';
@@ -543,6 +543,51 @@ function AppContent() {
     setSelectedIds(new Set());
   }, []);
 
+  const handleExport = useCallback(
+    async (format: ExportFormat) => {
+      if (selectedIds.size === 0) return;
+
+      const ids = Array.from(selectedIds).join(',');
+      try {
+        const response = await fetch(`/api/news/export?ids=${ids}&format=${format}`, {
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Export failed' }));
+          throw new Error(error.error || 'Export failed');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        // Extract filename from Content-Disposition header
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `rss-news-selection-${new Date().toISOString().split('T')[0]}.${format}`;
+        if (contentDisposition) {
+          const match = contentDisposition.match(/filename="([^"]+)"/);
+          if (match) filename = match[1];
+        }
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        setStatus({ message: t('app.exported', { count: selectedIds.size }), type: 'success' });
+        setTimeout(() => setStatus(null), 3000);
+      } catch (err) {
+        console.error('Export error:', err);
+        setStatus({ message: t('app.errExport', { error: err.message }), type: 'error' });
+        setTimeout(() => setStatus(null), 3000);
+      }
+    },
+    [selectedIds, t]
+  );
+
   const handleApplySavedSearch = useCallback(
     (search: { query: string; source?: string; sort?: string; read?: string }) => {
       setSearchQuery(search.query);
@@ -700,6 +745,7 @@ function AppContent() {
             loadedCount={visibleNews.length}
             onSelectAll={handleSelectAll}
             onClearSelection={handleClearSelection}
+            onExport={handleExport}
             readFilter={readFilter}
             onReadFilterChange={setReadFilter}
             unreadCount={unreadCount}

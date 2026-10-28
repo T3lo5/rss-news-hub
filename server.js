@@ -40,6 +40,7 @@ import { fetchAndScoreFeeds } from './services/ingest.service.js';
 import { createRequestLogger } from './services/logger.js';
 import { renderEmailHtml } from './services/markdown.js';
 import { addNews, readNews, readNewsPage, setNewsRead } from './services/news.service.js';
+import { exportMarkdown, exportJSON, exportOPML, getNewsByIds, generateFilename, getMimeType } from './services/export.service.js';
 import { generateOpenApiSpec } from './services/openapi.js';
 import { rateLimitMiddleware } from './services/rate-limiter.js';
 import {
@@ -529,6 +530,64 @@ export async function handleRequest(req, res) {
           });
           return sendJSON(res, 200, { ok: true, data: saved });
         });
+      });
+      return;
+    }
+
+    // GET /api/news/export - export selected news as Markdown/JSON/OPML
+    if (path === '/api/news/export' && req.method === 'GET') {
+      requireViewer()(req, res, async () => {
+        try {
+          const url = new URL(req.url, `http://${req.headers.host}`);
+          const idsParam = url.searchParams.get('ids') || '';
+          const format = url.searchParams.get('format') || 'md';
+
+          if (!idsParam) {
+            return sendJSON(res, 400, { ok: false, error: 'Parameter "ids" is required' });
+          }
+
+          const ids = idsParam.split(',').map(id => id.trim()).filter(Boolean);
+          if (!ids.length) {
+            return sendJSON(res, 400, { ok: false, error: 'At least one news ID is required' });
+          }
+
+          const validFormats = ['md', 'json', 'opml'];
+          if (!validFormats.includes(format)) {
+            return sendJSON(res, 400, { ok: false, error: 'Invalid format. Use: md, json, or opml' });
+          }
+
+          const items = await getNewsByIds(ids);
+          if (!items.length) {
+            return sendJSON(res, 404, { ok: false, error: 'No news items found for the given IDs' });
+          }
+
+          let content;
+          switch (format) {
+            case 'json':
+              content = exportJSON(items);
+              break;
+            case 'opml':
+              content = exportOPML(items);
+              break;
+            case 'md':
+            default:
+              content = exportMarkdown(items);
+              break;
+          }
+
+          const filename = generateFilename(format);
+          const mimeType = getMimeType(format);
+
+          res.writeHead(200, {
+            'Content-Type': mimeType,
+            'Content-Disposition': `attachment; filename="${filename}"`,
+            'Cache-Control': 'no-store',
+          });
+          res.end(content);
+        } catch (err) {
+          console.error('Export error:', err);
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
       });
       return;
     }

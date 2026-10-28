@@ -19,5 +19,5 @@ plugins:
   outputs:
     - name: telegram
       source: builtin
-      enabled: true
+      enabled: false
       config: {}

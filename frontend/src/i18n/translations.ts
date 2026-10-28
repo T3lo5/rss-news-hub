@@ -247,6 +247,8 @@ export const pt: Record<string, string> = {
   'app.feedsUpdated': 'Feeds atualizados!',
   'app.errFetch': 'Erro ao buscar feeds',
   'app.errBookmark': 'Erro ao salvar favorito',
+  'app.exported': '{count} item(ns) exportado(s)!',
+  'app.errExport': 'Falha ao exportar: {error}',
 
   // add (manual news)
   'add.title': 'Adicionar Notícia Manual',
@@ -333,6 +335,13 @@ export const pt: Record<string, string> = {
   'toolbar.builderTitle': 'Montar newsletter manual',
   'toolbar.newsletter': 'Newsletter',
   'toolbar.savedSearchesTitle': 'Buscas Salvas',
+
+  // export
+  'toolbar.export': 'Exportar',
+  'toolbar.exportAria': 'Exportar seleção',
+  'toolbar.exportMd': 'Markdown (.md)',
+  'toolbar.exportJson': 'JSON (.json)',
+  'toolbar.exportOpml': 'OPML (.opml)',
 
   // feed form
   'feedForm.errName': 'O nome é obrigatório',
@@ -1017,6 +1026,8 @@ export const en: Record<string, string> = {
   'app.feedsUpdated': 'Feeds updated!',
   'app.errFetch': 'Failed to fetch feeds',
   'app.errBookmark': 'Failed to save bookmark',
+  'app.exported': '{count} item(s) exported!',
+  'app.errExport': 'Failed to export: {error}',
 
   // add (manual news)
   'add.title': 'Add News Manually',
@@ -1103,6 +1114,13 @@ export const en: Record<string, string> = {
   'toolbar.builderTitle': 'Build manual newsletter',
   'toolbar.newsletter': 'Newsletter',
   'toolbar.savedSearchesTitle': 'Saved Searches',
+
+  // export
+  'toolbar.export': 'Export',
+  'toolbar.exportAria': 'Export selection',
+  'toolbar.exportMd': 'Markdown (.md)',
+  'toolbar.exportJson': 'JSON (.json)',
+  'toolbar.exportOpml': 'OPML (.opml)',
 
   // feed form
   'feedForm.errName': 'Name is required',

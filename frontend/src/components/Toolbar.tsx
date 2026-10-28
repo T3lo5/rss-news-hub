@@ -3,6 +3,7 @@ import {
   Bookmark,
   BookOpen,
   ChevronDown,
+  Download,
   FileText,
   Filter,
   LayoutGrid,
@@ -28,6 +29,8 @@ export interface SavedSearch {
   pinned?: boolean;
 }
 
+export type ExportFormat = 'md' | 'json' | 'opml';
+
 interface ToolbarProps {
   searchQuery?: string;
   onSearchChange: (value: string) => void;
@@ -45,6 +48,7 @@ interface ToolbarProps {
   loadedCount: number;
   onSelectAll: () => void;
   onClearSelection: () => void;
+  onExport?: (format: ExportFormat) => void;
   onNewsletterClick?: () => void;
   onTemplatesClick: () => void;
   onBookmarksClick: () => void;
@@ -96,22 +100,28 @@ export function Toolbar({
   const { t } = useI18n();
   const { user } = useAuth();
   const [showSavedSearches, setShowSavedSearches] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Toda a lista carregada está marcada → o botão passa a desmarcar.
   const allSelected = loadedCount > 0 && selectedCount >= loadedCount;
 
-  // Handle click outside dropdown
+  // Handle click outside dropdowns
   useEffect(() => {
-    if (!showSavedSearches) return;
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (showSavedSearches && dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowSavedSearches(false);
       }
+      if (showExport && exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+        setShowExport(false);
+      }
     };
-    document.addEventListener('mousedown', handleClickOutside);
+    if (showSavedSearches || showExport) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSavedSearches]);
+  }, [showSavedSearches, showExport]);
 
   const handleSearchApply = (search: SavedSearch) => {
     onSavedSearchApply(search);
@@ -199,6 +209,58 @@ export function Toolbar({
           >
             {allSelected ? t('toolbar.deselectAll') : t('toolbar.selectAll')}
           </button>
+          {onExport && (
+            <div className="export-dropdown" ref={exportDropdownRef}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowExport(!showExport)}
+                aria-expanded={showExport}
+                aria-haspopup="menu"
+                aria-label={t('toolbar.exportAria')}
+              >
+                <Download size={14} />
+                <span>{t('toolbar.export')}</span>
+                <ChevronDown size={12} className={`chevron ${showExport ? 'rotated' : ''}`} />
+              </button>
+              {showExport && (
+                <div className="export-popover" role="menu">
+                  <button
+                    className="export-option"
+                    role="menuitem"
+                    onClick={() => {
+                      onExport('md');
+                      setShowExport(false);
+                    }}
+                  >
+                    <FileText size={14} />
+                    <span>{t('toolbar.exportMd')}</span>
+                  </button>
+                  <button
+                    className="export-option"
+                    role="menuitem"
+                    onClick={() => {
+                      onExport('json');
+                      setShowExport(false);
+                    }}
+                  >
+                    <FileText size={14} />
+                    <span>{t('toolbar.exportJson')}</span>
+                  </button>
+                  <button
+                    className="export-option"
+                    role="menuitem"
+                    onClick={() => {
+                      onExport('opml');
+                      setShowExport(false);
+                    }}
+                  >
+                    <FileText size={14} />
+                    <span>{t('toolbar.exportOpml')}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <button
             className="btn btn-ghost btn-sm"
             onClick={onClearSelection}
