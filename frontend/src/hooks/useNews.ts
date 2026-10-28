@@ -35,7 +35,13 @@ const EMPTY_COUNTS: NewsCounts = { all: 0, unread: 0, read: 0 };
  * connection drops or the app boots offline.
  */
 export function useNews(userId?: string, filters: NewsFilters = {}) {
-  const { query = '', source = '', sort = 'newest', read = 'all', pageSize = NEWS_PAGE_SIZE } = filters;
+  const {
+    query = '',
+    source = '',
+    sort = 'newest',
+    read = 'all',
+    pageSize = NEWS_PAGE_SIZE,
+  } = filters;
 
   const [news, setNews] = useState<NewsItem[]>([]);
   const [total, setTotal] = useState(0);

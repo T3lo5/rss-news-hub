@@ -50,10 +50,11 @@ export function useReadingPreferences(userId?: string) {
   // Sync with server when userId is available
   useEffect(() => {
     if (!userId || synced) return;
-    
+
     let cancelled = false;
-    
-    api.getUserSettings()
+
+    api
+      .getUserSettings()
       .then((data) => {
         if (cancelled) return;
         const serverPrefs = data?.ui;
@@ -69,17 +70,21 @@ export function useReadingPreferences(userId?: string) {
         // Server unavailable or error: keep local prefs
         setSynced(true);
       });
-    
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId, synced]);
 
   // Listen for cross-tab updates
   useEffect(() => {
     const sync = () => {
       const local = readLocal();
-      if (local.readFilter !== inMemory.readFilter ||
-          local.sortOrder !== inMemory.sortOrder ||
-          local.pageSize !== inMemory.pageSize) {
+      if (
+        local.readFilter !== inMemory.readFilter ||
+        local.sortOrder !== inMemory.sortOrder ||
+        local.pageSize !== inMemory.pageSize
+      ) {
         inMemory = local;
         setPrefs(local);
       }
@@ -92,32 +97,44 @@ export function useReadingPreferences(userId?: string) {
     };
   }, []);
 
-  const update = useCallback(async (next: Partial<ReadingPreferences>) => {
-    const merged = { ...inMemory, ...next };
-    inMemory = merged;
-    writeLocal(merged);
-    window.dispatchEvent(new Event(EVENT));
-    setPrefs(merged);
+  const update = useCallback(
+    async (next: Partial<ReadingPreferences>) => {
+      const merged = { ...inMemory, ...next };
+      inMemory = merged;
+      writeLocal(merged);
+      window.dispatchEvent(new Event(EVENT));
+      setPrefs(merged);
 
-    // Persist to server if authenticated
-    if (userId) {
-      api.saveUserSetting('ui', merged).catch(() => {
-        // Best-effort: local storage already updated
-      });
-    }
-  }, [userId]);
+      // Persist to server if authenticated
+      if (userId) {
+        api.saveUserSetting('ui', merged).catch(() => {
+          // Best-effort: local storage already updated
+        });
+      }
+    },
+    [userId]
+  );
 
-  const setReadFilter = useCallback((readFilter: 'all' | 'unread' | 'read') => {
-    update({ readFilter });
-  }, [update]);
+  const setReadFilter = useCallback(
+    (readFilter: 'all' | 'unread' | 'read') => {
+      update({ readFilter });
+    },
+    [update]
+  );
 
-  const setSortOrder = useCallback((sortOrder: 'newest' | 'oldest' | 'relevance') => {
-    update({ sortOrder });
-  }, [update]);
+  const setSortOrder = useCallback(
+    (sortOrder: 'newest' | 'oldest' | 'relevance') => {
+      update({ sortOrder });
+    },
+    [update]
+  );
 
-  const setPageSize = useCallback((pageSize: number) => {
-    update({ pageSize });
-  }, [update]);
+  const setPageSize = useCallback(
+    (pageSize: number) => {
+      update({ pageSize });
+    },
+    [update]
+  );
 
   return {
     prefs,

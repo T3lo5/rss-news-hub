@@ -130,8 +130,7 @@ export function useSavedSearches(userId?: string) {
         id: crypto.randomUUID(),
         createdAt: now,
         updatedAt: now,
-        color:
-          search.color || DEFAULT_COLORS[searches.length % DEFAULT_COLORS.length],
+        color: search.color || DEFAULT_COLORS[searches.length % DEFAULT_COLORS.length],
       };
       return persist((current) => [...current, newSearch]);
     },
@@ -141,9 +140,7 @@ export function useSavedSearches(userId?: string) {
   const update = useCallback(
     (id: string, updates: Partial<SavedSearch>) => {
       return persist((current) =>
-        current.map((s) =>
-          s.id === id ? { ...s, ...updates, updatedAt: Date.now() } : s
-        )
+        current.map((s) => (s.id === id ? { ...s, ...updates, updatedAt: Date.now() } : s))
       );
     },
     [persist]
@@ -156,12 +153,9 @@ export function useSavedSearches(userId?: string) {
     [persist]
   );
 
-  const applySearch = useCallback(
-    (search: SavedSearch, onApply: (s: SavedSearch) => void) => {
-      onApply(search);
-    },
-    []
-  );
+  const applySearch = useCallback((search: SavedSearch, onApply: (s: SavedSearch) => void) => {
+    onApply(search);
+  }, []);
 
   const pinnedSearches = searches.filter((s) => s.pinned);
   const unpinnedSearches = searches.filter((s) => !s.pinned);

@@ -42,7 +42,7 @@ async function readGlobalArea(area) {
   }
 }
 
-export { readUserArea, readGlobalArea };
+export { readGlobalArea, readUserArea };
 
 async function writeUserArea(userId, area, value) {
   await userSettingsRepository.set(userId, area, value);
@@ -329,7 +329,13 @@ export async function getUserSettingsOverview(userId) {
         provider: userStored?.provider || globalStored?.provider || newsletterDefaults.provider,
       };
     } else if (area === 'digest') {
-      const missedDefaults = { enabled: false, time: '08:00', minScore: 70, maxItems: 5, lookbackDays: 2 };
+      const missedDefaults = {
+        enabled: false,
+        time: '08:00',
+        minScore: 70,
+        maxItems: 5,
+        lookbackDays: 2,
+      };
       result[area] = {
         hasUserOverride,
         cron: userStored?.cron || globalStored?.cron || '',

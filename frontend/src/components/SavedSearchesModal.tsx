@@ -1,8 +1,8 @@
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
-import { useI18n } from '../i18n';
 import type { SavedSearch } from '../hooks/useSavedSearches';
+import { useI18n } from '../i18n';
 import { Status } from './Status';
 
 interface SavedSearchesModalProps {
@@ -47,7 +47,7 @@ export function SavedSearchesModal({
     e.preventDefault();
     const name = newName.trim();
     const query = newQuery.trim();
-    if (!name || !query) return;
+    if (!(name && query)) return;
 
     add({ name, query });
     setNewName('');
@@ -64,7 +64,7 @@ export function SavedSearchesModal({
   const handleEditSave = (id: string) => {
     const name = editName.trim();
     const query = editQuery.trim();
-    if (!name || !query) return;
+    if (!(name && query)) return;
 
     update(id, { name, query });
     setEditingId(null);
@@ -115,7 +115,10 @@ export function SavedSearchesModal({
           </button>
         </div>
 
-        <div className="modal-body" style={{ padding: '20px', overflow: 'auto', maxHeight: '70vh' }}>
+        <div
+          className="modal-body"
+          style={{ padding: '20px', overflow: 'auto', maxHeight: '70vh' }}
+        >
           {flash && (
             <Status message={flash.message} type={flash.type} onClose={() => setFlash(null)} />
           )}
@@ -185,11 +188,7 @@ export function SavedSearchesModal({
                   }}
                 />
               </div>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                style={{ alignSelf: 'flex-end' }}
-              >
+              <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-end' }}>
                 <Plus size={16} /> {t('savedSearches.add')}
               </button>
             </div>
@@ -208,7 +207,14 @@ export function SavedSearchesModal({
                   gap: '8px',
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M12 17v5M9 12l3 3 3-3M4 7l7 7 7-7M20 17v-5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v5" />
                 </svg>
                 {t('savedSearches.pinned')}
@@ -239,7 +245,9 @@ export function SavedSearchesModal({
           {/* Unpinned searches */}
           {unpinnedSearches.length > 0 && (
             <div>
-              <h4 style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+              <h4
+                style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--text-secondary)' }}
+              >
                 {t('savedSearches.others')}
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -354,10 +362,7 @@ function SavedSearchRow({
                 color: 'var(--text-primary)',
               }}
             />
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => onEditSave(search.id)}
-            >
+            <button className="btn btn-primary btn-sm" onClick={() => onEditSave(search.id)}>
               <Check size={14} />
             </button>
           </div>
@@ -427,9 +432,19 @@ function SavedSearchRow({
               className="btn btn-ghost btn-sm"
               onClick={() => onPinToggle(search.id, Boolean(search.pinned))}
               title={search.pinned ? t('savedSearches.unpin') : t('savedSearches.pin')}
-              style={{ padding: '6px', color: search.pinned ? 'var(--accent)' : 'var(--text-secondary)' }}
+              style={{
+                padding: '6px',
+                color: search.pinned ? 'var(--accent)' : 'var(--text-secondary)',
+              }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M12 17v5M9 12l3 3 3-3M4 7l7 7 7-7M20 17v-5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v5" />
               </svg>
             </button>

@@ -26,21 +26,32 @@ import {
   writeFeedsConfig,
 } from './services/config.service.js';
 import {
+  generateAndQueueMissedDigest,
   generateAndSendDigest,
   generateDigestPreview,
   getDigestConfig,
   getDigestStatus,
+  getMissedDigestStatus,
+  refreshMissedDigestJob,
+  startAllMissedDigestJobs,
   updateDigestConfig,
 } from './services/digest.service.js';
 import { sendEmail, verifyEmailConfig } from './services/email.service.js';
 import { createError, ErrorCode } from './services/errors.js';
+import {
+  exportJSON,
+  exportMarkdown,
+  exportOPML,
+  generateFilename,
+  getMimeType,
+  getNewsByIds,
+} from './services/export.service.js';
 import { fetchFeedByUrl, parseRSS } from './services/fetch.service.js';
 import { getHealth } from './services/health.service.js';
 import { fetchAndScoreFeeds } from './services/ingest.service.js';
 import { createRequestLogger } from './services/logger.js';
 import { renderEmailHtml } from './services/markdown.js';
 import { addNews, readNews, readNewsPage, setNewsRead } from './services/news.service.js';
-import { exportMarkdown, exportJSON, exportOPML, getNewsByIds, generateFilename, getMimeType } from './services/export.service.js';
 import { generateOpenApiSpec } from './services/openapi.js';
 import { rateLimitMiddleware } from './services/rate-limiter.js';
 import {
@@ -82,12 +93,6 @@ import {
   resolveTelegramConfig,
   saveUserSetting,
 } from './services/user-config.service.js';
-import {
-  generateAndQueueMissedDigest,
-  getMissedDigestStatus,
-  refreshMissedDigestJob,
-  startAllMissedDigestJobs,
-} from './services/digest.service.js';
 import { schemas, validateBody } from './services/validation.js';
 import { createConfigWatcher } from './src/plugins/config-watcher.js';
 
@@ -552,19 +557,28 @@ export async function handleRequest(req, res) {
             return sendJSON(res, 400, { ok: false, error: 'Parameter "ids" is required' });
           }
 
-          const ids = idsParam.split(',').map(id => id.trim()).filter(Boolean);
+          const ids = idsParam
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean);
           if (!ids.length) {
             return sendJSON(res, 400, { ok: false, error: 'At least one news ID is required' });
           }
 
           const validFormats = ['md', 'json', 'opml'];
           if (!validFormats.includes(format)) {
-            return sendJSON(res, 400, { ok: false, error: 'Invalid format. Use: md, json, or opml' });
+            return sendJSON(res, 400, {
+              ok: false,
+              error: 'Invalid format. Use: md, json, or opml',
+            });
           }
 
           const items = await getNewsByIds(ids);
           if (!items.length) {
-            return sendJSON(res, 404, { ok: false, error: 'No news items found for the given IDs' });
+            return sendJSON(res, 404, {
+              ok: false,
+              error: 'No news items found for the given IDs',
+            });
           }
 
           let content;

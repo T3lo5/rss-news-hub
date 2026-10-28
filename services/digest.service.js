@@ -1,14 +1,14 @@
-import { email as emailConfig } from '../server.config.js';
-import { newsRepository } from '../src/db/repositories/index.js';
-import { getDb, schema } from '../src/db/index.js';
 import { eq } from 'drizzle-orm';
+import { email as emailConfig } from '../server.config.js';
+import { getDb, schema } from '../src/db/index.js';
+import { newsRepository } from '../src/db/repositories/index.js';
 import { chat, pickProvider } from './ai.service.js';
 import { ensureSourceAttribution, sourceLabels } from './attribution.js';
 import { getNextCronRun, isValidCron } from './cron.js';
 import { isEmailConfigured, sendEmail } from './email.service.js';
 import { renderEmailHtml } from './markdown.js';
 import { readProfile, scoreNewItems } from './relevance.service.js';
-import { telegramSend, queueTelegramMessage } from './telegram.service.js';
+import { queueTelegramMessage, telegramSend } from './telegram.service.js';
 import { readUserArea, resolveTelegramConfig } from './user-config.service.js';
 
 const DEFAULT_DIGEST_CONFIG = {
@@ -132,10 +132,11 @@ export function getDefaultMissedDigestConfig() {
  */
 function buildMissedDigestMessage(items, language, date) {
   const labels = sourceLabels(language);
-  const dateStr = new Date(date).toLocaleDateString(
-    language === 'pt' ? 'pt-BR' : 'en-US',
-    { weekday: 'long', day: 'numeric', month: 'long' }
-  );
+  const dateStr = new Date(date).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 
   let msg = `📰 *Você perdeu?* (${dateStr})\n\n`;
 
@@ -167,7 +168,7 @@ export async function generateAndQueueMissedDigest(userId, date = Date.now()) {
     // Resolve user's telegram config
     const telegramConfig = await resolveTelegramConfig(userId);
 
-    if (!telegramConfig.botToken || !telegramConfig.chatId) {
+    if (!(telegramConfig.botToken && telegramConfig.chatId)) {
       return { success: false, itemsCount: 0, error: 'User has no Telegram configured' };
     }
 
@@ -211,39 +212,43 @@ export async function generateAndQueueMissedDigest(userId, date = Date.now()) {
 export function startMissedDigestJob(userId) {
   stopMissedDigestJob(userId);
 
-  readUserArea(userId, 'digest').then((userConfig) => {
-    const missedConfig = userConfig.missedDigest || {};
-    if (!missedConfig.enabled) return;
+  readUserArea(userId, 'digest')
+    .then((userConfig) => {
+      const missedConfig = userConfig.missedDigest || {};
+      if (!missedConfig.enabled) return;
 
-    const config = { ...DEFAULT_MISSED_DIGEST_CONFIG, ...missedConfig };
+      const config = { ...DEFAULT_MISSED_DIGEST_CONFIG, ...missedConfig };
 
-    // Parse time (HH:mm) to cron expression: "minute hour * * *"
-    const [hour, minute] = config.time.split(':').map(Number);
-    if (Number.isNaN(hour) || Number.isNaN(minute)) {
-      console.warn(`[missed-digest] Invalid time "${config.time}" for user ${userId}`);
-      return;
-    }
+      // Parse time (HH:mm) to cron expression: "minute hour * * *"
+      const [hour, minute] = config.time.split(':').map(Number);
+      if (Number.isNaN(hour) || Number.isNaN(minute)) {
+        console.warn(`[missed-digest] Invalid time "${config.time}" for user ${userId}`);
+        return;
+      }
 
-    const cronExpr = `${minute} ${hour} * * *`;
+      const cronExpr = `${minute} ${hour} * * *`;
 
-    if (!isValidCron(cronExpr)) {
-      console.warn(`[missed-digest] Invalid cron "${cronExpr}" for user ${userId}`);
-      return;
-    }
+      if (!isValidCron(cronExpr)) {
+        console.warn(`[missed-digest] Invalid cron "${cronExpr}" for user ${userId}`);
+        return;
+      }
 
-    const runMissedDigest = async () => {
-      console.log(`[missed-digest] Running for user ${userId}`);
-      await generateAndQueueMissedDigest(userId);
+      const runMissedDigest = async () => {
+        console.log(`[missed-digest] Running for user ${userId}`);
+        await generateAndQueueMissedDigest(userId);
+        scheduleMissedDigestNext(userId, cronExpr);
+      };
+
+      const job = { cron: cronExpr, run: runMissedDigest };
+      missedDigestJobs.set(userId, job);
       scheduleMissedDigestNext(userId, cronExpr);
-    };
-
-    const job = { cron: cronExpr, run: runMissedDigest };
-    missedDigestJobs.set(userId, job);
-    scheduleMissedDigestNext(userId, cronExpr);
-    console.log(`[missed-digest] Scheduled for user ${userId} at ${config.time} (cron: ${cronExpr})`);
-  }).catch((err) => {
-    console.error(`[missed-digest] Failed to start for user ${userId}:`, err);
-  });
+      console.log(
+        `[missed-digest] Scheduled for user ${userId} at ${config.time} (cron: ${cronExpr})`
+      );
+    })
+    .catch((err) => {
+      console.error(`[missed-digest] Failed to start for user ${userId}:`, err);
+    });
 }
 
 function scheduleMissedDigestNext(userId, cron) {

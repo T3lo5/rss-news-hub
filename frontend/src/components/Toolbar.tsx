@@ -14,7 +14,7 @@ import {
   Target,
   X,
 } from 'lucide-react';
-import { useRef, useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n';
 
@@ -110,10 +110,18 @@ export function Toolbar({
   // Handle click outside dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showSavedSearches && dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        showSavedSearches &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setShowSavedSearches(false);
       }
-      if (showExport && exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+      if (
+        showExport &&
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
         setShowExport(false);
       }
     };
@@ -159,7 +167,11 @@ export function Toolbar({
         </button>
 
         {showSavedSearches && (
-          <div className="saved-searches-popover" role="listbox" aria-label={t('savedSearches.title')}>
+          <div
+            className="saved-searches-popover"
+            role="listbox"
+            aria-label={t('savedSearches.title')}
+          >
             {pinnedSearches.length > 0 && (
               <div className="saved-searches-pinned">
                 <span className="saved-searches-section-title">{t('savedSearches.pinned')}</span>

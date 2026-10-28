@@ -112,9 +112,7 @@ function FeedRow({
       >
         {feed.itemCount || 0}
       </td>
-      <td data-label={t('feedTable.colHealth')}>
-        {getHealthBadge(feed.healthScore, t)}
-      </td>
+      <td data-label={t('feedTable.colHealth')}>{getHealthBadge(feed.healthScore, t)}</td>
       <td>{getStatusBadge(feed.status, t)}</td>
       <td>
         <div className="action-buttons">

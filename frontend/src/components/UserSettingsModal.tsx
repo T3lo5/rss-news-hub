@@ -800,11 +800,14 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                       checked={mdEnabled}
                       onChange={(e) => setMdEnabled(e.target.checked)}
                     />
-                    {t('userSettings.enableMissedDigest') || 'Ativar notificação diária de itens não lidos relevantes'}
+                    {t('userSettings.enableMissedDigest') ||
+                      'Ativar notificação diária de itens não lidos relevantes'}
                   </label>
 
                   <div className="form-group">
-                    <label htmlFor="user-md-time">{t('userSettings.missedDigestTime') || 'Horário (HH:mm)'}</label>
+                    <label htmlFor="user-md-time">
+                      {t('userSettings.missedDigestTime') || 'Horário (HH:mm)'}
+                    </label>
                     <input
                       id="user-md-time"
                       type="time"
@@ -814,7 +817,9 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="user-md-min-score">{t('userSettings.missedDigestMinScore') || 'Relevância mínima (0-100)'}</label>
+                    <label htmlFor="user-md-min-score">
+                      {t('userSettings.missedDigestMinScore') || 'Relevância mínima (0-100)'}
+                    </label>
                     <input
                       id="user-md-min-score"
                       type="number"
@@ -826,7 +831,9 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="user-md-max-items">{t('userSettings.missedDigestMaxItems') || 'Máximo de itens (1-20)'}</label>
+                    <label htmlFor="user-md-max-items">
+                      {t('userSettings.missedDigestMaxItems') || 'Máximo de itens (1-20)'}
+                    </label>
                     <input
                       id="user-md-max-items"
                       type="number"
@@ -838,7 +845,9 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="user-md-lookback">{t('userSettings.missedDigestLookback') || 'Dias de retrospectiva (1-7)'}</label>
+                    <label htmlFor="user-md-lookback">
+                      {t('userSettings.missedDigestLookback') || 'Dias de retrospectiva (1-7)'}
+                    </label>
                     <input
                       id="user-md-lookback"
                       type="number"
@@ -850,7 +859,8 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   </div>
 
                   <p className="field-hint">
-                    {t('userSettings.missedDigestHint') || 'Envia uma notificação diária via Telegram com os itens não lidos de alta relevância que você pode ter perdido. Requer Telegram configurado.'}
+                    {t('userSettings.missedDigestHint') ||
+                      'Envia uma notificação diária via Telegram com os itens não lidos de alta relevância que você pode ter perdido. Requer Telegram configurado.'}
                   </p>
 
                   <div className="form-actions">
@@ -877,11 +887,14 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
               {activeTab === 'reading' && (
                 <div>
                   <h4 style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
-                    {t('userSettings.uiPreferences') || 'Preferências de lista (salvas no servidor)'}
+                    {t('userSettings.uiPreferences') ||
+                      'Preferências de lista (salvas no servidor)'}
                   </h4>
 
                   <div className="form-group">
-                    <label htmlFor="ui-read-filter">{t('userSettings.uiReadFilter') || 'Filtro padrão'}</label>
+                    <label htmlFor="ui-read-filter">
+                      {t('userSettings.uiReadFilter') || 'Filtro padrão'}
+                    </label>
                     <select
                       id="ui-read-filter"
                       value={uiReadFilter}
@@ -891,25 +904,37 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                       <option value="unread">{t('toolbar.read.unread') || 'Não lidas'}</option>
                       <option value="read">{t('toolbar.read.read') || 'Lidas'}</option>
                     </select>
-                    <p className="field-hint">{t('userSettings.uiReadFilterHint') || 'Persistido por usuário — sincroniza entre dispositivos.'}</p>
+                    <p className="field-hint">
+                      {t('userSettings.uiReadFilterHint') ||
+                        'Persistido por usuário — sincroniza entre dispositivos.'}
+                    </p>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="ui-sort-order">{t('userSettings.uiSortOrder') || 'Ordenação padrão'}</label>
+                    <label htmlFor="ui-sort-order">
+                      {t('userSettings.uiSortOrder') || 'Ordenação padrão'}
+                    </label>
                     <select
                       id="ui-sort-order"
                       value={uiSortOrder}
-                      onChange={(e) => setUiSortOrder(e.target.value as 'newest' | 'oldest' | 'relevance')}
+                      onChange={(e) =>
+                        setUiSortOrder(e.target.value as 'newest' | 'oldest' | 'relevance')
+                      }
                     >
                       <option value="newest">{t('toolbar.newest') || 'Mais recentes'}</option>
                       <option value="oldest">{t('toolbar.oldest') || 'Mais antigos'}</option>
                       <option value="relevance">{t('toolbar.relevance') || 'Relevância'}</option>
                     </select>
-                    <p className="field-hint">{t('userSettings.uiSortOrderHint') || 'Persistido por usuário — sincroniza entre dispositivos.'}</p>
+                    <p className="field-hint">
+                      {t('userSettings.uiSortOrderHint') ||
+                        'Persistido por usuário — sincroniza entre dispositivos.'}
+                    </p>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="ui-page-size">{t('userSettings.uiPageSize') || 'Itens por página'}</label>
+                    <label htmlFor="ui-page-size">
+                      {t('userSettings.uiPageSize') || 'Itens por página'}
+                    </label>
                     <select
                       id="ui-page-size"
                       value={uiPageSize}
@@ -920,15 +945,14 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
                       <option value={72}>{t('userSettings.pageSize72') || '72'}</option>
                       <option value={96}>{t('userSettings.pageSize96') || '96'}</option>
                     </select>
-                    <p className="field-hint">{t('userSettings.uiPageSizeHint') || 'Quantidade de cards carregados de cada vez.'}</p>
+                    <p className="field-hint">
+                      {t('userSettings.uiPageSizeHint') ||
+                        'Quantidade de cards carregados de cada vez.'}
+                    </p>
                   </div>
 
                   <div className="form-actions">
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleSaveUi}
-                      disabled={saving}
-                    >
+                    <button className="btn btn-primary" onClick={handleSaveUi} disabled={saving}>
                       {saving ? t('common.saving') : t('userSettings.save')}
                     </button>
                   </div>

@@ -1,10 +1,10 @@
 // Aggregated health/status snapshot for the /api/health endpoint and the
 // container healthcheck. Kept separate from server.js so it is easy to test.
 
+import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execSync } from 'node:child_process';
 import { newsRepository } from '../src/db/repositories/index.js';
 import { getDigestStatus } from './digest.service.js';
 import { getRetentionStatus } from './retention.service.js';
@@ -31,7 +31,7 @@ async function checkDb() {
   }
 }
 
-import { totalmem, freemem, loadavg } from 'node:os';
+import { freemem, loadavg, totalmem } from 'node:os';
 
 function getMemoryInfo() {
   const total = process.memoryUsage();

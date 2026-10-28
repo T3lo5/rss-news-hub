@@ -346,10 +346,7 @@ export class NewsRepository {
           sql`${schema.newsItems.pubDate} >= ${cutoffDate.getTime()}`
         )
       )
-      .orderBy(
-        desc(schema.newsItems.relevanceScore),
-        desc(schema.newsItems.pubDate)
-      )
+      .orderBy(desc(schema.newsItems.relevanceScore), desc(schema.newsItems.pubDate))
       .limit(maxItems);
 
     return results.map((row) => ({ ...row, readAt: row.readAt ?? null }));

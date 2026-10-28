@@ -7,10 +7,7 @@ import { newsRepository } from '../src/db/repositories/index.js';
  */
 function escapeMarkdown(text) {
   if (!text) return '';
-  return text
-    .replace(/\\/g, '\\\\')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]');
+  return text.replace(/\\/g, '\\\\').replace(/\[/g, '\\[').replace(/\]/g, '\\]');
 }
 
 /**
@@ -66,9 +63,10 @@ export function exportMarkdown(items) {
     const source = escapeMarkdown(item.source || 'Desconhecida');
     const description = escapeMarkdown(cleanDescriptionForMarkdown(item.description));
     const pubDate = formatDisplayDate(item.pubDate);
-    const relevance = item.relevanceScore !== null && item.relevanceScore !== undefined
-      ? ` (Relevância: ${item.relevanceScore}/100)`
-      : '';
+    const relevance =
+      item.relevanceScore !== null && item.relevanceScore !== undefined
+        ? ` (Relevância: ${item.relevanceScore}/100)`
+        : '';
 
     md += `## [${title}](${link}) — ${source}${relevance}\n`;
     md += `*${pubDate}*\n\n`;
@@ -88,7 +86,7 @@ export function exportJSON(items) {
   const exportData = {
     exportedAt: new Date().toISOString(),
     count: items.length,
-    items: items.map(item => ({
+    items: items.map((item) => ({
       id: item.id,
       title: item.title,
       link: item.link,

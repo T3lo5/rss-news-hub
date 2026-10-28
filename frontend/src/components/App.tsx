@@ -8,9 +8,9 @@ import { useMarkOnOpen } from '../hooks/useMarkOnOpen';
 import { useNews } from '../hooks/useNews';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useOpenInReader } from '../hooks/useOpenInReader';
-import { useSavedSearches } from '../hooks/useSavedSearches';
 import { useReadingPreferences } from '../hooks/useReadingPreferences';
 import { fetchProfile } from '../hooks/useRelevance';
+import { useSavedSearches } from '../hooks/useSavedSearches';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n';
 import { api } from '../services/api';
@@ -70,7 +70,7 @@ import { StatsModal } from './StatsModal';
 import { Status } from './Status';
 import { TelegramQueueModal } from './TelegramQueueModal';
 import { TemplatesModal } from './TemplatesModal';
-import { type ReadFilter, Toolbar, type SavedSearch, type ExportFormat } from './Toolbar';
+import { type ExportFormat, type ReadFilter, type SavedSearch, Toolbar } from './Toolbar';
 import { UpdateToast } from './UpdateToast';
 import { UserSettingsModal } from './UserSettingsModal';
 import { UsersModal } from './UsersModal';
@@ -159,7 +159,14 @@ function AppContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   // Reading preferences (persisted per user via userSettings + localStorage fallback)
-  const { readFilter, sortOrder, pageSize, setReadFilter, setSortOrder, synced: prefsSynced } = useReadingPreferences(user?.id);
+  const {
+    readFilter,
+    sortOrder,
+    pageSize,
+    setReadFilter,
+    setSortOrder,
+    synced: prefsSynced,
+  } = useReadingPreferences(user?.id);
 
   // Keep localStorage in sync for backward compatibility with any code that reads it directly
   useEffect(() => {
