@@ -330,3 +330,161 @@ export class SlackOutputPlugin implements OutputPlugin {
 
   async shutdown(): Promise<void> {}
 }
+
+export class NotionOutputPlugin implements OutputPlugin {
+  manifest = {
+    name: 'notion',
+    version: '1.0.0',
+    type: 'output' as const,
+    description: 'Send content to a Notion database as pages',
+    author: 'RSS News Hub Team',
+    license: 'MIT',
+    main: 'notion-output.js',
+    configSchema: {
+      type: 'object',
+      properties: {
+        apiKey: { type: 'string', minLength: 1 },
+        databaseId: { type: 'string', minLength: 1 },
+        titleProperty: { type: 'string', default: 'Name' },
+      },
+      required: ['apiKey', 'databaseId'],
+    },
+  };
+
+  config: any = {
+    enabled: true,
+    config: {
+      apiKey: '',
+      databaseId: '',
+      titleProperty: 'Name',
+    },
+  };
+
+  async init(config: any): Promise<void> {
+    this.config = config;
+  }
+
+  async send(content: string, options: OutputOptions = {}): Promise<void> {
+    const config = this.config.config;
+
+    if (!(config.apiKey && config.databaseId)) {
+      throw new Error('Notion not configured');
+    }
+
+    const title = ((options as Record<string, unknown>).title as string) || 'RSS News Hub Digest';
+    const body: any = {
+      parent: { database_id: config.databaseId },
+      properties: {
+        [config.titleProperty || 'Name']: {
+          title: [{ text: { content: title } }],
+        },
+      },
+      children: [
+        {
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [{ text: { content: content.slice(0, 2000) } }],
+          },
+        },
+      ],
+    };
+
+    const response = await fetch('https://api.notion.com/v1/pages', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(`Notion API error: ${result.message || response.status}`);
+    }
+  }
+
+  validateConfig(config: unknown): boolean {
+    if (!config || typeof config !== 'object') return false;
+    const cfg = config as Record<string, unknown>;
+    return (
+      typeof cfg.apiKey === 'string' &&
+      cfg.apiKey.length > 0 &&
+      typeof cfg.databaseId === 'string' &&
+      cfg.databaseId.length > 0
+    );
+  }
+
+  async shutdown(): Promise<void> {}
+}
+
+export class ObsidianOutputPlugin implements OutputPlugin {
+  manifest = {
+    name: 'obsidian',
+    version: '1.0.0',
+    type: 'output' as const,
+    description: 'Append content to an Obsidian vault note via local REST API',
+    author: 'RSS News Hub Team',
+    license: 'MIT',
+    main: 'obsidian-output.js',
+    configSchema: {
+      type: 'object',
+      properties: {
+        apiUrl: { type: 'string', format: 'url', default: 'http://localhost:27123' },
+        apiKey: { type: 'string', minLength: 1 },
+        vaultPath: { type: 'string', default: 'RSS News Hub' },
+        noteName: { type: 'string', default: 'Digest.md' },
+      },
+      required: ['apiKey'],
+    },
+  };
+
+  config: any = {
+    enabled: true,
+    config: {
+      apiUrl: 'http://localhost:27123',
+      apiKey: '',
+      vaultPath: 'RSS News Hub',
+      noteName: 'Digest.md',
+    },
+  };
+
+  async init(config: any): Promise<void> {
+    this.config = config;
+  }
+
+  async send(content: string, options: OutputOptions = {}): Promise<void> {
+    const config = this.config.config;
+
+    if (!config.apiKey) {
+      throw new Error('Obsidian not configured');
+    }
+
+    const baseUrl = config.apiUrl || 'http://localhost:27123';
+    const notePath = `${config.vaultPath || 'RSS News Hub'}/${((options as Record<string, unknown>).noteName as string) || config.noteName || 'Digest.md'}`;
+
+    // Append content to the note (create if not exists)
+    const response = await fetch(`${baseUrl}/vault/${encodeURIComponent(notePath)}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        'Content-Type': 'text/markdown',
+      },
+      body: content,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Obsidian API error: ${response.status}`);
+    }
+  }
+
+  validateConfig(config: unknown): boolean {
+    if (!config || typeof config !== 'object') return false;
+    const cfg = config as Record<string, unknown>;
+    return typeof cfg.apiKey === 'string' && cfg.apiKey.length > 0;
+  }
+
+  async shutdown(): Promise<void> {}
+}

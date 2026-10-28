@@ -6,7 +6,13 @@ export { BaseAIProviderPlugin } from './ai-providers.js';
 export { DeepSeekProviderPlugin } from './deepseek-provider.js';
 export { RSSFetcherPlugin } from './fetchers.js';
 export { OpenAIProviderPlugin } from './openai-provider.js';
-export { DiscordOutputPlugin, SlackOutputPlugin, TelegramOutputPlugin } from './outputs.js';
+export {
+  DiscordOutputPlugin,
+  NotionOutputPlugin,
+  ObsidianOutputPlugin,
+  SlackOutputPlugin,
+  TelegramOutputPlugin,
+} from './outputs.js';
 export { SenseNovaProviderPlugin } from './sensenova-provider.js';
 export { PIIRedactorPlugin, SummarizerPlugin, TranslationPlugin } from './transformers.js';
 
@@ -24,6 +30,8 @@ export const BUILTIN_PLUGINS = [
   'telegram',
   'discord',
   'slack',
+  'notion',
+  'obsidian',
 
   // Transformers
   'pii-redactor',
@@ -63,6 +71,14 @@ export async function createBuiltinPlugin(name: string, config: any) {
     case 'slack': {
       const { SlackOutputPlugin } = await import('./outputs.js');
       return new SlackOutputPlugin();
+    }
+    case 'notion': {
+      const { NotionOutputPlugin } = await import('./outputs.js');
+      return new NotionOutputPlugin();
+    }
+    case 'obsidian': {
+      const { ObsidianOutputPlugin } = await import('./outputs.js');
+      return new ObsidianOutputPlugin();
     }
     case 'pii-redactor': {
       const { PIIRedactorPlugin } = await import('./transformers.js');
