@@ -1,6 +1,8 @@
 import {
   ArrowUpDown,
   Bookmark,
+  BookOpen,
+  ChevronDown,
   FileText,
   Filter,
   LayoutGrid,
@@ -11,37 +13,51 @@ import {
   Target,
   X,
 } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n';
+
+export interface SavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  source?: string;
+  sort?: 'newest' | 'oldest' | 'relevance';
+  read?: 'all' | 'unread' | 'read';
+  color?: string;
+  pinned?: boolean;
+}
 
 interface ToolbarProps {
   searchQuery?: string;
   onSearchChange: (value: string) => void;
   onSourceFilterChange: (source: string) => void;
   onSortChange: (order: 'newest' | 'oldest' | 'relevance') => void;
+  onReadFilterChange: (value: ReadFilter) => void;
+  onSavedSearchApply: (search: SavedSearch) => void;
+  pinnedSearches: SavedSearch[];
+  onSavedSearchesClick: () => void;
   sources: string[];
   currentSourceFilter: string;
   currentSortOrder: 'newest' | 'oldest' | 'relevance';
+  readFilter: ReadFilter;
   selectedCount: number;
-  /** Itens atualmente carregados na lista — é o que "Selecionar todos" marca. */
   loadedCount: number;
   onSelectAll: () => void;
   onClearSelection: () => void;
-  /** Undefined hides the button: the config endpoint is admin-only. */
   onNewsletterClick?: () => void;
   onTemplatesClick: () => void;
-  bookmarkCount: number;
   onBookmarksClick: () => void;
+  bookmarkCount: number;
   digestView: boolean;
   onToggleDigest: () => void;
   digestGrouping: 'none' | 'daily' | 'weekly';
   onChangeDigestGrouping: (value: 'none' | 'daily' | 'weekly') => void;
   onProfileClick: () => void;
   onNewsletterBuilderClick?: () => void;
-  readFilter: ReadFilter;
-  onReadFilterChange: (value: ReadFilter) => void;
   unreadCount: number;
   readCount: number;
+  searchInputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 export type ReadFilter = 'all' | 'unread' | 'read';
@@ -51,9 +67,14 @@ export function Toolbar({
   onSearchChange,
   onSourceFilterChange,
   onSortChange,
+  onReadFilterChange,
+  onSavedSearchApply,
+  pinnedSearches,
+  onSavedSearchesClick,
   sources,
   currentSourceFilter,
   currentSortOrder,
+  readFilter,
   selectedCount,
   loadedCount,
   onSelectAll,
@@ -68,28 +89,101 @@ export function Toolbar({
   onChangeDigestGrouping,
   onProfileClick,
   onNewsletterBuilderClick,
-  readFilter,
-  onReadFilterChange,
   unreadCount,
   readCount,
+  searchInputRef,
 }: ToolbarProps) {
   const { t } = useI18n();
   const { user } = useAuth();
+  const [showSavedSearches, setShowSavedSearches] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Toda a lista carregada está marcada → o botão passa a desmarcar.
   const allSelected = loadedCount > 0 && selectedCount >= loadedCount;
+
+  // Handle click outside dropdown
+  useEffect(() => {
+    if (!showSavedSearches) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowSavedSearches(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSavedSearches]);
+
+  const handleSearchApply = (search: SavedSearch) => {
+    onSavedSearchApply(search);
+    // Focus the search input after applying
+    searchInputRef?.current?.focus();
+    setShowSavedSearches(false);
+  };
 
   return (
     <div className="toolbar">
       <div className="search-box">
         <Search className="search-icon" size={16} aria-hidden="true" />
         <input
+          ref={searchInputRef}
           type="search"
           placeholder={t('news.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           aria-label={t('toolbar.searchAria')}
         />
+      </div>
+
+      {/* Saved searches dropdown */}
+      <div className="saved-searches-dropdown" ref={dropdownRef}>
+        <button
+          className={`btn btn-icon btn-sm ${showSavedSearches ? 'active' : ''}`}
+          onClick={() => setShowSavedSearches((prev) => !prev)}
+          title={t('toolbar.savedSearchesTitle')}
+          aria-label={t('toolbar.savedSearchesTitle')}
+          aria-expanded={showSavedSearches}
+          aria-haspopup="listbox"
+        >
+          <BookOpen size={16} />
+          <ChevronDown size={14} className="chevron" />
+        </button>
+
+        {showSavedSearches && (
+          <div className="saved-searches-popover" role="listbox" aria-label={t('savedSearches.title')}>
+            {pinnedSearches.length > 0 && (
+              <div className="saved-searches-pinned">
+                <span className="saved-searches-section-title">{t('savedSearches.pinned')}</span>
+                {pinnedSearches.slice(0, 3).map((search) => (
+                  <button
+                    key={search.id}
+                    className="saved-search-chip"
+                    onClick={() => handleSearchApply(search)}
+                    role="option"
+                    style={{ '--chip-color': search.color || '#6366f1' }}
+                    title={`${search.name}: ${search.query}`}
+                  >
+                    <span
+                      className="chip-color"
+                      style={{ background: search.color || '#6366f1' }}
+                    />
+                    <span className="chip-name">{search.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              className="saved-searches-manage"
+              onClick={() => {
+                setShowSavedSearches(false);
+                onSavedSearchesClick();
+              }}
+              role="option"
+            >
+              <span>{t('savedSearches.manage')}</span>
+              <ChevronDown size={14} />
+            </button>
+          </div>
+        )}
       </div>
 
       {selectedCount > 0 && (
@@ -99,10 +193,6 @@ export function Toolbar({
               count: selectedCount,
             })}
           </span>
-          {/* O rótulo tem que descrever a ação do clique: "Desmarcar todos" só
-              aparece quando a seleção cobre a lista carregada, e aí o clique
-              limpa. Antes a comparação era com `sources.length`, o que fazia o
-              botão dizer "Desmarcar" enquanto seguia selecionando (MU-001). */}
           <button
             className="btn btn-ghost btn-sm"
             onClick={allSelected ? onClearSelection : onSelectAll}
@@ -211,8 +301,6 @@ export function Toolbar({
           )}
         </div>
 
-        {/* The interest profile is shared scoring config: writing it requires
-            the user role, so a viewer only gets a button that would 403. */}
         {user?.role !== 'viewer' && (
           <button
             className="btn btn-icon btn-sm"

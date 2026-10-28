@@ -8,6 +8,7 @@ import {
   linkHash,
   loadHashIndex,
   normalizeUrl,
+  titleHash,
 } from '../services/deduplication.js';
 import { schema } from '../src/db/index.js';
 import { getTestDb, resetTestDb } from './setup.js';
@@ -73,6 +74,45 @@ describe('Feed Deduplication (DB-backed)', () => {
 
     test('hash is 16 characters', () => {
       const hash = linkHash('https://example.com/article');
+      assert.strictEqual(hash.length, 16);
+    });
+  });
+
+  describe('titleHash', () => {
+    test('produces consistent hash for same title and source', () => {
+      const hash1 = titleHash('Nova IA revoluciona mercado', 'TechCrunch');
+      const hash2 = titleHash('Nova IA revoluciona mercado', 'TechCrunch');
+      assert.strictEqual(hash1, hash2);
+    });
+
+    test('different hash for different titles', () => {
+      const hash1 = titleHash('Nova IA revoluciona mercado', 'TechCrunch');
+      const hash2 = titleHash('Novo iPhone lançado hoje', 'TechCrunch');
+      assert.notStrictEqual(hash1, hash2);
+    });
+
+    test('different hash for same title but different source', () => {
+      const hash1 = titleHash('Nova IA revoluciona mercado', 'TechCrunch');
+      const hash2 = titleHash('Nova IA revoluciona mercado', 'The Verge');
+      assert.notStrictEqual(hash1, hash2);
+    });
+
+    test('ignores punctuation and whitespace differences', () => {
+      const hash1 = titleHash('Nova IA revoluciona mercado!!!', 'TechCrunch');
+      const hash2 = titleHash('Nova   IA  revoluciona  mercado', 'TechCrunch');
+      const hash3 = titleHash('Nova IA revoluciona mercado', 'TechCrunch');
+      assert.strictEqual(hash1, hash3);
+      assert.strictEqual(hash2, hash3);
+    });
+
+    test('case insensitive', () => {
+      const hash1 = titleHash('NOVA IA REVOLUCIONA MERCADO', 'TechCrunch');
+      const hash2 = titleHash('nova ia revoluciona mercado', 'TechCrunch');
+      assert.strictEqual(hash1, hash2);
+    });
+
+    test('hash is 16 characters', () => {
+      const hash = titleHash('Test title', 'Test Source');
       assert.strictEqual(hash.length, 16);
     });
   });

@@ -4,7 +4,7 @@ import {
   newsRepository,
 } from '../src/db/repositories/index.js';
 import { ensureDefaultFeeds, readFeedsConfig } from './config.service.js';
-import { linkHash } from './deduplication.js';
+import { linkHash, titleHash } from './deduplication.js';
 import { isTransientNetworkError, withRetry } from './net.js';
 import { recordFeedResult, recordFetchResult, recordFetchStart } from './stats.service.js';
 
@@ -233,17 +233,26 @@ async function fetchAllFeeds() {
       let _itemsSkipped = 0;
       const filteredItems = [];
 
-      for (const item of items) {
-        const hash = linkHash(item.link);
+      // Track title hashes within this fetch cycle for cross-feed dedup
+      const titleHashesSeen = new Set();
 
-        // Check both existing news IDs and hash index
-        if (existingIds.has(item.id) || (await newsHashRepository.exists(hash))) {
+      for (const item of items) {
+        const urlHash = linkHash(item.link);
+        const titleSourceHash = titleHash(item.title, item.source);
+
+        // Check both existing news IDs, link hash index, and title+source hash
+        if (
+          existingIds.has(item.id) ||
+          (await newsHashRepository.exists(urlHash)) ||
+          titleHashesSeen.has(titleSourceHash)
+        ) {
           itemsDuplicate++;
           _itemsSkipped++;
         } else {
           itemsNew++;
           existingIds.add(item.id);
-          await newsHashRepository.add(hash, item.id);
+          await newsHashRepository.add(urlHash, item.id);
+          titleHashesSeen.add(titleSourceHash);
           filteredItems.push(item);
         }
       }

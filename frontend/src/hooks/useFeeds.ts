@@ -5,6 +5,11 @@ export async function fetchFeeds() {
   return res;
 }
 
+export async function fetchFeedsHealth() {
+  const res = await api.getFeedHealth();
+  return res;
+}
+
 export async function addFeed(feed) {
   const res = await api.addFeed(feed);
   return res;

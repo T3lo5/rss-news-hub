@@ -1,7 +1,7 @@
 import { Download, Plus, RefreshCw, Search, Upload, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
-import { addFeed, deleteFeed, fetchFeeds, updateFeed } from '../hooks/useFeeds';
+import { addFeed, deleteFeed, fetchFeeds, fetchFeedsHealth, updateFeed } from '../hooks/useFeeds';
 import { exportOPML, importOPML } from '../hooks/useOPML';
 import { useI18n } from '../i18n';
 import type { FeedConfig, OPMLImportResult } from '../types';
@@ -29,8 +29,29 @@ export function FeedManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchFeeds();
-      setFeeds(data);
+      const [feedsData, healthData] = await Promise.all([fetchFeeds(), fetchFeedsHealth()]);
+      // Merge health data into feeds
+      const healthById = new Map(healthData.map((h) => [h.feedId, h]));
+      const merged = feedsData.map((feed) => {
+        const health = healthById.get(feed.id);
+        if (health) {
+          return {
+            ...feed,
+            healthScore: health.healthScore,
+            successRate: health.successRate,
+            totalFetches: health.totalFetches,
+            lastSuccess: health.lastSuccess,
+            avgLatencyMs: health.avgLatencyMs,
+            itemsFetched: health.itemsFetched,
+            itemsNew: health.itemsNew,
+            itemsDuplicate: health.itemsDuplicate,
+            etagHits: health.etagHits,
+            healthStatus: health.status,
+          };
+        }
+        return feed;
+      });
+      setFeeds(merged);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('feedManager.errLoad'));
     } finally {

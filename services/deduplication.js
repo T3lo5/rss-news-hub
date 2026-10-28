@@ -71,6 +71,22 @@ function linkHash(url) {
   return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
 }
 
+/**
+ * Title-based hash for cross-feed deduplication when URLs differ.
+ * Normalizes title: lowercase, trim, collapse whitespace, remove punctuation.
+ * Combines with source to avoid false positives on generic titles.
+ */
+function titleHash(title, source) {
+  const normalizedTitle = title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\p{L}\p{N}\s]/gu, '') // Remove punctuation (Unicode-aware)
+    .replace(/\s+/g, ' ') // Collapse whitespace
+    .slice(0, 120); // Cap length
+  const input = `${normalizedTitle}|${source.toLowerCase().trim()}`;
+  return createHash('sha256').update(input).digest('hex').slice(0, 16);
+}
+
 async function isDuplicate(hash) {
   return newsHashRepository.exists(hash);
 }
@@ -99,4 +115,5 @@ export {
   linkHash,
   loadHashIndex,
   normalizeUrl,
+  titleHash,
 };

@@ -77,6 +77,8 @@ const LOCKED_NEWSLETTER = {
   provider: 'auto',
 };
 
+const LOCKED_SEARCHES = { searches: [] };
+
 /**
  * Whether an account may fall back to the system-wide credentials
  * (app_settings + .env). Only the owner (admin) may: everyone else must bring
@@ -243,7 +245,7 @@ export async function getUserSettingsOverview(userId) {
   const emailEnv = restricted ? LOCKED_EMAIL_ENV : envEmail;
   const newsletterDefaults = restricted ? LOCKED_NEWSLETTER : newsletterConfig;
 
-  const areas = ['ai', 'telegram', 'email', 'newsletter', 'digest'];
+  const areas = ['ai', 'telegram', 'email', 'newsletter', 'digest', 'ui', 'searches'];
   const [userAreas, globalAreas] = await Promise.all([
     userSettingsRepository.getAllForUser(userId),
     Promise.all(areas.map((area) => (restricted ? Promise.resolve({}) : readGlobalArea(area)))),
@@ -330,6 +332,18 @@ export async function getUserSettingsOverview(userId) {
         cron: userStored?.cron || globalStored?.cron || '',
         minScore: userStored?.minScore ?? globalStored?.minScore ?? 0,
         maxItems: userStored?.maxItems ?? globalStored?.maxItems ?? 10,
+      };
+    } else if (area === 'ui') {
+      result[area] = {
+        hasUserOverride,
+        readFilter: userStored?.readFilter || globalStored?.readFilter || 'all',
+        sortOrder: userStored?.sortOrder || globalStored?.sortOrder || 'newest',
+        pageSize: userStored?.pageSize ?? globalStored?.pageSize ?? 48,
+      };
+    } else if (area === 'searches') {
+      result[area] = {
+        hasUserOverride,
+        searches: userStored?.searches || globalStored?.searches || [],
       };
     }
   }

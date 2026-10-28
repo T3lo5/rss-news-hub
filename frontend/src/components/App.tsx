@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAI } from '../hooks/useAI';
 import { addBookmark, fetchBookmarks, removeBookmark } from '../hooks/useBookmarks';
@@ -8,6 +8,8 @@ import { useMarkOnOpen } from '../hooks/useMarkOnOpen';
 import { useNews } from '../hooks/useNews';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useOpenInReader } from '../hooks/useOpenInReader';
+import { useSavedSearches } from '../hooks/useSavedSearches';
+import { useReadingPreferences } from '../hooks/useReadingPreferences';
 import { fetchProfile } from '../hooks/useRelevance';
 import { useTelegram } from '../hooks/useTelegram';
 import { useI18n } from '../i18n';
@@ -60,6 +62,7 @@ import { NewsletterBuilderModal } from './NewsletterBuilderModal';
 import { NewsletterConfigModal } from './NewsletterConfigModal';
 import { OfflineBanner } from './OfflineBanner';
 import { ReaderModal } from './ReaderModal';
+import { SavedSearchesModal } from './SavedSearchesModal';
 import { SettingsModal } from './SettingsModal';
 import { ShareModal } from './ShareModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
@@ -67,7 +70,7 @@ import { StatsModal } from './StatsModal';
 import { Status } from './Status';
 import { TelegramQueueModal } from './TelegramQueueModal';
 import { TemplatesModal } from './TemplatesModal';
-import { type ReadFilter, Toolbar } from './Toolbar';
+import { type ReadFilter, Toolbar, type SavedSearch } from './Toolbar';
 import { UpdateToast } from './UpdateToast';
 import { UserSettingsModal } from './UserSettingsModal';
 import { UsersModal } from './UsersModal';
@@ -155,13 +158,33 @@ function AppContent() {
   const [status, setStatus] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'relevance'>('newest');
-  const [readFilter, setReadFilter] = useState<ReadFilter>(() => {
-    if (typeof window === 'undefined') return 'all';
-    const stored = localStorage.getItem('readFilter');
-    return stored === 'unread' || stored === 'read' ? stored : 'all';
-  });
+  // Reading preferences (persisted per user via userSettings + localStorage fallback)
+  const { readFilter, sortOrder, pageSize, setReadFilter, setSortOrder, synced: prefsSynced } = useReadingPreferences(user?.id);
+
+  // Keep localStorage in sync for backward compatibility with any code that reads it directly
+  useEffect(() => {
+    try {
+      localStorage.setItem('readFilter', readFilter);
+    } catch {}
+  }, [readFilter]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('sortOrder', sortOrder);
+    } catch {}
+  }, [sortOrder]);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showSavedSearches, setShowSavedSearches] = useState(false);
+  // Ref para focar o input de busca ao aplicar uma busca salva
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  // Buscas salvas: o hook é dono do estado (server-first + localStorage fallback)
+  const {
+    searches: savedSearches,
+    pinnedSearches,
+    unpinnedSearches,
+    add: addSavedSearch,
+    update: updateSavedSearch,
+    remove: removeSavedSearch,
+  } = useSavedSearches(user?.id);
 
   // O input responde na hora; o servidor só é consultado quando o usuário
   // para de digitar.
@@ -187,6 +210,7 @@ function AppContent() {
     source: sourceFilter,
     sort: sortOrder,
     read: readFilter,
+    pageSize,
   });
 
   const unreadCount = counts.unread;
@@ -519,6 +543,16 @@ function AppContent() {
     setSelectedIds(new Set());
   }, []);
 
+  const handleApplySavedSearch = useCallback(
+    (search: { query: string; source?: string; sort?: string; read?: string }) => {
+      setSearchQuery(search.query);
+      if (search.source !== undefined) setSourceFilter(search.source);
+      if (search.sort !== undefined) setSortOrder(search.sort as 'newest' | 'oldest' | 'relevance');
+      if (search.read !== undefined) setReadFilter(search.read as 'all' | 'unread' | 'read');
+    },
+    []
+  );
+
   const readerNews = readerItem
     ? (news.find((item) => item.id === readerItem.id) ?? readerItem)
     : null;
@@ -535,6 +569,7 @@ function AppContent() {
     showDigestConfig ||
     showUsers ||
     showTelegramQueue ||
+    showSavedSearches ||
     showBookmarks ||
     showProfileModal ||
     showTemplatesModal ||
@@ -669,6 +704,10 @@ function AppContent() {
             onReadFilterChange={setReadFilter}
             unreadCount={unreadCount}
             readCount={readCount}
+            onSavedSearchesClick={() => setShowSavedSearches(true)}
+            onSavedSearchApply={handleApplySavedSearch}
+            pinnedSearches={pinnedSearches}
+            searchInputRef={searchInputRef}
           />
         </div>
 
@@ -765,6 +804,18 @@ function AppContent() {
       {showAddModal && <AddModal onClose={() => setShowAddModal(false)} onSubmit={handleAddNews} />}
 
       {showStatsModal && <StatsModal onClose={() => setShowStatsModal(false)} />}
+
+      <SavedSearchesModal
+        isOpen={showSavedSearches}
+        onClose={() => setShowSavedSearches(false)}
+        onApplySearch={handleApplySavedSearch}
+        searches={savedSearches}
+        pinnedSearches={pinnedSearches}
+        unpinnedSearches={unpinnedSearches}
+        add={addSavedSearch}
+        update={updateSavedSearch}
+        remove={removeSavedSearch}
+      />
 
       <FeedManagerModal isOpen={showFeedManager} onClose={() => setShowFeedManager(false)} />
 

@@ -1,4 +1,4 @@
-import { FlaskConical, Pencil, Trash2 } from 'lucide-react';
+import { FlaskConical, HeartPulse, Pencil, Trash2 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import type { FeedConfig } from '../types';
 
@@ -37,6 +37,31 @@ function getStatusBadge(
     default:
       return <span className="status-badge unknown">{t('feedTable.statusUnknown')}</span>;
   }
+}
+
+function getHealthBadge(score: number | undefined, t: (key: string) => string) {
+  if (score === undefined || score === null) {
+    return <span className="status-badge unknown">{t('feedTable.healthUnknown')}</span>;
+  }
+  if (score >= 80) {
+    return (
+      <span className="status-badge healthy" title={t('feedTable.healthHealthy', { score })}>
+        <HeartPulse size={12} /> {score}
+      </span>
+    );
+  }
+  if (score >= 50) {
+    return (
+      <span className="status-badge warning" title={t('feedTable.healthWarning', { score })}>
+        <HeartPulse size={12} /> {score}
+      </span>
+    );
+  }
+  return (
+    <span className="status-badge critical" title={t('feedTable.healthCritical', { score })}>
+      <HeartPulse size={12} /> {score}
+    </span>
+  );
 }
 
 function FeedRow({
@@ -86,6 +111,9 @@ function FeedRow({
         style={{ textAlign: 'right', fontFamily: 'monospace' }}
       >
         {feed.itemCount || 0}
+      </td>
+      <td data-label={t('feedTable.colHealth')}>
+        {getHealthBadge(feed.healthScore, t)}
       </td>
       <td>{getStatusBadge(feed.status, t)}</td>
       <td>
@@ -173,7 +201,8 @@ export function FeedTable({
     { key: 'category', label: t('feedTable.colCategory'), width: '120px' },
     { key: 'lastFetch', label: t('feedTable.colLastFetch'), width: '160px' },
     { key: 'itemCount', label: t('feedTable.colItems'), width: '80px', align: 'right' },
-    { key: 'status', label: t('feedTable.colHealth'), width: '100px' },
+    { key: 'healthScore', label: t('feedTable.colHealth'), width: '100px' },
+    { key: 'status', label: t('feedTable.colStatusLegacy'), width: '100px' },
     { key: 'actions', label: t('common.actions'), width: '140px' },
   ];
 

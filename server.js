@@ -345,8 +345,17 @@ export async function handleRequest(req, res) {
   try {
     // GET /api/health - liveness/readiness probe (public, no secrets)
     if (path === '/api/health' && req.method === 'GET') {
-      const health = await getHealth();
+      const health = await getHealth(false);
       return sendJSON(res, health.ok ? 200 : 503, health);
+    }
+
+    // GET /api/health/detail - detailed system metrics (admin only)
+    if (path === '/api/health/detail' && req.method === 'GET') {
+      requireAdmin()(req, res, async () => {
+        const health = await getHealth(true);
+        return sendJSON(res, health.ok ? 200 : 503, health);
+      });
+      return;
     }
 
     // GET / - serve index.html
@@ -1061,7 +1070,7 @@ export async function handleRequest(req, res) {
     if (meSettingsMatch && req.method === 'PUT') {
       requireUser()(req, res, async () => {
         const area = meSettingsMatch[1];
-        const allowedAreas = ['ai', 'telegram', 'email', 'newsletter', 'digest'];
+        const allowedAreas = ['ai', 'telegram', 'email', 'newsletter', 'digest', 'ui', 'searches'];
         if (!allowedAreas.includes(area)) {
           return sendJSON(res, 400, { ok: false, error: `Invalid area: ${area}` });
         }
@@ -1079,7 +1088,7 @@ export async function handleRequest(req, res) {
     if (meSettingsMatch && req.method === 'DELETE') {
       requireUser()(req, res, async () => {
         const area = meSettingsMatch[1];
-        const allowedAreas = ['ai', 'telegram', 'email', 'newsletter', 'digest'];
+        const allowedAreas = ['ai', 'telegram', 'email', 'newsletter', 'digest', 'ui', 'searches'];
         if (!allowedAreas.includes(area)) {
           return sendJSON(res, 400, { ok: false, error: `Invalid area: ${area}` });
         }
