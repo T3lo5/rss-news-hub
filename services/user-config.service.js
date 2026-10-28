@@ -79,8 +79,6 @@ const LOCKED_NEWSLETTER = {
   provider: 'auto',
 };
 
-const LOCKED_SEARCHES = { searches: [] };
-
 /**
  * Whether an account may fall back to the system-wide credentials
  * (app_settings + .env). Only the owner (admin) may: everyone else must bring

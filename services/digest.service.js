@@ -131,7 +131,6 @@ export function getDefaultMissedDigestConfig() {
  * No AI needed - just format the items directly
  */
 function buildMissedDigestMessage(items, language, date) {
-  const labels = sourceLabels(language);
   const dateStr = new Date(date).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US', {
     weekday: 'long',
     day: 'numeric',

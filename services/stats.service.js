@@ -95,15 +95,7 @@ export async function getStatsAsync() {
 }
 
 function computeHealthScore(stats) {
-  const {
-    successfulFetches,
-    failedFetches,
-    lastSuccess,
-    latencies,
-    itemsNew,
-    itemsDuplicate,
-    itemsFetched,
-  } = stats;
+  const { successfulFetches, failedFetches, lastSuccess, latencies, itemsNew } = stats;
 
   // Availability (0-40)
   const total = successfulFetches + failedFetches;
