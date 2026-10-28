@@ -9,6 +9,7 @@ import {
   requireViewer,
 } from './middleware/auth.js';
 import { handleAuthRoutes } from './routes/auth.routes.js';
+import { handleMetricsRoutes } from './routes/metrics.routes.js';
 import { handlePushRoutes } from './routes/push.routes.js';
 import { email, newsletterConfig, PORT, telegram } from './server.config.js';
 import {
@@ -52,6 +53,7 @@ import { getHealth } from './services/health.service.js';
 import { fetchAndScoreFeeds } from './services/ingest.service.js';
 import { createRequestLogger } from './services/logger.js';
 import { renderEmailHtml } from './services/markdown.js';
+import { recordRequest } from './services/metrics.service.js';
 import { addNews, readNews, readNewsPage, setNewsRead } from './services/news.service.js';
 import { generateOpenApiSpec } from './services/openapi.js';
 import { rateLimitMiddleware } from './services/rate-limiter.js';
@@ -254,6 +256,19 @@ export async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const path = url.pathname;
 
+  // Track request metrics for Prometheus /metrics endpoint
+  const startTime = Date.now();
+  const originalEnd = res.end.bind(res);
+  res.end = (chunk, encoding, cb) => {
+    const duration = Date.now() - startTime;
+    try {
+      recordRequest(req.method, path, res.statusCode || 200, duration);
+    } catch {
+      // Ignore metric errors
+    }
+    return originalEnd(chunk, encoding, cb);
+  };
+
   // Request ID for correlation
   const reqId = req.headers['x-request-id'] || crypto.randomUUID();
   req.reqId = reqId;
@@ -363,6 +378,18 @@ export async function handleRequest(req, res) {
       if (handled) return;
     } catch (err) {
       log.error({ err }, 'Push route failed');
+      return sendJSON(res, 500, { ok: false, error: 'Internal server error' });
+    }
+  }
+
+  // Prometheus metrics endpoint (admin only)
+  if (path === '/api/metrics' && req.method === 'GET') {
+    try {
+      await authenticateRequest(req, res);
+      const handled = await handleMetricsRoutes(req, res, path);
+      if (handled) return;
+    } catch (err) {
+      log.error({ err }, 'Metrics route failed');
       return sendJSON(res, 500, { ok: false, error: 'Internal server error' });
     }
   }
