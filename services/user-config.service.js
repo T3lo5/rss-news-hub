@@ -42,6 +42,8 @@ async function readGlobalArea(area) {
   }
 }
 
+export { readUserArea, readGlobalArea };
+
 async function writeUserArea(userId, area, value) {
   await userSettingsRepository.set(userId, area, value);
 }
@@ -327,11 +329,19 @@ export async function getUserSettingsOverview(userId) {
         provider: userStored?.provider || globalStored?.provider || newsletterDefaults.provider,
       };
     } else if (area === 'digest') {
+      const missedDefaults = { enabled: false, time: '08:00', minScore: 70, maxItems: 5, lookbackDays: 2 };
       result[area] = {
         hasUserOverride,
         cron: userStored?.cron || globalStored?.cron || '',
         minScore: userStored?.minScore ?? globalStored?.minScore ?? 0,
         maxItems: userStored?.maxItems ?? globalStored?.maxItems ?? 10,
+        missedDigest: {
+          enabled: userStored?.missedDigest?.enabled ?? missedDefaults.enabled,
+          time: userStored?.missedDigest?.time ?? missedDefaults.time,
+          minScore: userStored?.missedDigest?.minScore ?? missedDefaults.minScore,
+          maxItems: userStored?.missedDigest?.maxItems ?? missedDefaults.maxItems,
+          lookbackDays: userStored?.missedDigest?.lookbackDays ?? missedDefaults.lookbackDays,
+        },
       };
     } else if (area === 'ui') {
       result[area] = {

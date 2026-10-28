@@ -180,6 +180,7 @@ export async function queueTelegramMessage(message) {
     retryCount: 0,
     createdAt: new Date(),
     options: message.options ? JSON.stringify(message.options) : null,
+    userId: message.userId || null,
   };
   return telegramQueueRepository.add(msg);
 }

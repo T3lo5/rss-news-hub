@@ -5,6 +5,13 @@ import { buildMatchQuery, searchNewsIds } from './search.repository.js';
 export type NewsSortOrder = 'newest' | 'oldest' | 'relevance';
 export type NewsReadFilter = 'all' | 'unread' | 'read';
 
+export interface MissedDigestOptions {
+  userId: string;
+  minScore: number;
+  maxItems: number;
+  lookbackDays: number;
+}
+
 /**
  * Shared guard for every pruning statement: a row that any user bookmarked is
  * never deleted, whatever its age or score. The table is referenced by name so
@@ -308,6 +315,44 @@ export class NewsRepository {
       .groupBy(schema.newsItems.source);
 
     return Object.fromEntries(results.map((r) => [r.source, r.count]));
+  }
+
+  /**
+   * Find unread news items for a specific user with relevance score above threshold
+   * within the lookback period. Used for the "You missed?" daily digest.
+   * Returns items ordered by relevanceScore desc, then pubDate desc.
+   */
+  async findUnreadByRelevance(options: MissedDigestOptions): Promise<schema.NewsItem[]> {
+    const { userId, minScore, maxItems, lookbackDays } = options;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - lookbackDays);
+
+    const readJoin = and(
+      eq(schema.newsReads.newsId, schema.newsItems.id),
+      eq(schema.newsReads.userId, userId)
+    );
+
+    const results = await this.db
+      .select({
+        ...getTableColumns(schema.newsItems),
+        readAt: schema.newsReads.readAt,
+      })
+      .from(schema.newsItems)
+      .leftJoin(schema.newsReads, readJoin)
+      .where(
+        and(
+          sql`${schema.newsReads.readAt} is null`,
+          sql`${schema.newsItems.relevanceScore} >= ${minScore}`,
+          sql`${schema.newsItems.pubDate} >= ${cutoffDate.getTime()}`
+        )
+      )
+      .orderBy(
+        desc(schema.newsItems.relevanceScore),
+        desc(schema.newsItems.pubDate)
+      )
+      .limit(maxItems);
+
+    return results.map((row) => ({ ...row, readAt: row.readAt ?? null }));
   }
 }
 

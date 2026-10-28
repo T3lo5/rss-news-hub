@@ -49,6 +49,13 @@ interface UserSettingsOverview {
     cron: string;
     minScore: number;
     maxItems: number;
+    missedDigest: {
+      enabled: boolean;
+      time: string;
+      minScore: number;
+      maxItems: number;
+      lookbackDays: number;
+    };
   };
   ui: {
     hasUserOverride: boolean;
@@ -108,6 +115,13 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
   const [nlCron, setNlCron] = useState('0 8 * * 1');
   const [nlLookback, setNlLookback] = useState('7');
 
+  // Missed Digest form state ("You missed?" daily notification)
+  const [mdEnabled, setMdEnabled] = useState(false);
+  const [mdTime, setMdTime] = useState('08:00');
+  const [mdMinScore, setMdMinScore] = useState('70');
+  const [mdMaxItems, setMdMaxItems] = useState('5');
+  const [mdLookback, setMdLookback] = useState('2');
+
   // UI preferences form state (persisted per user in the server)
   const [uiReadFilter, setUiReadFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [uiSortOrder, setUiSortOrder] = useState<'newest' | 'oldest' | 'relevance'>('newest');
@@ -160,6 +174,13 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
       setNlEnabled(data.newsletter.enabled);
       setNlCron(data.newsletter.cron);
       setNlLookback(String(data.newsletter.lookbackDays));
+
+      // Missed Digest
+      setMdEnabled(data.digest?.missedDigest?.enabled ?? false);
+      setMdTime(data.digest?.missedDigest?.time ?? '08:00');
+      setMdMinScore(String(data.digest?.missedDigest?.minScore ?? 70));
+      setMdMaxItems(String(data.digest?.missedDigest?.maxItems ?? 5));
+      setMdLookback(String(data.digest?.missedDigest?.lookbackDays ?? 2));
 
       // UI preferences (server-persisted, per user)
       setUiReadFilter(data.ui?.readFilter ?? 'all');
@@ -300,6 +321,31 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
       flashSuccess(t('userSettings.savedNewsletter'));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('userSettings.errSaveNewsletter'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveMissedDigest = async () => {
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.saveUserSetting('digest', {
+        missedDigest: {
+          enabled: mdEnabled,
+          time: mdTime,
+          minScore: Number(mdMinScore) || 70,
+          maxItems: Number(mdMaxItems) || 5,
+          lookbackDays: Number(mdLookback) || 2,
+        },
+      });
+
+      const data = await api.getUserSettings();
+      setSettings(data);
+      flashSuccess(t('userSettings.savedMissedDigest'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('userSettings.errSaveMissedDigest'));
     } finally {
       setSaving(false);
     }
@@ -743,9 +789,88 @@ export function UserSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
               {/* ── DIGEST TAB ── */}
               {activeTab === 'digest' && (
-                <p className="field-hint">
-                  {t('userSettings.digestComingSoon') || 'Digest configuration coming soon.'}
-                </p>
+                <div>
+                  <h4 style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
+                    {t('userSettings.missedDigestTitle') || 'Notificação "Você perdeu?" (Diária)'}
+                  </h4>
+
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={mdEnabled}
+                      onChange={(e) => setMdEnabled(e.target.checked)}
+                    />
+                    {t('userSettings.enableMissedDigest') || 'Ativar notificação diária de itens não lidos relevantes'}
+                  </label>
+
+                  <div className="form-group">
+                    <label htmlFor="user-md-time">{t('userSettings.missedDigestTime') || 'Horário (HH:mm)'}</label>
+                    <input
+                      id="user-md-time"
+                      type="time"
+                      value={mdTime}
+                      onChange={(e) => setMdTime(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="user-md-min-score">{t('userSettings.missedDigestMinScore') || 'Relevância mínima (0-100)'}</label>
+                    <input
+                      id="user-md-min-score"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={mdMinScore}
+                      onChange={(e) => setMdMinScore(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="user-md-max-items">{t('userSettings.missedDigestMaxItems') || 'Máximo de itens (1-20)'}</label>
+                    <input
+                      id="user-md-max-items"
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={mdMaxItems}
+                      onChange={(e) => setMdMaxItems(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="user-md-lookback">{t('userSettings.missedDigestLookback') || 'Dias de retrospectiva (1-7)'}</label>
+                    <input
+                      id="user-md-lookback"
+                      type="number"
+                      min="1"
+                      max="7"
+                      value={mdLookback}
+                      onChange={(e) => setMdLookback(e.target.value)}
+                    />
+                  </div>
+
+                  <p className="field-hint">
+                    {t('userSettings.missedDigestHint') || 'Envia uma notificação diária via Telegram com os itens não lidos de alta relevância que você pode ter perdido. Requer Telegram configurado.'}
+                  </p>
+
+                  <div className="form-actions">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveMissedDigest}
+                      disabled={saving}
+                    >
+                      {saving ? t('common.saving') : t('userSettings.saveMissedDigest')}
+                    </button>
+                  </div>
+
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => api.triggerMissedDigest().catch(console.error)}
+                    style={{ marginTop: '12px' }}
+                  >
+                    {t('userSettings.testMissedDigest') || 'Testar agora'}
+                  </button>
+                </div>
               )}
 
               {/* ── READING TAB ── */}

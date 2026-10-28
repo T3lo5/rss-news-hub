@@ -752,6 +752,28 @@ export const api = {
     const data = await handleResponse<{ ok: boolean; data: DigestPreview }>(res);
     return data.data;
   },
+
+  // Missed Digest ("You missed?" daily notification)
+  async triggerMissedDigest(): Promise<any> {
+    const res = await fetchWithAuth('/api/me/digest/missed/trigger', { method: 'POST' });
+    const data = await handleResponse<{ ok: boolean; data: any }>(res);
+    return data.data;
+  },
+
+  async getMissedDigestStatus(): Promise<any> {
+    const res = await fetchWithAuth('/api/digest/missed/status');
+    const data = await handleResponse<{ ok: boolean; data: any }>(res);
+    return data.data;
+  },
+
+  async triggerMissedDigestForUser(userId: string): Promise<any> {
+    const res = await fetchWithAuth('/api/digest/missed/trigger', {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+    const data = await handleResponse<{ ok: boolean; data: any }>(res);
+    return data.data;
+  },
 };
 
 // Initialize token from localStorage on load

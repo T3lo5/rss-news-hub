@@ -82,6 +82,12 @@ import {
   resolveTelegramConfig,
   saveUserSetting,
 } from './services/user-config.service.js';
+import {
+  generateAndQueueMissedDigest,
+  getMissedDigestStatus,
+  refreshMissedDigestJob,
+  startAllMissedDigestJobs,
+} from './services/digest.service.js';
 import { schemas, validateBody } from './services/validation.js';
 import { createConfigWatcher } from './src/plugins/config-watcher.js';
 
@@ -1106,6 +1112,44 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    // GET /api/digest/missed/status - get missed digest jobs status (admin)
+    if (path === '/api/digest/missed/status' && req.method === 'GET') {
+      requireAdmin()(req, res, () => {
+        return sendJSON(res, 200, { ok: true, data: getMissedDigestStatus() });
+      });
+      return;
+    }
+
+    // POST /api/digest/missed/trigger - manual trigger missed digest for a user (admin)
+    if (path === '/api/digest/missed/trigger' && req.method === 'POST') {
+      requireAdmin()(req, res, async () => {
+        const { userId } = req.body || {};
+        if (!userId) {
+          return sendJSON(res, 400, { ok: false, error: 'userId required' });
+        }
+        try {
+          const result = await generateAndQueueMissedDigest(userId);
+          return sendJSON(res, 200, { ok: true, data: result });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
+    }
+
+    // POST /api/me/digest/missed/trigger - manual trigger missed digest for current user
+    if (path === '/api/me/digest/missed/trigger' && req.method === 'POST') {
+      requireUser()(req, res, async () => {
+        try {
+          const result = await generateAndQueueMissedDigest(req.user.id);
+          return sendJSON(res, 200, { ok: true, data: result });
+        } catch (err) {
+          return sendJSON(res, 500, { ok: false, error: err.message });
+        }
+      });
+      return;
+    }
+
     // ── Per-user self-service settings ───────────────────────────────────
     // Qualquer usuário autenticado pode configurar seus próprios provedores,
     // Telegram, email e newsletters sem precisar de admin. As credenciais do
@@ -1135,6 +1179,10 @@ export async function handleRequest(req, res) {
         }
         try {
           const result = await saveUserSetting(req.user.id, area, req.body || {});
+          // Refresh missed digest job when digest settings change
+          if (area === 'digest') {
+            await refreshMissedDigestJob(req.user.id);
+          }
           return sendJSON(res, 200, { ok: true, data: result });
         } catch (err) {
           return sendJSON(res, 500, { ok: false, error: err.message });
@@ -1153,6 +1201,10 @@ export async function handleRequest(req, res) {
         }
         try {
           const result = await deleteUserSetting(req.user.id, area);
+          // Refresh missed digest job when digest settings change
+          if (area === 'digest') {
+            await refreshMissedDigestJob(req.user.id);
+          }
           return sendJSON(res, 200, { ok: true, data: result });
         } catch (err) {
           return sendJSON(res, 500, { ok: false, error: err.message });
@@ -1938,6 +1990,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   startTelegramQueueWorker(telegram, 60000);
   // Start the news retention job (no-op unless a retention window is set)
   startRetentionJob();
+  // Start per-user missed digest jobs ("You missed?" daily notification)
+  await startAllMissedDigestJobs();
 
   // Global handlers to prevent crashes from network errors
   process.on('unhandledRejection', (reason, promise) => {

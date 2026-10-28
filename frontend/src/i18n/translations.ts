@@ -72,6 +72,20 @@ export const pt: Record<string, string> = {
 
   'userSettings.tabDigest': 'Digest',
   'userSettings.tabUi': 'Preferências',
+
+  // Missed Digest ("You missed?" daily notification)
+  'userSettings.missedDigestTitle': 'Notificação "Você perdeu?" (Diária)',
+  'userSettings.enableMissedDigest': 'Ativar notificação diária de itens não lidos relevantes',
+  'userSettings.missedDigestTime': 'Horário (HH:mm)',
+  'userSettings.missedDigestMinScore': 'Relevância mínima (0-100)',
+  'userSettings.missedDigestMaxItems': 'Máximo de itens (1-20)',
+  'userSettings.missedDigestLookback': 'Dias de retrospectiva (1-7)',
+  'userSettings.missedDigestHint': 'Envia uma notificação diária via Telegram com os itens não lidos de alta relevância que você pode ter perdido. Requer Telegram configurado.',
+  'userSettings.saveMissedDigest': 'Salvar notificação "Você perdeu?"',
+  'userSettings.savedMissedDigest': 'Notificação "Você perdeu?" salva!',
+  'userSettings.errSaveMissedDigest': 'Falha ao salvar notificação "Você perdeu?"',
+  'userSettings.testMissedDigest': 'Testar agora',
+
   'userSettings.ownConfig': 'Usando sua própria configuração',
   'userSettings.configured': 'configurado',
   'userSettings.notConfigured': 'não configurado',
@@ -851,6 +865,20 @@ export const en: Record<string, string> = {
 
   'userSettings.tabDigest': 'Digest',
   'userSettings.tabUi': 'Preferences',
+
+  // Missed Digest ("You missed?" daily notification)
+  'userSettings.missedDigestTitle': '"You missed?" Daily Notification',
+  'userSettings.enableMissedDigest': 'Enable daily notification of relevant unread items',
+  'userSettings.missedDigestTime': 'Time (HH:mm)',
+  'userSettings.missedDigestMinScore': 'Minimum relevance (0-100)',
+  'userSettings.missedDigestMaxItems': 'Max items (1-20)',
+  'userSettings.missedDigestLookback': 'Lookback days (1-7)',
+  'userSettings.missedDigestHint': 'Sends a daily Telegram notification with high-relevance unread items you may have missed. Requires Telegram to be configured.',
+  'userSettings.saveMissedDigest': 'Save "You missed?" notification',
+  'userSettings.savedMissedDigest': '"You missed?" notification saved!',
+  'userSettings.errSaveMissedDigest': 'Failed to save "You missed?" notification',
+  'userSettings.testMissedDigest': 'Test now',
+
   'userSettings.ownConfig': 'Using your own configuration',
   'userSettings.configured': 'configured',
   'userSettings.notConfigured': 'not configured',
