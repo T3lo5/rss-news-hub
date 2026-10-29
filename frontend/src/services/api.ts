@@ -17,6 +17,7 @@ import type {
   EmailSettings,
   EmailSettingsUpdate,
   FeedConfig,
+  FeedStat,
   FeedTestResponse,
   FetchRssResponse,
   GenerateContentRequest,
@@ -335,6 +336,13 @@ export const api = {
     const res = await fetch('/api/health');
     const data = await handleResponse<{ ok: boolean } & HealthStatus>(res);
     return data;
+  },
+
+  /** Fetch feed health metrics (viewer+). */
+  async getFeedHealth(): Promise<FeedStat[]> {
+    const res = await fetchWithAuth('/api/feeds/health');
+    const data = await handleResponse<{ ok: boolean; data: FeedStat[] }>(res);
+    return data.data;
   },
 
   /** Fetch Prometheus metrics text (admin only). */

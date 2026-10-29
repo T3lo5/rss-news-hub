@@ -96,6 +96,18 @@ export interface FeedStat {
   lastError: string | null;
   itemsFetched: number;
   etagHits: number;
+  // Extended fields from /api/feeds/health
+  feedId?: string;
+  healthScore?: number;
+  successRate?: number;
+  totalFetches?: number;
+  lastSuccess?: number;
+  avgLatencyMs?: number;
+  itemsNew?: number;
+  itemsDuplicate?: number;
+  healthStatus?: 'ok' | 'error' | 'unknown';
+  url?: string;
+  enabled?: boolean;
 }
 
 export interface StatsResponse {
