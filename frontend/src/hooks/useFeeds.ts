@@ -1,13 +1,18 @@
 import { api } from '../services/api';
+import type { FeedStat } from '../types';
 
 export async function fetchFeeds() {
   const res = await api.getFeeds();
   return res;
 }
 
-export async function fetchFeedsHealth() {
-  const res = await api.getFeedHealth();
-  return res;
+export async function fetchFeedsHealth(): Promise<FeedStat[]> {
+  try {
+    const res = await api.getFeedHealth();
+    return Array.isArray(res) ? res : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function addFeed(feed) {
