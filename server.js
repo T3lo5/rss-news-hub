@@ -18,6 +18,7 @@ import {
   chat,
   chatStream,
   stripEditorialMeta,
+  withHumanVoice,
 } from './services/ai.service.js';
 import {
   ensureDefaultFeeds,
@@ -1552,7 +1553,10 @@ export async function handleRequest(req, res) {
                     language: language || 'en',
                     ...templateVariables,
                   })
-                : buildSystemPrompt(type, language || 'en');
+                : withHumanVoice(
+                    buildSystemPrompt(type, language || 'en'),
+                    language === 'pt' ? 'pt' : 'en'
+                  );
 
               const systemPrompt = templatePrompt;
               const userContent = buildNewsUserContent(news);
@@ -1596,7 +1600,10 @@ export async function handleRequest(req, res) {
                     language: language || 'en',
                     ...templateVariables,
                   })
-                : buildSystemPrompt(type, language || 'en');
+                : withHumanVoice(
+                    buildSystemPrompt(type, language || 'en'),
+                    language === 'pt' ? 'pt' : 'en'
+                  );
             } catch (err) {
               // Antes de abrir o SSE ainda dá para responder JSON normal.
               return sendJSON(res, 400, { ok: false, error: err.message });

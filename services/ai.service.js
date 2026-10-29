@@ -270,6 +270,54 @@ export async function chatStream(
   }
 }
 
+/**
+ * Human-voice directives to reduce "AI-like" tells in generated text.
+ * Keeps language natural, varied, and grounded in a specific perspective.
+ * English first, then Portuguese — the caller chooses which to append.
+ */
+const HUMAN_VOICE_EN = `
+## HUMAN VOICE GUIDELINES (append to every response)
+
+Write like a real person, not a content engine.
+
+- **Vary sentence length.** Short. Medium. Long with a subordinate clause that actually earns its keep. Don't make every sentence the same rhythm.
+- **Own your perspective.** Use "I" when it's your experience, "we" when it's shared context, "you" when addressing the reader directly. Don't default to passive "one might consider" or "it is important to note."
+- **Name specifics, not categories.** "The async handler in Node 22" beats "the technology stack." "Last Tuesday's deploy" beats "recent events."
+- **Admit uncertainty.** "I'm not 100% sure this scales past 10k req/s" is credible. "This solution is enterprise-ready" is marketing.
+- **Skip the scaffolding.** No "In today's world...", "In conclusion...", "Delving into...", "It's worth noting that...", "A deep dive into...", "Navigating the landscape of...", "Unlock the power of...", "Game-changer", "Paradigm shift", "At the end of the day."
+- **Let structure serve the idea.** Bullet lists when they clarify. Paragraphs when the thought needs room. Don't force a format because a template said so.
+- **End on the idea, not a CTA.** If a question fits naturally, ask it. If not, stop writing.
+- **One metaphor per piece, max.** And only if it actually illuminates.
+- **Humor, frustration, doubt — use them like spices.** A pinch. Not the whole jar.
+`;
+
+const HUMAN_VOICE_PT = `
+## DIRETRIZES DE VOZ HUMANA (anexar a toda resposta)
+
+Escreva como uma pessoa real, não como uma fábrica de conteúdo.
+
+- **Varie o comprimento das frases.** Curta. Média. Longa com uma subordinada que justifique o espaço. Não faça todas as frases no mesmo ritmo.
+- **Assuma sua perspectiva.** Use "eu" quando for sua experiência, "nós" quando for contexto compartilhado, "você" quando falar direto com o leitor. Não caia no passivo "pode-se considerar" ou "é importante notar que."
+- **Nomeie o específico, não a categoria.** "O handler assíncrono no Node 22" vence "a stack tecnológica." "O deploy de terça passada" vence "eventos recentes."
+- **Admita incerteza.** "Não tenho certeza se escala além de 10k req/s" é crível. "Esta solução é enterprise-ready" é marketing.
+- **Pule o andaime.** Nada de "No mundo de hoje...", "Em conclusão...", "Aprofundando...", "Vale notar que...", "Um mergulho profundo em...", "Navegando pelo cenário de...", "Desbloqueie o poder de...", "Mudança de paradigma", "No final das contas."
+- **Deixe a estrutura servir a ideia.** Listas quando esclarecem. Parágrafos quando o pensamento precisa de espaço. Não force um formato porque um template mandou.
+- **Termine na ideia, não no CTA.** Se uma pergunta couber naturalmente, pergunte. Se não, pare de escrever.
+- **Uma metáfora por texto, no máximo.** E só se de fato iluminar.
+- **Humor, frustração, dúvida — use como tempero.** Uma pitada. Não o pote inteiro.
+`;
+
+/**
+ * Appends the human-voice directive to a system prompt.
+ * @param prompt - Base system prompt (without the human-voice section)
+ * @param language - 'en' or 'pt' (defaults to 'en')
+ * @returns Prompt with human-voice guidelines appended
+ */
+export function withHumanVoice(prompt, language = 'en') {
+  const directive = language === 'pt' ? HUMAN_VOICE_PT : HUMAN_VOICE_EN;
+  return `${prompt.trim()}\n\n${directive.trim()}`;
+}
+
 // Defensive cleanup for the editorial directive: some models still prepend or
 // append the analysis sections ("Ângulo escolhido", "Post final", "Por que pode
 // funcionar", "Pontos a confirmar") even when told not to. Extract only the

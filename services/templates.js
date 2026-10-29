@@ -1,4 +1,5 @@
 import { templateRepository } from '../src/db/repositories/index.js';
+import { withHumanVoice } from './ai.service.js';
 
 export async function loadTemplates() {
   return templateRepository.findAll();
@@ -9,7 +10,9 @@ export function getDefaultTemplateId(type) {
 }
 
 export async function getTemplateSystemPrompt(templateId, variables = {}) {
-  return templateRepository.getSystemPrompt(templateId, variables);
+  const base = await templateRepository.getSystemPrompt(templateId, variables);
+  const lang = variables.language === 'pt' || variables.language === 'pt-BR' ? 'pt' : 'en';
+  return withHumanVoice(base, lang);
 }
 
 export async function createTemplate(template) {

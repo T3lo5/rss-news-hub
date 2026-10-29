@@ -87,7 +87,8 @@ describe('Templates service (DB-backed)', () => {
       language: 'pt-BR',
     });
 
-    assert.strictEqual(prompt, 'Summarize: Hello in pt-BR');
+    assert.ok(prompt.startsWith('Summarize: Hello in pt-BR'));
+    assert.ok(prompt.includes('DIRETRIZES DE VOZ HUMANA'));
   });
 
   test('getTemplateSystemPrompt falls back to the type default for unknown ids', async () => {
