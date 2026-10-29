@@ -108,11 +108,11 @@ describe('scheduler.service', () => {
     test('setIntervalMs changes interval for next runs', async () => {
       start(1000, mockFetchFn);
       await new Promise((r) => setTimeout(r, 50));
-      setIntervalMs(50);
-      await new Promise((r) => setTimeout(r, 120));
+      setIntervalMs(20);
+      await new Promise((r) => setTimeout(r, 200));
       await stop();
       // Should have more calls with shorter interval
-      assert(callCount >= 2);
+      assert(callCount >= 3);
     });
   });
 });
